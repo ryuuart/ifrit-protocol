@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "support/Host.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -50,12 +51,15 @@ struct ChannelDistance {
 };
 
 ChannelDistance distanceBetween(const Host& reference, const Host& candidate) {
-  const SkBitmap a = reference.pixels(), b = candidate.pixels();
+  const SkBitmap referencePixels = reference.pixels(),
+                 candidatePixels = candidate.pixels();
   std::vector<int> differences;
-  differences.reserve((size_t)a.width() * (size_t)a.height() * 3);
-  for (int y = 0; y < a.height(); ++y)
-    for (int x = 0; x < a.width(); ++x) {
-      const SkColor left = a.getColor(x, y), right = b.getColor(x, y);
+  differences.reserve((size_t)referencePixels.width() *
+                      (size_t)referencePixels.height() * 3);
+  for (int y = 0; y < referencePixels.height(); ++y)
+    for (int x = 0; x < referencePixels.width(); ++x) {
+      const SkColor left = referencePixels.getColor(x, y),
+                    right = candidatePixels.getColor(x, y);
       differences.push_back(
           std::abs((int)SkColorGetR(left) - (int)SkColorGetR(right)));
       differences.push_back(
@@ -117,68 +121,76 @@ Element turningRing(Cache mode, const sigil::motion::Animatable<float>& turn) {
 
 /** A fibre stroke dealt from one seed, laid once and held under @p mode. */
 Element fibreStroke(Cache mode) {
-  return box().cache(Cache::None).children(
-      {pen("fibre",
-           [](Pen& pen) {
-             brush::Tool fibres = brush::watercolor({0.92f, 0.38f, 0.22f, 1}, 26);
-             fibres.blend = sigil::draw::BLEND;
-             fibres.opacity = 0.6f;
-             pen.randomSeed(1220);
-             brush::paint(pen, fibres,
-                          brush::segment({24, 40}, {330, 150}));
-             brush::paint(pen, fibres,
-                          brush::segment({40, 170}, {300, 60}));
-           },
-           mode)
-           .absolute()
-           .left(10.5f)
-           .top(14.25f)
-           .width(360)
-           .height(200)});
+  return box()
+      .cache(Cache::None)
+      .children({pen(
+                     "fibre",
+                     [](Pen& pen) {
+                       brush::Tool fibres =
+                           brush::watercolor({0.92f, 0.38f, 0.22f, 1}, 26);
+                       fibres.blend = sigil::draw::BLEND;
+                       fibres.opacity = 0.6f;
+                       pen.randomSeed(1220);
+                       brush::paint(pen, fibres,
+                                    brush::segment({24, 40}, {330, 150}));
+                       brush::paint(pen, fibres,
+                                    brush::segment({40, 170}, {300, 60}));
+                     },
+                     mode)
+                     .absolute()
+                     .left(10.5f)
+                     .top(14.25f)
+                     .width(360)
+                     .height(200)});
 }
+
+/** The ring held at one turn, where no texel of its bake lands on a whole
+ *  device pixel. */
+Element ringAtOneTurn(Cache mode) {
+  static const sigil::motion::Animatable<float> turn =
+      sigil::motion::animatable(0.137f);
+  return turningRing(mode, turn);
+}
+
+/** A drawing taken with `Cache::Texture` and read against itself drawn
+ *  under @p unbaked, on a canvas of @p width by @p height units. */
+struct ResampledDrawing {
+  const char* name;
+  float width, height;
+  Element (*drawing)(Cache mode);
+  Cache unbaked;
+};
 
 }  // namespace
 
-TEST(BakeResampling, ATurningRingsBakeReadsAsTheRingWithinTheStatedBound) {
-  const int width = (int)std::ceil(390 * kCaptureDensity),
-            height = (int)std::ceil(390 * kCaptureDensity);
-  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.137f);
-  Host baked(width, height), drawn(width, height);
-  for (Host* host : {&baked, &drawn}) {
-    host->composer.setSize({390, 390});
-    host->composer.setBakeDensity(kCaptureDensity);
-  }
-  baked.composer.render(turningRing(Cache::Texture, turn));
-  drawn.composer.render(turningRing(Cache::Auto, turn));
-  capture(baked);
-  capture(drawn);
-  ASSERT_GT(baked.composer.stats().texturesBaked, 0u) << "the ring took no bake";
-  const ChannelDistance distance = distanceBetween(drawn, baked);
-  EXPECT_LE(distance.mean, kBakedMeanBound)
-      << "the baked ring read " << distance.mean << " from itself on average";
-  EXPECT_LE(distance.p99, kBakedP99Bound)
-      << "the baked ring's edges read " << distance.p99
-      << " from themselves at the ninety-ninth percentile";
-}
-
-TEST(BakeResampling, ASeededFibreStrokesBakeReadsAsTheStrokeWithinTheStatedBound) {
-  const int width = (int)std::ceil(390 * kCaptureDensity),
-            height = (int)std::ceil(230 * kCaptureDensity);
-  Host baked(width, height), drawn(width, height);
-  for (Host* host : {&baked, &drawn}) {
-    host->composer.setSize({390, 230});
-    host->composer.setBakeDensity(kCaptureDensity);
-  }
-  baked.composer.render(fibreStroke(Cache::Texture));
-  drawn.composer.render(fibreStroke(Cache::None));
-  capture(baked);
-  capture(drawn);
-  ASSERT_GT(baked.composer.stats().texturesBaked, 0u)
-      << "the stroke took no bake";
-  const ChannelDistance distance = distanceBetween(drawn, baked);
-  EXPECT_LE(distance.mean, kBakedMeanBound)
-      << "the baked stroke read " << distance.mean << " from itself on average";
-  EXPECT_LE(distance.p99, kBakedP99Bound)
-      << "the baked stroke's edges read " << distance.p99
-      << " from themselves at the ninety-ninth percentile";
+// An explicit bake of a turning drawing, captured at a density that puts no
+// texel on a whole pixel, reads from the drawing unbaked within the stated
+// mean and ninety-ninth percentile per channel.
+TEST(BakeResampling, ATurningBakeReadsAsItsDrawingWithinTheStatedBound) {
+  const ResampledDrawing rows[] = {
+      {"ATurningRing", 390, 390, ringAtOneTurn, Cache::Auto},
+      {"ASeededFibreStroke", 390, 230, fibreStroke, Cache::None},
+  };
+  sigil::compose::test::forEachRow(rows, [](const ResampledDrawing& row) {
+    const int width = (int)std::ceil(row.width * kCaptureDensity),
+              height = (int)std::ceil(row.height * kCaptureDensity);
+    Host baked(width, height), drawn(width, height);
+    for (Host* host : {&baked, &drawn}) {
+      host->composer.setSize({row.width, row.height});
+      host->composer.setBakeDensity(kCaptureDensity);
+    }
+    baked.composer.render(row.drawing(Cache::Texture));
+    drawn.composer.render(row.drawing(row.unbaked));
+    capture(baked);
+    capture(drawn);
+    ASSERT_GT(baked.composer.stats().texturesBaked, 0u)
+        << "the drawing took no bake";
+    const ChannelDistance distance = distanceBetween(drawn, baked);
+    EXPECT_LE(distance.mean, kBakedMeanBound)
+        << "the baked drawing read " << distance.mean
+        << " from itself on average";
+    EXPECT_LE(distance.p99, kBakedP99Bound)
+        << "the baked drawing's edges read " << distance.p99
+        << " from themselves at the ninety-ninth percentile";
+  });
 }

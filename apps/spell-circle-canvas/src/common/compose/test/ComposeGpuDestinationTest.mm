@@ -4,6 +4,7 @@
 // raster canvas or another recorder takes its place.
 
 #include "support/GpuTestSupport.h"
+#include "support/Rows.h"
 
 using namespace sigil::compose::graphiteTesting;
 
@@ -372,93 +373,102 @@ INSTANTIATE_TEST_SUITE_P(
                     MaterialDestinationCase{"PlainLocalDevicePicture", false, true, true}),
     [](const auto &info) { return info.param.name; });
 
-TEST(ComposeGpu, StaticDeviceFillAndInkRebindHeldPicturesAcrossDestinations) {
-  REQUIRE_GPU();
-  auto replacementDevice = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
-  ASSERT_TRUE(replacementDevice);
-  auto replacement = sigil::skia::GraphiteContext::create(*replacementDevice);
-  ASSERT_TRUE(replacement);
-  const SkImageInfo tileInfo = SkImageInfo::MakeN32Premul(16, 16);
-  const auto deviceTile = SkSurfaces::RenderTarget(graphite()->recorder(), tileInfo);
-  const auto otherTile = SkSurfaces::RenderTarget(replacement->recorder(), tileInfo);
-  const auto rasterTile = SkSurfaces::Raster(tileInfo);
-  ASSERT_TRUE(deviceTile);
-  ASSERT_TRUE(otherTile);
-  ASSERT_TRUE(rasterTile);
-  deviceTile->getCanvas()->clear(SK_ColorCYAN);
-  otherTile->getCanvas()->clear(SK_ColorGREEN);
-  rasterTile->getCanvas()->clear(SK_ColorMAGENTA);
-  const auto binding = std::make_shared<RecorderImageBinding>(
-      deviceTile->makeImageSnapshot(), rasterTile->makeImageSnapshot(), graphite()->recorder());
-  binding->addDevice(replacement->recorder(), otherTile->makeImageSnapshot());
-  const auto material = deviceMaterial(binding, false, true);
-  constexpr int width = 128, height = 96;
-  sigil::motion::Engine engine;
-  Composer composer(engine, fonts());
-  composer.setSize({width, height});
-  composer.render(
-      box()
-          .cache(Cache::Picture)
-          .children({box().absolute().left(8).top(12).width(40).height(72).fill(material),
-                     text("M")
-                         .absolute()
-                         .left(58)
-                         .top(18)
-                         .width(62)
-                         .height(70)
-                         .font({.size = 48})
-                         .ink(material)}));
-  EXPECT_GT(binding->rasterReads, 0);
-  binding->resetReads();
-  const auto expectSource = [&](const SkBitmap &pixels, SkColor color) {
-    ASSERT_FALSE(pixels.empty());
-    EXPECT_EQ(pixels.getColor(24, 40), color);
-    size_t inkPixels = 0;
-    for (int y = 18; y < 88; ++y)
-      for (int x = 58; x < 120; ++x) inkPixels += pixels.getColor(x, y) == color;
-    EXPECT_GT(inkPixels, 30u);
-  };
-  expectSource(drawOnGpu(composer, width, height), SK_ColorCYAN);
-  EXPECT_GT(binding->deviceReads, 0);
-  EXPECT_EQ(binding->rasterReads, 0);
-  const int heldReads = binding->deviceReads;
-  expectSource(drawOnGpu(composer, width, height), SK_ColorCYAN);
-  EXPECT_EQ(binding->deviceReads, heldReads);
-  EXPECT_EQ(composer.stats().picturesRecorded, 0u);
-  expectSource(drawOnRaster(composer, width, height), SK_ColorMAGENTA);
-  EXPECT_EQ(binding->rasterReads, 0);
-  EXPECT_GT(composer.stats().picturesRecorded, 0u);
-  expectSource(drawOnGpu(composer, width, height), SK_ColorCYAN);
-  expectSource(drawOnGpu(composer, *replacement, width, height), SK_ColorGREEN);
-  EXPECT_FALSE(binding->unexpectedRecorder);
-}
-
-TEST(ComposeGpu, StaticDeviceFillRetainsItsSourceWithoutAFramelessFallback) {
-  REQUIRE_GPU();
-  const auto tile =
-      SkSurfaces::RenderTarget(graphite()->recorder(), SkImageInfo::MakeN32Premul(16, 16));
-  ASSERT_TRUE(tile);
-  tile->getCanvas()->clear(SK_ColorCYAN);
-  const auto binding = std::make_shared<RecorderImageBinding>(tile->makeImageSnapshot(), nullptr,
-                                                              graphite()->recorder());
-  sigil::motion::Engine engine;
-  Composer composer(engine, fonts());
-  composer.setSize({48, 48});
-  composer.render(
-      box().width(48).height(48).cache(Cache::Picture).fill(deviceMaterial(binding, false, true)));
-  binding->resetReads();
-  const SkBitmap gpu = drawOnGpu(composer, 48, 48);
-  ASSERT_FALSE(gpu.empty());
-  EXPECT_EQ(gpu.getColor(24, 24), SK_ColorCYAN);
-  EXPECT_GT(binding->deviceReads, 0);
-  EXPECT_EQ(binding->rasterReads, 0);
-  const SkBitmap raster = drawOnRaster(composer, 48, 48);
-  ASSERT_FALSE(raster.empty());
-  EXPECT_EQ(raster.getColor(24, 24), SK_ColorBLACK);
-  const SkBitmap rebound = drawOnGpu(composer, 48, 48);
-  ASSERT_FALSE(rebound.empty());
-  EXPECT_EQ(rebound.getColor(24, 24), SK_ColorCYAN);
-  EXPECT_FALSE(binding->unexpectedRecorder);
+TEST(ComposeGpu, ADeviceBoundFillOrInkRebindsAcrossDestinations) {
+  sigil::compose::test::checkRows({
+      {"AHeldPictureRebinds",
+       [&] {
+         REQUIRE_GPU();
+         auto replacementDevice = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);
+         ASSERT_TRUE(replacementDevice);
+         auto replacement = sigil::skia::GraphiteContext::create(*replacementDevice);
+         ASSERT_TRUE(replacement);
+         const SkImageInfo tileInfo = SkImageInfo::MakeN32Premul(16, 16);
+         const auto deviceTile = SkSurfaces::RenderTarget(graphite()->recorder(), tileInfo);
+         const auto otherTile = SkSurfaces::RenderTarget(replacement->recorder(), tileInfo);
+         const auto rasterTile = SkSurfaces::Raster(tileInfo);
+         ASSERT_TRUE(deviceTile);
+         ASSERT_TRUE(otherTile);
+         ASSERT_TRUE(rasterTile);
+         deviceTile->getCanvas()->clear(SK_ColorCYAN);
+         otherTile->getCanvas()->clear(SK_ColorGREEN);
+         rasterTile->getCanvas()->clear(SK_ColorMAGENTA);
+         const auto binding = std::make_shared<RecorderImageBinding>(
+             deviceTile->makeImageSnapshot(), rasterTile->makeImageSnapshot(),
+             graphite()->recorder());
+         binding->addDevice(replacement->recorder(), otherTile->makeImageSnapshot());
+         const auto material = deviceMaterial(binding, false, true);
+         constexpr int width = 128, height = 96;
+         sigil::motion::Engine engine;
+         Composer composer(engine, fonts());
+         composer.setSize({width, height});
+         composer.render(
+             box()
+                 .cache(Cache::Picture)
+                 .children({box().absolute().left(8).top(12).width(40).height(72).fill(material),
+                            text("M")
+                                .absolute()
+                                .left(58)
+                                .top(18)
+                                .width(62)
+                                .height(70)
+                                .font({.size = 48})
+                                .ink(material)}));
+         EXPECT_GT(binding->rasterReads, 0);
+         binding->resetReads();
+         const auto expectSource = [&](const SkBitmap &pixels, SkColor color) {
+           ASSERT_FALSE(pixels.empty());
+           EXPECT_EQ(pixels.getColor(24, 40), color);
+           size_t inkPixels = 0;
+           for (int y = 18; y < 88; ++y)
+             for (int x = 58; x < 120; ++x) inkPixels += pixels.getColor(x, y) == color;
+           EXPECT_GT(inkPixels, 30u);
+         };
+         expectSource(drawOnGpu(composer, width, height), SK_ColorCYAN);
+         EXPECT_GT(binding->deviceReads, 0);
+         EXPECT_EQ(binding->rasterReads, 0);
+         const int heldReads = binding->deviceReads;
+         expectSource(drawOnGpu(composer, width, height), SK_ColorCYAN);
+         EXPECT_EQ(binding->deviceReads, heldReads);
+         EXPECT_EQ(composer.stats().picturesRecorded, 0u);
+         expectSource(drawOnRaster(composer, width, height), SK_ColorMAGENTA);
+         EXPECT_EQ(binding->rasterReads, 0);
+         EXPECT_GT(composer.stats().picturesRecorded, 0u);
+         expectSource(drawOnGpu(composer, width, height), SK_ColorCYAN);
+         expectSource(drawOnGpu(composer, *replacement, width, height), SK_ColorGREEN);
+         EXPECT_FALSE(binding->unexpectedRecorder);
+       }},
+      {"ASourceWithNoRasterCopyDrawsNothingOnTheProcessor",
+       [&] {
+         REQUIRE_GPU();
+         const auto tile =
+             SkSurfaces::RenderTarget(graphite()->recorder(), SkImageInfo::MakeN32Premul(16, 16));
+         ASSERT_TRUE(tile);
+         tile->getCanvas()->clear(SK_ColorCYAN);
+         const auto binding = std::make_shared<RecorderImageBinding>(
+             tile->makeImageSnapshot(), nullptr, graphite()->recorder());
+         sigil::motion::Engine engine;
+         Composer composer(engine, fonts());
+         composer.setSize({48, 48});
+         composer.render(box()
+                             .width(48)
+                             .height(48)
+                             .cache(Cache::Picture)
+                             .fill(deviceMaterial(binding, false, true)));
+         binding->resetReads();
+         const SkBitmap gpu = drawOnGpu(composer, 48, 48);
+         ASSERT_FALSE(gpu.empty());
+         EXPECT_EQ(gpu.getColor(24, 24), SK_ColorCYAN);
+         EXPECT_GT(binding->deviceReads, 0);
+         EXPECT_EQ(binding->rasterReads, 0);
+         const SkBitmap raster = drawOnRaster(composer, 48, 48);
+         ASSERT_FALSE(raster.empty());
+         EXPECT_EQ(raster.getColor(24, 24), SK_ColorBLACK);
+         const SkBitmap rebound = drawOnGpu(composer, 48, 48);
+         ASSERT_FALSE(rebound.empty());
+         EXPECT_EQ(rebound.getColor(24, 24), SK_ColorCYAN);
+         EXPECT_FALSE(binding->unexpectedRecorder);
+       }},
+  });
 }
 
 TEST_P(ComposeGpuSpanInk, StaticSpanInkRebindsCachedParagraphsAcrossDestinations) {
@@ -604,7 +614,7 @@ INSTANTIATE_TEST_SUITE_P(Domains, ComposeGpuSpanInk,
                                          SpanInkDomain{"Glyph", PaintBox::Glyph}),
                          [](const auto &info) { return info.param.name; });
 
-TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAcrossDestinationsAndLeavesItsNormalUnread) {
+TEST(ComposeGpu, ASurfacedSpanInkPaintsItsColourFlatAndReadsNoNormal) {
   REQUIRE_GPU();
   ASSERT_TRUE(sigil::test::instrument::sans());
   auto replacementDevice = sigil::core::hardware::GpuDevice::createOwned().value_or(nullptr);

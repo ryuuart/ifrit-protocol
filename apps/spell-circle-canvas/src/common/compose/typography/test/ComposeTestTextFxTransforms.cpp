@@ -5,123 +5,96 @@
 // The text binary's share of the content suites, one file per subject.
 
 #include "DressedTypeProbes.h"
+#include "support/Rows.h"
 
-TEST(ComposeTextFx, ScrambleChurnsDeterministicallyAndResolvesAtOne) {
-  // The churn is seeded from the glyph's identity, so the same local time
-  // gives the same character every time it is asked — which is what lets a
-  // settled scramble cache instead of boiling forever. And every glyph is
-  // the letter the text actually says by the end: a decode that never
-  // decodes is not the effect.
-  const TextEffect churn = textFx::scramble(U"ABC");
-  GlyphInfo glyph;
-  glyph.index = 3;
-  glyph.textIndex = 3;
-  const auto at = [&](float t) {
-    sigil::core::noise::Mix64Stream rng(90210);  // one glyph's stream, replayed
-    return churn(glyph, t, rng).codepoint;
-  };
-  EXPECT_EQ(at(0.1f), at(0.1f)) << "the same moment gave two characters";
-  EXPECT_EQ(at(1.0f), (char32_t)0) << "the glyph never resolved";
-  bool churned = false, inCharset = true;
-  for (int step = 0; step < 40; ++step) {
-    const char32_t point = at((float)step / 40.0f);
-    if (point == 0) continue;
-    churned = true;
-    if (point != U'A' && point != U'B' && point != U'C') inCharset = false;
-  }
-  EXPECT_TRUE(churned) << "nothing was substituted at any moment";
-  EXPECT_TRUE(inCharset) << "the churn left the charset it was given";
+TEST(ComposeTextFx, ScrambleChurnsItsCharsetAndResolvesAtOne) {
+  sigil::compose::test::checkRows({
+      {"TheChurnIsSeededAndResolvesAtOne",
+       [&] {
+         // The churn is seeded from the glyph's identity, so the same local
+         // time gives the same character every time it is asked — which is what
+         // lets a settled scramble cache instead of boiling forever. And every
+         // glyph is the letter the text actually says by the end: a decode that
+         // never decodes is not the effect.
+         const TextEffect churn = textFx::scramble(U"ABC");
+         GlyphInfo glyph;
+         glyph.index = 3;
+         glyph.textIndex = 3;
+         const auto at = [&](float t) {
+           sigil::core::noise::Mix64Stream rng(
+               90210);  // one glyph's stream, replayed
+           return churn(glyph, t, rng).codepoint;
+         };
+         EXPECT_EQ(at(0.1f), at(0.1f)) << "the same moment gave two characters";
+         EXPECT_EQ(at(1.0f), (char32_t)0) << "the glyph never resolved";
+         bool churned = false, inCharset = true;
+         for (int step = 0; step < 40; ++step) {
+           const char32_t point = at((float)step / 40.0f);
+           if (point == 0) continue;
+           churned = true;
+           if (point != U'A' && point != U'B' && point != U'C')
+             inCharset = false;
+         }
+         EXPECT_TRUE(churned) << "nothing was substituted at any moment";
+         EXPECT_TRUE(inCharset) << "the churn left the charset it was given";
 
-  // A value like any other preset: comparable by its parameters, and the
-  // charset is one of them.
-  EXPECT_TRUE(textFx::scramble(U"ABC") == textFx::scramble(U"ABC"));
-  EXPECT_FALSE(textFx::scramble(U"ABC") == textFx::scramble(U"ABD"));
-  EXPECT_FALSE(textFx::scramble(U"ABC") == textFx::scramble(U"ABC", 7));
-}
+         // A value like any other preset: comparable by its parameters, and the
+         // charset is one of them.
+         EXPECT_TRUE(textFx::scramble(U"ABC") == textFx::scramble(U"ABC"));
+         EXPECT_FALSE(textFx::scramble(U"ABC") == textFx::scramble(U"ABD"));
+         EXPECT_FALSE(textFx::scramble(U"ABC") == textFx::scramble(U"ABC", 7));
+       }},
+      {"TheCharsetReadsAlikeInEitherSpelling",
+       [&] {
+         // A charset is words, so it is spelled the way every text door spells
+         // them; the UTF-8 and UTF-32 spellings of one charset are one effect
+         // and churn one seeded run through the same characters at the same
+         // moments.
+         const TextEffect fromUtf8 = textFx::scramble(u8"ｱｲｳ");
+         const TextEffect fromUtf32 = textFx::scramble(U"ｱｲｳ");
+         EXPECT_TRUE(fromUtf8 == fromUtf32);
+         bool churned = false;
+         for (int index = 0; index < 8; ++index) {
+           GlyphInfo glyph;
+           glyph.index = index;
+           glyph.textIndex = index;
+           for (int step = 0; step < 40; ++step) {
+             const float t = (float)step / 40.0f;
+             sigil::core::noise::Mix64Stream utf8Stream(4242 + (uint64_t)index);
+             sigil::core::noise::Mix64Stream utf32Stream(4242 +
+                                                         (uint64_t)index);
+             const char32_t utf8Point =
+                 fromUtf8(glyph, t, utf8Stream).codepoint;
+             const char32_t utf32Point =
+                 fromUtf32(glyph, t, utf32Stream).codepoint;
+             EXPECT_EQ(utf8Point, utf32Point)
+                 << "glyph " << index << " at t = " << t;
+             if (utf8Point != 0) churned = true;
+           }
+         }
+         EXPECT_TRUE(churned) << "neither spelling substituted anything";
 
-TEST(ComposeTextFx, ScrambleTakesItsCharsetInEitherSpelling) {
-  // A charset is words, so it is spelled the way every text door spells
-  // them; the UTF-8 and UTF-32 spellings of one charset are one effect and
-  // churn one seeded run through the same characters at the same moments.
-  const TextEffect fromUtf8 = textFx::scramble(u8"ｱｲｳ");
-  const TextEffect fromUtf32 = textFx::scramble(U"ｱｲｳ");
-  EXPECT_TRUE(fromUtf8 == fromUtf32);
-  bool churned = false;
-  for (int index = 0; index < 8; ++index) {
-    GlyphInfo glyph;
-    glyph.index = index;
-    glyph.textIndex = index;
-    for (int step = 0; step < 40; ++step) {
-      const float t = (float)step / 40.0f;
-      sigil::core::noise::Mix64Stream utf8Stream(4242 + (uint64_t)index);
-      sigil::core::noise::Mix64Stream utf32Stream(4242 + (uint64_t)index);
-      const char32_t utf8Point = fromUtf8(glyph, t, utf8Stream).codepoint;
-      const char32_t utf32Point = fromUtf32(glyph, t, utf32Stream).codepoint;
-      EXPECT_EQ(utf8Point, utf32Point) << "glyph " << index << " at t = " << t;
-      if (utf8Point != 0) churned = true;
-    }
-  }
-  EXPECT_TRUE(churned) << "neither spelling substituted anything";
-
-  // A character outside the BMP is four bytes in UTF-8 and ONE candidate:
-  // every substitution is that character, never one of its bytes.
-  const TextEffect wide = textFx::scramble(u8"\U0001F600");
-  EXPECT_TRUE(wide == textFx::scramble(U"\U0001F600"));
-  GlyphInfo glyph;
-  glyph.index = 1;
-  glyph.textIndex = 1;
-  bool substituted = false;
-  for (int step = 0; step < 40; ++step) {
-    sigil::core::noise::Mix64Stream rng(90210);
-    const char32_t point = wide(glyph, (float)step / 40.0f, rng).codepoint;
-    if (point == 0) continue;
-    substituted = true;
-    EXPECT_EQ(point, (char32_t)0x1F600) << "a byte of the character churned";
-  }
-  EXPECT_TRUE(substituted);
-}
-
-TEST(ComposeTextFx, SkewAndNonUniformScaleTakeTheMatrixPath) {
-  // Neither a shear nor an uneven scale is expressible as an RSXform, so
-  // these glyphs route through a per-glyph matrix. The assertions are about
-  // the SHAPE that appears, because the route is only worth having if it
-  // paints what it promises.
-  // Room on every side: a doubled glyph and a leaning one both grow past
-  // the box, and a clipped measurement would compare two surface edges.
-  const auto render = [&](Host& host, std::string key, GlyphModifier mod) {
-    host.composer.render(box().padding(60).children(
-        {text(u8"H", whiteStyle(60))
-             .key("k")
-             .textFx({.effect = fixed(std::move(key), mod)})}));
-    host.frame();
-  };
-  Host upright(200, 200);
-  render(upright, "upright", GlyphModifier{});
-  const SkIRect rest = inkBounds(upright, 200, 200);
-  ASSERT_FALSE(rest.isEmpty()) << "the resting glyph never painted";
-
-  GlyphModifier leaning;
-  leaning.skewXDegrees = 30;
-  Host sheared(200, 200);
-  render(sheared, "sheared", leaning);
-  const SkIRect leant = inkBounds(sheared, 200, 200);
-  EXPECT_GT(leant.width(), rest.width() + 4)
-      << "a 30-degree shear did not widen the glyph's footprint";
-  // …and it leans the way Element::skewX does: the top toward −x.
-  const int band = std::max(leant.height() / 4, 2);
-  EXPECT_LT(inkCentroidX(sheared, 200, leant.top(), leant.top() + band),
-            inkCentroidX(sheared, 200, leant.bottom() - band, leant.bottom()))
-      << "the shear leant the wrong way, or not at all";
-
-  GlyphModifier tall;
-  tall.scaleY = 2.0f;
-  Host stretched(200, 200);
-  render(stretched, "tall", tall);
-  const SkIRect grown = inkBounds(stretched, 200, 200);
-  EXPECT_GT(grown.height(), rest.height() * 3 / 2)
-      << "scaleY did not stretch the glyph";
-  EXPECT_LE(grown.width(), rest.width() + 2)
-      << "scaleY widened the glyph, so the scale was not non-uniform";
+         // A character outside the BMP is four bytes in UTF-8 and ONE
+         // candidate: every substitution is that character, never one of its
+         // bytes.
+         const TextEffect wide = textFx::scramble(u8"\U0001F600");
+         EXPECT_TRUE(wide == textFx::scramble(U"\U0001F600"));
+         GlyphInfo glyph;
+         glyph.index = 1;
+         glyph.textIndex = 1;
+         bool substituted = false;
+         for (int step = 0; step < 40; ++step) {
+           sigil::core::noise::Mix64Stream rng(90210);
+           const char32_t point =
+               wide(glyph, (float)step / 40.0f, rng).codepoint;
+           if (point == 0) continue;
+           substituted = true;
+           EXPECT_EQ(point, (char32_t)0x1F600)
+               << "a byte of the character churned";
+         }
+         EXPECT_TRUE(substituted);
+       }},
+  });
 }
 
 TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
@@ -162,39 +135,6 @@ TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
   host.frame();
   EXPECT_FALSE(inkBounds(host, 240, 140).isEmpty())
       << "the hold never released";
-}
-
-TEST(ComposeTextFx, SkewYShearsTheOtherAxisAndTakesTheMatrixPath) {
-  // The Y counterpart, probed on the axis skewX leaves alone: an X shear
-  // moves the top sideways, a Y shear pushes the right side DOWN. Reading
-  // the same asymmetry on the same axis for both would pass for a `skewY`
-  // that was quietly wired to `skewXDegrees`.
-  const auto render = [&](Host& host, std::string key, GlyphModifier mod) {
-    host.composer.render(box().padding(60).children(
-        {text(u8"H", whiteStyle(60))
-             .key("k")
-             .textFx({.effect = fixed(std::move(key), mod)})}));
-    host.frame();
-  };
-  Host upright(200, 200);
-  render(upright, "upright", GlyphModifier{});
-  const SkIRect rest = inkBounds(upright, 200, 200);
-  ASSERT_FALSE(rest.isEmpty()) << "the resting glyph never painted";
-
-  GlyphModifier leaning;
-  leaning.skewYDegrees = 30;
-  Host sheared(200, 200);
-  render(sheared, "shearedY", leaning);
-  const SkIRect leant = inkBounds(sheared, 200, 200);
-  EXPECT_GT(leant.height(), rest.height() + 4)
-      << "a 30-degree Y shear did not deepen the glyph's footprint";
-  EXPECT_LE(leant.width(), rest.width() + 2)
-      << "the Y shear widened the glyph, which is what an X shear does";
-  // …and it leans the way Element::skewY does: the right side toward +y.
-  const int band = std::max(leant.width() / 4, 2);
-  EXPECT_LT(inkCentroidY(sheared, 200, leant.left(), leant.left() + band),
-            inkCentroidY(sheared, 200, leant.right() - band, leant.right()))
-      << "the shear leant the wrong way, or not at all";
 }
 
 namespace {
@@ -271,19 +211,104 @@ void expectFastPathLineUntouched(GlyphModifier lean) {
 
 }  // namespace
 
-TEST(ComposeTextFx, AGlyphOnTheFastPathIsUntouchedByAMatrixNeighbour) {
-  GlyphModifier leanX;
-  leanX.skewXDegrees = 25;
-  expectFastPathLineUntouched(leanX);
-}
+TEST(ComposeTextFx, AShearOrUnevenScaleTakesAMatrixForItsGlyphAlone) {
+  sigil::compose::test::checkRows({
+      {"AnXShearAndAnUnevenScaleDrawTheirShape",
+       [&] {
+         // Neither a shear nor an uneven scale is expressible as an RSXform, so
+         // these glyphs route through a per-glyph matrix. The assertions are
+         // about the SHAPE that appears, because the route is only worth having
+         // if it paints what it promises. Room on every side: a doubled glyph
+         // and a leaning one both grow past the box, and a clipped measurement
+         // would compare two surface edges.
+         const auto render = [&](Host& host, std::string key,
+                                 GlyphModifier mod) {
+           host.composer.render(box().padding(60).children(
+               {text(u8"H", whiteStyle(60))
+                    .key("k")
+                    .textFx({.effect = fixed(std::move(key), mod)})}));
+           host.frame();
+         };
+         Host upright(200, 200);
+         render(upright, "upright", GlyphModifier{});
+         const SkIRect rest = inkBounds(upright, 200, 200);
+         ASSERT_FALSE(rest.isEmpty()) << "the resting glyph never painted";
 
-TEST(ComposeTextFx, AGlyphWithNoYShearKeepsTheFastPathBesideOneThatHasIt) {
-  // The same assertion on the axis the routing condition learned LAST: a
-  // glyph whose `skewYDegrees` is 0 must stay on the shared transform array
-  // however its neighbours lean.
-  GlyphModifier leanY;
-  leanY.skewYDegrees = 25;
-  expectFastPathLineUntouched(leanY);
+         GlyphModifier leaning;
+         leaning.skewXDegrees = 30;
+         Host sheared(200, 200);
+         render(sheared, "sheared", leaning);
+         const SkIRect leant = inkBounds(sheared, 200, 200);
+         EXPECT_GT(leant.width(), rest.width() + 4)
+             << "a 30-degree shear did not widen the glyph's footprint";
+         // …and it leans the way Element::skewX does: the top toward −x.
+         const int band = std::max(leant.height() / 4, 2);
+         EXPECT_LT(
+             inkCentroidX(sheared, 200, leant.top(), leant.top() + band),
+             inkCentroidX(sheared, 200, leant.bottom() - band, leant.bottom()))
+             << "the shear leant the wrong way, or not at all";
+
+         GlyphModifier tall;
+         tall.scaleY = 2.0f;
+         Host stretched(200, 200);
+         render(stretched, "tall", tall);
+         const SkIRect grown = inkBounds(stretched, 200, 200);
+         EXPECT_GT(grown.height(), rest.height() * 3 / 2)
+             << "scaleY did not stretch the glyph";
+         EXPECT_LE(grown.width(), rest.width() + 2)
+             << "scaleY widened the glyph, so the scale was not non-uniform";
+       }},
+      {"AYShearDeepensAndLeansTheOtherWay",
+       [&] {
+         // The Y counterpart, probed on the axis skewX leaves alone: an X shear
+         // moves the top sideways, a Y shear pushes the right side DOWN.
+         // Reading the same asymmetry on the same axis for both would pass for
+         // a `skewY` that was quietly wired to `skewXDegrees`.
+         const auto render = [&](Host& host, std::string key,
+                                 GlyphModifier mod) {
+           host.composer.render(box().padding(60).children(
+               {text(u8"H", whiteStyle(60))
+                    .key("k")
+                    .textFx({.effect = fixed(std::move(key), mod)})}));
+           host.frame();
+         };
+         Host upright(200, 200);
+         render(upright, "upright", GlyphModifier{});
+         const SkIRect rest = inkBounds(upright, 200, 200);
+         ASSERT_FALSE(rest.isEmpty()) << "the resting glyph never painted";
+
+         GlyphModifier leaning;
+         leaning.skewYDegrees = 30;
+         Host sheared(200, 200);
+         render(sheared, "shearedY", leaning);
+         const SkIRect leant = inkBounds(sheared, 200, 200);
+         EXPECT_GT(leant.height(), rest.height() + 4)
+             << "a 30-degree Y shear did not deepen the glyph's footprint";
+         EXPECT_LE(leant.width(), rest.width() + 2)
+             << "the Y shear widened the glyph, which is what an X shear does";
+         // …and it leans the way Element::skewY does: the right side toward +y.
+         const int band = std::max(leant.width() / 4, 2);
+         EXPECT_LT(
+             inkCentroidY(sheared, 200, leant.left(), leant.left() + band),
+             inkCentroidY(sheared, 200, leant.right() - band, leant.right()))
+             << "the shear leant the wrong way, or not at all";
+       }},
+      {"AFastPathLineIsUntouchedByAnXShearNeighbour",
+       [&] {
+         GlyphModifier leanX;
+         leanX.skewXDegrees = 25;
+         expectFastPathLineUntouched(leanX);
+       }},
+      {"AFastPathLineIsUntouchedByAYShearNeighbour",
+       [&] {
+         // The same assertion on the axis the routing condition learned LAST: a
+         // glyph whose `skewYDegrees` is 0 must stay on the shared transform
+         // array however its neighbours lean.
+         GlyphModifier leanY;
+         leanY.skewYDegrees = 25;
+         expectFastPathLineUntouched(leanY);
+       }},
+  });
 }
 
 TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {

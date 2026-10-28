@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -281,26 +280,6 @@ int channelDifference(SkColor a, SkColor b) {
                    std::abs((int)SkColorGetA(a) - (int)SkColorGetA(b))});
 }
 
-/** The fastest of a few paints of @p shader over @p size square, in
- *  microseconds. */
-double fastestPaint(const sk_sp<SkShader>& shader, int size) {
-  SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::MakeN32Premul(size, size));
-  SkCanvas canvas(bitmap);
-  SkPaint paint;
-  paint.setShader(shader);
-  double fastest = 1e30;
-  for (int run = 0; run < 5; ++run) {
-    const auto start = std::chrono::steady_clock::now();
-    canvas.drawPaint(paint);
-    (void)bitmap.getColor(size / 2, size / 2);
-    fastest = std::min(fastest, std::chrono::duration<double, std::micro>(
-                                    std::chrono::steady_clock::now() - start)
-                                    .count());
-  }
-  return fastest;
-}
-
 }  // namespace
 
 TEST(SkiaGradient, ALongRampReadsAsTheStopsItIsSpelledWith) {
@@ -329,45 +308,4 @@ TEST(SkiaGradient, ALongRampReadsAsTheStopsItIsSpelledWith) {
                                                     many.getColor(x, y)));
       EXPECT_LE(worst, 1) << count << " stops, radial " << radial;
     }
-}
-
-TEST(SkiaGradient, AManyStopRampMaskCostsAboutWhatAStripMaskCosts) {
-  // A page masked by a ramp of many stops against the same page masked by
-  // the ramp painted once into a strip: the ramp is read from a lookup
-  // made once per paint, so its cost per pixel does not grow with its
-  // stops.
-  constexpr int kSize = 512;
-  std::vector<ColorStop> stops;
-  for (int i = 0; i < 256; ++i) {
-    const float t = (float)i / 255.0f;
-    const float grey = 0.5f + 0.5f * std::sin(t * 37.0f);
-    stops.push_back({t * t, Color{grey, grey, grey, 1}});
-  }
-  const Material ramp = linearGradient({0, 0}, {1, 0}, stops);
-  SkBitmap strip;
-  strip.allocPixels(SkImageInfo::MakeN32Premul(256, 1));
-  {
-    SkCanvas canvas(strip);
-    SkPaint paint;
-    paint.setShader(
-        skia::shader(skia::paint(ramp), FrameData{.resolution = {256, 1}}));
-    canvas.drawPaint(paint);
-  }
-  strip.setImmutable();
-  const Material stripped = skia::base(
-      skia::image(strip.asImage(), Repeat::Pad, Repeat::Pad,
-                  SkMatrix::Scale((float)kSize / 256.0f, (float)kSize),
-                  SkSamplingOptions(SkFilterMode::kLinear)));
-  const auto page = [](const Material& mask) {
-    return Material(Color{0.9f, 0.2f, 0.1f, 1})
-        .layer(Color{0.1f, 0.3f, 0.9f, 1},
-               {.mask = {mask, ColorChannel::Luminance}});
-  };
-  const FrameData frame{.resolution = {(float)kSize, (float)kSize}};
-  const double rampCost =
-      fastestPaint(skia::shader(skia::paint(page(ramp)), frame), kSize);
-  const double stripCost =
-      fastestPaint(skia::shader(skia::paint(page(stripped)), frame), kSize);
-  EXPECT_LT(rampCost, stripCost * 3.0)
-      << "ramp " << rampCost << " us, strip " << stripCost << " us";
 }

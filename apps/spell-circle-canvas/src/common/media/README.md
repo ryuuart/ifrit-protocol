@@ -277,7 +277,7 @@ this build installs reads without a device.
 
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
-`media_test` and one `media_bench`, ctest one entry per CASE, what a
+`media_test` and one `media_bench`, ctest one entry per SUITE, what a
 case may pin, and what a label promises. The committed fixtures are 4x4
 px files under `test/assets/` — one still per format plus a three-frame
 animation for each animated format — and a VP8 clip with alpha;

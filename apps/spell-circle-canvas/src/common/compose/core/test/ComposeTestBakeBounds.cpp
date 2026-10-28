@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "support/BakeTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -46,36 +47,19 @@ Element typeOutsideItsBox() {
 
 }  // namespace
 
-TEST(ComposeCache, ABakedLineKeepsTheInkThatStandsOutsideItsBox) {
-  // A device bake is a surface sized to the node's paint bounds, and every
-  // pixel outside it is lost rather than rounded — a whole coverage value,
-  // tens of code values, wherever the live paint had ink there. So the
-  // bounds a text leaf reports must hold the GLYPHS and not only the band
-  // its lines were measured to.
-  const BakeDrift drift =
-      bakeDriftOf(typeOutsideItsBox, SkMatrix::Scale(2, 2), 360, 160);
-  ASSERT_TRUE(drift.baked)
-      << "nothing was baked, so this compared two live renders";
-  EXPECT_LE(drift.worstChannel, 1)
-      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the page was baked holding a line whose glyphs "
-         "stand "
-         "outside its box";
-}
-
 TEST(ComposeFaces, ABakedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics) {
-  // The same claim about a REAL face, which is where it was found: a line
-  // of type at a size a sheet's chrome is set at, on whatever face the
-  // machine resolves for a style that names none. Its box is the band of
-  // its lines — the tallest ascent over the deepest descent the face
-  // reports — and a comma's tail reaches below that band, so the bottom row
-  // of the comma is painted outside the box. The case is skipped on a face
-  // that keeps its ink inside its own metrics, since there is then nothing
-  // for a bake to lose.
+  // ADeviceBakePaintsThePictureItsLivePaintPaints, on the machine's own
+  // face: a line of type at a size a sheet's chrome is set at, on whatever
+  // face the machine resolves for a style that names none. Its box is the band
+  // of its lines — the tallest ascent over the deepest descent the face reports
+  // — and a comma's tail reaches below that band, so the bottom row of the
+  // comma is painted outside the box. The case is skipped on a face that keeps
+  // its ink inside its own metrics, since there is then nothing for a bake to
+  // lose.
   SkFont font(fonts().defaultTypeface(), 14);
-  SkFontMetrics fm;
-  font.getMetrics(&fm);
-  if (fm.fBottom <= fm.fDescent && fm.fTop >= fm.fAscent)
+  SkFontMetrics metrics;
+  font.getMetrics(&metrics);
+  if (metrics.fBottom <= metrics.fDescent && metrics.fTop >= metrics.fAscent)
     GTEST_SKIP() << "this machine's face draws no ink outside its metrics";
   const auto page = [] {
     Element sheet = box().width(300).height(60).fill(
@@ -135,41 +119,6 @@ Element strokedArcFarFromTheOrigin() {
 
 }  // namespace
 
-TEST(ComposeCache, ABakedCurveFarFromTheOriginStandsOnTheLivePaintsGrid) {
-  // A bake taken on a surface allocated at the node's own corner maps a
-  // point through the live matrix with its translation reduced by an
-  // integer. The integer is exact; the SUM it enters is not. The live paint
-  // rounds at the magnitude of the device coordinate and the offset one
-  // rounds at the magnitude of the offset coordinate, so the two land up to
-  // half a float step apart — nothing along an edge that meets the grid
-  // squarely, a whole supersample bucket where a curve runs nearly tangent
-  // to it. The distance from the origin is the whole of the fixture: the
-  // same arc at the origin is exact, because there the offset cancels.
-  const BakeDrift drift =
-      bakeDriftOf(strokedArcFarFromTheOrigin, SkMatrix::I(), 1500, 1500);
-  ASSERT_TRUE(drift.baked)
-      << "nothing was baked, so this compared two live renders";
-  EXPECT_LE(drift.worstChannel, 2)
-      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the page was baked holding a curve standing 1100 "
-         "pixels from the canvas origin";
-}
-
-TEST(ComposeCache, ABakedCurveKeepsTheCoverageItsLivePaintComputes) {
-  // Skia decides whether a path needs its clipped rasterisation from the
-  // path's CONTROL-POINT bounds, and the clipped and unclipped routes do
-  // not answer the same antialiased coverage. A bake allocated to exactly
-  // what the node paints cuts inside those bounds for every curve, so the
-  // baked picture of a stroked arc moves by tens of code values along
-  // its whole length. The bake's margin is what keeps the two on one route.
-  const BakeDrift drift = bakeDriftOf(strokedArc, SkMatrix::I(), 420, 420);
-  ASSERT_TRUE(drift.baked)
-      << "nothing was baked, so this compared two live renders";
-  EXPECT_LE(drift.worstChannel, 1)
-      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the page was baked holding a stroked curve";
-}
-
 namespace {
 
 /** A SHAPE THAT REACHES PAST THE BOX IT WAS RESOLVED AGAINST, which is what
@@ -182,14 +131,16 @@ namespace {
  *  to one well past every edge of it. */
 Shape rulesPastTheBox() {
   return Shape(skiaShape([](SkSize size) {
-    SkPathBuilder b;
-    const SkPoint c{size.width() * 0.5f, size.height() * 0.5f};
-    for (int i = 0; i < 40; ++i) {
-      const float a = (float)i * 9.0f * 3.14159265f / 180.0f;
-      b.moveTo(c.x() + std::cos(a) * 30.0f, c.y() + std::sin(a) * 30.0f);
-      b.lineTo(c.x() + std::cos(a) * 110.0f, c.y() + std::sin(a) * 110.0f);
+    SkPathBuilder builder;
+    const SkPoint centre{size.width() * 0.5f, size.height() * 0.5f};
+    for (int index = 0; index < 40; ++index) {
+      const float angle = (float)index * 9.0f * 3.14159265f / 180.0f;
+      builder.moveTo(centre.x() + std::cos(angle) * 30.0f,
+                     centre.y() + std::sin(angle) * 30.0f);
+      builder.lineTo(centre.x() + std::cos(angle) * 110.0f,
+                     centre.y() + std::sin(angle) * 110.0f);
     }
-    return b.detach();
+    return builder.detach();
   }));
 }
 
@@ -242,44 +193,6 @@ Element blurredChildUnderAGroup() {
 
 }  // namespace
 
-TEST(ComposeCache, ABakedNodeKeepsTheSkirtABlurredChildFilters) {
-  // What a layer effect paints is not what the content under it covers: a
-  // blur, a glow, a shadow put ink outside the box the filtered node was
-  // measured to, and that ink is drawn INTO whatever surface the node above
-  // was allocated. Allocated to the unfiltered content, the surface cuts
-  // the skirt off square — a mark that is gone, not a rounding — so the
-  // rect a bake is sized to holds every effect below it at the reach its
-  // own filter answers. The LAYERS keep the unfiltered rect: Skia grows a
-  // filtered saveLayer for its filter already.
-  const BakeDrift drift =
-      bakeDriftOf(blurredChildUnderAGroup, SkMatrix::I(), 240, 240);
-  ASSERT_TRUE(drift.baked)
-      << "nothing was baked, so this compared two live renders";
-  EXPECT_LE(drift.worstChannel, 2)
-      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the page was baked holding a node holding a child "
-         "whose blur reaches past its box";
-}
-
-TEST(ComposeCache, ABakedShapeKeepsTheInkItDrawsOutsideItsBox) {
-  // A device bake is a SURFACE, and ink outside it is lost rather than
-  // rounded. The node's box bounds the layers it opens, but it does not
-  // bound the path it declares: a Shape resolved against that box may
-  // return a curve anywhere, and the surface is filled with that path while
-  // every decoration dresses it. So what a bake is allocated to holds the
-  // shape as well, and what bounds the drawing stays the clip the bake
-  // carries in rather than the allocation.
-  const BakeDrift drift =
-      bakeDriftOf(shapeOutsideItsBox, SkMatrix::I(), 240, 240);
-  ASSERT_TRUE(drift.baked)
-      << "nothing was baked, so this compared two live renders";
-  EXPECT_LE(drift.worstChannel, 1)
-      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when the page was baked holding a node whose shape "
-         "reaches "
-         "past its box";
-}
-
 namespace {
 
 /** THE SAME STROKED CURVE, DRAWN THREE WAYS IN PLAIN SKIA — no compose in
@@ -303,7 +216,7 @@ struct RouteProbe {
 };
 
 RouteProbe rasterisationRoutes() {
-  constexpr int kW = 420, kH = 420;
+  constexpr int kWidth = 420, kHeight = 420;
   const SkColor ground = SkColorSetARGB(255, 40, 90, 140);
   SkPathBuilder builder;
   builder.addArc(SkRect::MakeLTRB(31, 31, 369, 369), -30.0f, 300.0f);
@@ -316,15 +229,15 @@ RouteProbe rasterisationRoutes() {
   const SkMatrix under = SkMatrix::Translate(10, 10);
 
   const auto surface = [] {
-    return SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kW, kH));
+    return SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   };
   const auto pixels = [](SkSurface& from) {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(kW, kH));
-    from.readPixels(bm.pixmap(), 0, 0);
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
+    from.readPixels(bitmap.pixmap(), 0, 0);
     std::vector<SkColor> out;
-    for (int y = 0; y < kH; ++y)
-      for (int x = 0; x < kW; ++x) out.push_back(bm.getColor(x, y));
+    for (int y = 0; y < kHeight; ++y)
+      for (int x = 0; x < kWidth; ++x) out.push_back(bitmap.getColor(x, y));
     return out;
   };
 
@@ -360,10 +273,13 @@ RouteProbe rasterisationRoutes() {
   overGround->getCanvas()->concat(under);
   overGround->getCanvas()->drawPath(path, paint);
 
-  const std::vector<SkColor> pl = pixels(*live), pa = pixels(*layered),
-                             pb = pixels(*blitted), pg = pixels(*overGround);
-  return {worstDrift(pa, pb, nullptr), worstDrift(pl, pg, nullptr),
-          worstDrift(pl, pb, nullptr)};
+  const std::vector<SkColor> livePixels = pixels(*live),
+                             layeredPixels = pixels(*layered),
+                             blittedPixels = pixels(*blitted),
+                             overGroundPixels = pixels(*overGround);
+  return {worstDrift(layeredPixels, blittedPixels, nullptr),
+          worstDrift(livePixels, overGroundPixels, nullptr),
+          worstDrift(livePixels, blittedPixels, nullptr)};
 }
 
 }  // namespace
@@ -423,13 +339,14 @@ Element ruledNodeUnder(Layer layer) {
  *  truncates this at the node's own edges whatever it did to the values
  *  inside it, and the tolerance is well under an antialiased edge's
  *  faintest step so no rounding decides the answer. */
-SkIRect inkBoundsOf(const std::vector<SkColor>& pixels, int w, int h) {
+SkIRect inkBoundsOf(const std::vector<SkColor>& pixels, int width, int height) {
   SkIRect ink = SkIRect::MakeEmpty();
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) {
-      const SkColor c = pixels[(size_t)y * (size_t)w + (size_t)x];
-      const int lit = std::max(
-          {(int)SkColorGetR(c), (int)SkColorGetG(c), (int)SkColorGetB(c)});
+  for (int y = 0; y < height; ++y)
+    for (int x = 0; x < width; ++x) {
+      const SkColor color = pixels[(size_t)y * (size_t)width + (size_t)x];
+      const int lit =
+          std::max({(int)SkColorGetR(color), (int)SkColorGetG(color),
+                    (int)SkColorGetB(color)});
       if (lit >= 24) ink.join(SkIRect::MakeXYWH(x, y, 1, 1));
     }
   return ink;
@@ -437,11 +354,11 @@ SkIRect inkBoundsOf(const std::vector<SkColor>& pixels, int w, int h) {
 
 /** One scene drawn once, so what the pixels answer is about the layers a
  *  node opens and nothing about a bake. */
-std::vector<SkColor> drawnLive(Element page, int w, int h) {
-  Host host(w, h);
+std::vector<SkColor> drawnLive(Element page, int width, int height) {
+  Host host(width, height);
   host.composer.render(std::move(page));
   host.frame();
-  return surfaceOf(host, w, h);
+  return surfaceOf(host, width, height);
 }
 
 }  // namespace
@@ -493,13 +410,13 @@ struct Halo {
   float bleed() const { return spread; }
 
   void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
-    SkCanvas& c = *pen.canvas();
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setColor4f(color, nullptr);
-    p.setStyle(SkPaint::kStrokeAndFill_Style);
-    p.setStrokeWidth(spread * 2);
-    c.drawPath(geometry::path::toSk(ctx.outline), p);
+    SkCanvas& canvas = *pen.canvas();
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor4f(color, nullptr);
+    paint.setStyle(SkPaint::kStrokeAndFill_Style);
+    paint.setStrokeWidth(spread * 2);
+    canvas.drawPath(geometry::path::toSk(ctx.outline), paint);
   }
 };
 
@@ -521,9 +438,9 @@ struct Reserve {
  *  the pixels it covers are a silhouette a coverage trace can answer for. */
 Shape discPastTheBox() {
   return Shape(skiaShape([](SkSize size) {
-    SkPathBuilder b;
-    b.addCircle(size.width() * 0.5f, size.height() * 0.5f, 100.0f);
-    return b.detach();
+    SkPathBuilder builder;
+    builder.addCircle(size.width() * 0.5f, size.height() * 0.5f, 100.0f);
+    return builder.detach();
   }));
 }
 
@@ -551,14 +468,16 @@ Element haloedNode(bool past, bool reserving) {
 /** WHERE ONE CARRIER'S INK STANDS, as a box: the pixels where this channel
  *  outweighs the others, so the halo's own extent is read apart from the
  *  fill it is drawn beneath. */
-SkIRect channelBoundsOf(const std::vector<SkColor>& pixels, int w, int h,
-                        bool blue) {
+SkIRect channelBoundsOf(const std::vector<SkColor>& pixels, int width,
+                        int height, bool blue) {
   SkIRect ink = SkIRect::MakeEmpty();
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) {
-      const SkColor c = pixels[(size_t)y * (size_t)w + (size_t)x];
-      const int r = (int)SkColorGetR(c), b = (int)SkColorGetB(c);
-      const bool mine = blue ? b > r + 24 : r > b + 24;
+  for (int y = 0; y < height; ++y)
+    for (int x = 0; x < width; ++x) {
+      const SkColor color = pixels[(size_t)y * (size_t)width + (size_t)x];
+      const int redValue = (int)SkColorGetR(color),
+                blueValue = (int)SkColorGetB(color);
+      const bool mine =
+          blue ? blueValue > redValue + 24 : redValue > blueValue + 24;
       if (mine) ink.join(SkIRect::MakeXYWH(x, y, 1, 1));
     }
   return ink;
@@ -566,101 +485,87 @@ SkIRect channelBoundsOf(const std::vector<SkColor>& pixels, int w, int h,
 
 }  // namespace
 
-TEST(ComposeCoverageBounds, ADressedCoverageHoldsTheInkOutsideTheBox) {
-  // THE SILHOUETTE IS THE INK, AND THE INK IS NOT THE BOX. A coverage
-  // boundary is traced off an alpha raster of what the node drew, and the
-  // node draws wherever its carriers put it — a declared shape resolved
-  // past the box it was handed, a decoration's bleed, a glyph's overhang, a
-  // routed path. A raster allocated at the box traces a silhouette cut
-  // square at the box's edges and hands every decoration an outline the
-  // node never drew.
-  const std::vector<SkColor> pixels =
-      drawnLive(haloedNode(true, false), 240, 240);
-  const SkIRect figure = channelBoundsOf(pixels, 240, 240, false);
-  const SkIRect halo = channelBoundsOf(pixels, 240, 240, true);
-  // The fixture has to pose the problem: the disc stands sixty pixels clear
-  // of the 80×80 box on every side.
-  ASSERT_LT(figure.left(), 40) << "the fixture's shape stays inside its box";
-  ASSERT_GT(figure.right(), 200) << "the fixture's shape stays inside its box";
+// A coverage boundary is traced where the node's ink stands, outside its box
+// as well, on a grid that a bleed drawing nothing does not move.
+TEST(ComposeCoverageBounds, ACoverageTraceFollowsTheInkOnAGridOfWholeSteps) {
+  sigil::compose::test::checkRows({
+      {"ADressedCoverageHoldsTheInkOutsideTheBox",
+       [] {
+         // THE SILHOUETTE IS THE INK, AND THE INK IS NOT THE BOX. A coverage
+         // boundary is traced off an alpha raster of what the node drew, and
+         // the node draws wherever its carriers put it — a declared shape
+         // resolved past the box it was handed, a decoration's bleed, a glyph's
+         // overhang, a routed path. A raster allocated at the box traces a
+         // silhouette cut square at the box's edges and hands every decoration
+         // an outline the node never drew.
+         const std::vector<SkColor> pixels =
+             drawnLive(haloedNode(true, false), 240, 240);
+         const SkIRect figure = channelBoundsOf(pixels, 240, 240, false);
+         const SkIRect halo = channelBoundsOf(pixels, 240, 240, true);
+         // The fixture has to pose the problem: the disc stands sixty pixels
+         // clear of the 80×80 box on every side.
+         ASSERT_LT(figure.left(), 40)
+             << "the fixture's shape stays inside its box";
+         ASSERT_GT(figure.right(), 200)
+             << "the fixture's shape stays inside its box";
 
-  ASSERT_FALSE(halo.isEmpty())
-      << "the halo dressed a boundary cut at the node's box, which stands "
-         "wholly under the disc the node filled, so none of it is visible";
-  EXPECT_LE(halo.left(), figure.left() - 6)
-      << "the halo stops at " << halo.left() << " where the ink it dresses "
-      << "reaches " << figure.left();
-  EXPECT_LE(halo.top(), figure.top() - 6)
-      << "the halo stops at " << halo.top() << " where the ink it dresses "
-      << "reaches " << figure.top();
-  EXPECT_GE(halo.right(), figure.right() + 6)
-      << "the halo stops at " << halo.right() << " where the ink it dresses "
-      << "reaches " << figure.right();
-  EXPECT_GE(halo.bottom(), figure.bottom() + 6)
-      << "the halo stops at " << halo.bottom() << " where the ink it dresses "
-      << "reaches " << figure.bottom();
-}
+         ASSERT_FALSE(halo.isEmpty()) << "the halo dressed a boundary cut at "
+                                         "the node's box, which stands "
+                                         "wholly under the disc the node "
+                                         "filled, so none of it is visible";
+         EXPECT_LE(halo.left(), figure.left() - 6)
+             << "the halo stops at " << halo.left()
+             << " where the ink it dresses "
+             << "reaches " << figure.left();
+         EXPECT_LE(halo.top(), figure.top() - 6)
+             << "the halo stops at " << halo.top()
+             << " where the ink it dresses "
+             << "reaches " << figure.top();
+         EXPECT_GE(halo.right(), figure.right() + 6)
+             << "the halo stops at " << halo.right()
+             << " where the ink it dresses "
+             << "reaches " << figure.right();
+         EXPECT_GE(halo.bottom(), figure.bottom() + 6)
+             << "the halo stops at " << halo.bottom()
+             << " where the ink it dresses "
+             << "reaches " << figure.bottom();
+       }},
+      {"InkInsideTheBoxTracesTheBox",
+       [] {
+         // A WIDER RASTER IS NOT A DIFFERENT ANSWER. The trace covers the
+         // node's paint bounds, so a carrier standing outside the box moves the
+         // rect the raster is allocated at — and the boundary is a staircase of
+         // whole steps, so a rect that moved the grid by a fraction of one
+         // would restep every edge in the picture for a carrier that changed no
+         // pixel. The grid is placed on whole steps instead, and a node whose
+         // ink stays inside its box traces the path it always did.
+         const std::vector<SkColor> pixels =
+             drawnLive(haloedNode(false, false), 240, 240);
+         const SkIRect halo = channelBoundsOf(pixels, 240, 240, true);
+         // The node fills its 80×80 box at (80, 80) and the halo widens
+         // whatever outline it is handed by eight pixels, so the boundary being
+         // the box itself is one exact rect and nothing else.
+         EXPECT_EQ(halo, SkIRect::MakeLTRB(72, 72, 168, 168))
+             << "the traced boundary is not the node's own box: the halo "
+                "around it "
+                "spans "
+             << halo.width() << "x" << halo.height() << " at (" << halo.left()
+             << ", " << halo.top() << ")";
 
-TEST(ComposeCoverageBounds, InkInsideTheBoxTracesWhereItAlwaysDid) {
-  // A WIDER RASTER IS NOT A DIFFERENT ANSWER. The trace covers the node's
-  // paint bounds, so a carrier standing outside the box moves the rect the
-  // raster is allocated at — and the boundary is a staircase of whole
-  // steps, so a rect that moved the grid by a fraction of one would restep
-  // every edge in the picture for a carrier that changed no pixel. The
-  // grid is placed on whole steps instead, and a node whose ink stays
-  // inside its box traces the path it always did.
-  const std::vector<SkColor> pixels =
-      drawnLive(haloedNode(false, false), 240, 240);
-  const SkIRect halo = channelBoundsOf(pixels, 240, 240, true);
-  // The node fills its 80×80 box at (80, 80) and the halo widens whatever
-  // outline it is handed by eight pixels, so the boundary being the box
-  // itself is one exact rect and nothing else.
-  EXPECT_EQ(halo, SkIRect::MakeLTRB(72, 72, 168, 168))
-      << "the traced boundary is not the node's own box: the halo around it "
-         "spans "
-      << halo.width() << "x" << halo.height() << " at (" << halo.left() << ", "
-      << halo.top() << ")";
-
-  const std::vector<SkColor> reserved =
-      drawnLive(haloedNode(false, true), 240, 240);
-  ASSERT_EQ(pixels.size(), reserved.size());
-  size_t differing = 0;
-  for (size_t i = 0; i < pixels.size(); ++i)
-    if (pixels[i] != reserved[i]) ++differing;
-  EXPECT_EQ(differing, 0u)
-      << differing
-      << " pixels moved when a decoration reserved 13.5 px and drew nothing, "
-         "so the raster's grid follows the paint bounds' own fraction rather "
-         "than the node's steps";
-}
-
-TEST(ComposeCache, PaintBoundsBeyondIntegerCoordinatesPaintTheLivePicture) {
-  // A declared shape whose bounds stand far past any integer device
-  // coordinate: the rect a device bake is measured to is cropped to the
-  // clip before it is narrowed, so the bake paints what the live paint does
-  // rather than overflowing into a rect that stands nowhere.
-  const auto scene = [](Cache caching) {
-    return box()
-        .cache(Cache::None)
-        .children({box()
-                       .key("largeShape")
-                       .width(80)
-                       .height(80)
-                       .cache(caching)
-                       .shape(skiaShape([] {
-                         SkPathBuilder path;
-                         path.addRect(SkRect::MakeLTRB(-1.0e20f, -1.0e20f,
-                                                       1.0e20f, 1.0e20f));
-                         return path.detach();
-                       }))
-                       .fill(red())});
-  };
-  Host plain, baked;
-  plain.composer.render(scene(Cache::Auto));
-  baked.composer.render(scene(Cache::Texture));
-  plain.frame();
-  baked.frame();
-  EXPECT_TRUE(identicalPixels(plain, baked, 200, 200));
-  EXPECT_EQ(baked.pixel(40, 40), SK_ColorRED);
+         const std::vector<SkColor> reserved =
+             drawnLive(haloedNode(false, true), 240, 240);
+         ASSERT_EQ(pixels.size(), reserved.size());
+         size_t differing = 0;
+         for (size_t index = 0; index < pixels.size(); ++index)
+           if (pixels[index] != reserved[index]) ++differing;
+         EXPECT_EQ(differing, 0u) << differing
+                                  << " pixels moved when a decoration reserved "
+                                     "13.5 px and drew nothing, "
+                                     "so the raster's grid follows the paint "
+                                     "bounds' own fraction rather "
+                                     "than the node's steps";
+       }},
+  });
 }
 
 namespace {
@@ -695,19 +600,6 @@ Element starWhoseTipsTouchItsBox() {
 
 }  // namespace
 
-TEST(ComposeCache, ABakedStarKeepsTheMitredTipsPastItsBox) {
-  // The stock stroke meets its corners mitred, and its bleed is the whole
-  // mitre, so a bake sized from it holds every tip the live paint draws.
-  const BakeDrift drift = bakeDriftOf(starWhoseTipsTouchItsBox,
-                                      SkMatrix::Translate(20, 20), 240, 240);
-  ASSERT_TRUE(drift.baked)
-      << "nothing was baked, so this compared two live renders";
-  EXPECT_LE(drift.worstChannel, 1)
-      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when a star whose mitred tips stand past its box "
-         "was baked";
-}
-
 namespace {
 
 /** A BOX WALKED BY SQUARES WIDER THAN ITS MARGIN: every sample on its
@@ -723,13 +615,90 @@ Element walkedPastItsBox() {
 
 }  // namespace
 
-TEST(ComposeCache, ABakedWalkKeepsTheStampsPastItsBox) {
-  const BakeDrift drift =
-      bakeDriftOf(walkedPastItsBox, SkMatrix::Translate(20, 20), 240, 240);
-  ASSERT_TRUE(drift.baked)
-      << "nothing was baked, so this compared two live renders";
-  EXPECT_LE(drift.worstChannel, 1)
-      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
-      << " code values, when a box walked by stamps wider than its margin "
-         "was baked";
+namespace {
+
+/** A page whose root is baked in device space, the matrix the host draws it
+ *  under, the canvas it is drawn on, and how many code values a channel of
+ *  the baked page may stand from the live one. */
+struct DeviceBakeRow {
+  const char* name;
+  Element (*page)();
+  SkMatrix hostMatrix;
+  int width, height;
+  int worstChannel;
+};
+
+}  // namespace
+
+// A device bake is the live paint's picture within one code value a channel,
+// whatever the node draws outside its box and wherever on the canvas it
+// stands: the bake holds the glyphs past a line's band, a shape's path, a
+// blurred child's skirt, a mitre's tips and a walk's stamps, carries a
+// margin clear of a curve's control points, and stands on the canvas's own
+// grid.
+TEST(ComposeCache, ADeviceBakePaintsThePictureItsLivePaintPaints) {
+  const DeviceBakeRow rows[] = {
+      // A leaf is measured to the band of its lines, and a face's marks
+      // hang past it; the bounds a text leaf reports hold the glyphs.
+      {"ALineWhoseGlyphsStandOutsideItsBox", typeOutsideItsBox,
+       SkMatrix::Scale(2, 2), 360, 160, 1},
+      // The live paint rounds at the magnitude of the device coordinate;
+      // a bake standing on the canvas's own grid rounds the same, where a
+      // bake offset to its corner lands up to half a float step away.
+      {"ACurveFarFromTheOrigin", strokedArcFarFromTheOrigin, SkMatrix::I(),
+       1500, 1500, 2},
+      // Skia picks a curve's rasterisation route from its control-point
+      // bounds; the bake's margin keeps it on the live paint's route.
+      {"AStrokedCurve", strokedArc, SkMatrix::I(), 420, 420, 1},
+      // A child's filter paints outside the box it was measured to, into
+      // whatever its parent was given room in.
+      {"ANodeOverABlurredChild", blurredChildUnderAGroup, SkMatrix::I(), 240,
+       240, 2},
+      // A shape resolved against the box may return a path anywhere.
+      {"AShapeReachingPastItsBox", shapeOutsideItsBox, SkMatrix::I(), 240, 240,
+       1},
+      // The stock stroke's bleed holds its whole mitre.
+      {"AStarWhoseMitredTipsStandPastItsBox", starWhoseTipsTouchItsBox,
+       SkMatrix::Translate(20, 20), 240, 240, 1},
+      // A walk declares the half of each stamp that stands outside the box.
+      {"AWalkWhoseStampsStandPastItsBox", walkedPastItsBox,
+       SkMatrix::Translate(20, 20), 240, 240, 1},
+  };
+  sigil::compose::test::forEachRow(rows, [](const DeviceBakeRow& row) {
+    const BakeDrift drift =
+        bakeDriftOf(row.page, row.hostMatrix, row.width, row.height);
+    ASSERT_TRUE(drift.baked)
+        << "nothing was baked, so this compared two live renders";
+    EXPECT_LE(drift.worstChannel, row.worstChannel)
+        << drift.differingPixels << " pixels moved, worst "
+        << drift.worstChannel << " code values";
+  });
+
+  // A declared shape whose bounds stand far past any integer device
+  // coordinate: the rect a device bake is measured to is cropped to the
+  // clip before it is narrowed, so the bake paints what the live paint does.
+  SCOPED_TRACE("AShapeBeyondEveryIntegerCoordinate");
+  const auto scene = [](Cache caching) {
+    return box()
+        .cache(Cache::None)
+        .children({box()
+                       .key("largeShape")
+                       .width(80)
+                       .height(80)
+                       .cache(caching)
+                       .shape(skiaShape([] {
+                         SkPathBuilder path;
+                         path.addRect(SkRect::MakeLTRB(-1.0e20f, -1.0e20f,
+                                                       1.0e20f, 1.0e20f));
+                         return path.detach();
+                       }))
+                       .fill(red())});
+  };
+  Host plain, baked;
+  plain.composer.render(scene(Cache::Auto));
+  baked.composer.render(scene(Cache::Texture));
+  plain.frame();
+  baked.frame();
+  EXPECT_TRUE(identicalPixels(plain, baked, 200, 200));
+  EXPECT_EQ(baked.pixel(40, 40), SK_ColorRED);
 }

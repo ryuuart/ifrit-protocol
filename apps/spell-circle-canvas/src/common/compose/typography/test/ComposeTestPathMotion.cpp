@@ -5,6 +5,7 @@
 // is what the screen shows rather than what the placement arithmetic
 // intended — the rounding a glyph's device origin takes happens below both.
 
+#include "support/Rows.h"
 #include "support/TextTestSupport.h"
 
 namespace {
@@ -280,236 +281,275 @@ INSTANTIATE_TEST_SUITE_P(
       return info.param.what;
     });
 
-// …AND TYPE AT REST KEEPS WHOLE-PIXEL ORIGINS, which is the other half of
-// the contract and the half that costs nothing. A phase written as a plain
-// number declares no motion, so a run slid a pixel and a half along its
-// baseline re-uses one rasterization until its origin crosses a pixel
-// boundary; the same slide with the phase BOUND lands on the subpixel grid
-// and reads differently nearly every step.
-//
-// Counted over eight positions rather than compared between two, so
-// neither verdict can be an accident of where inside a pixel the run
-// happened to start.
-TEST(ComposePathMotion, TypeAtRestKeepsWholePixelOrigins) {
-  Host resting(kField, kField);
-  const int atRest = distinctFramesAcrossOnePixel(
-      resting, [](float at) { return ringAt(at, 44.0f); });
+TEST(ComposePathMotion, OnlyARunThatDeclaresMotionTakesTheSubpixelGrid) {
+  sigil::compose::test::checkRows({
+      // …AND TYPE AT REST KEEPS WHOLE-PIXEL ORIGINS, which is the other half of
+      // the contract and the half that costs nothing. A phase written as a
+      // plain
+      // number declares no motion, so a run slid a pixel and a half along its
+      // baseline re-uses one rasterization until its origin crosses a pixel
+      // boundary; the same slide with the phase BOUND lands on the subpixel
+      // grid
+      // and reads differently nearly every step.
+      //
+      // Counted over eight positions rather than compared between two, so
+      // neither verdict can be an accident of where inside a pixel the run
+      // happened to start.
+      {"TypeAtRestKeepsWholePixelOrigins",
+       [&] {
+         Host resting(kField, kField);
+         const int atRest = distinctFramesAcrossOnePixel(
+             resting, [](float at) { return ringAt(at, 44.0f); });
 
-  Host turning(kField, kField);
-  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.05f);
-  const int inMotion = distinctFramesAcrossOnePixel(turning, [&](float at) {
-    phase = at;
-    return ringAt(phase, 44.0f);
+         Host turning(kField, kField);
+         sigil::motion::Animatable<float> phase =
+             sigil::motion::animatable(0.05f);
+         const int inMotion =
+             distinctFramesAcrossOnePixel(turning, [&](float at) {
+               phase = at;
+               return ringAt(phase, 44.0f);
+             });
+
+         EXPECT_LE(atRest, kWholePixelCeiling)
+             << "a resting run is paying for the subpixel grid";
+         EXPECT_GT(inMotion, kWholePixelCeiling)
+             << "a turning run is rounding to whole pixels";
+       }},
+      // …AND A TRACK THAT MOVES NOTHING BUYS NOTHING. A fade is a coverage
+      // ramp:
+      // every pen position is where the layout put it on every frame of it, so
+      // the
+      // run is type at rest however hard its progress is running, and it keeps
+      // the
+      // whole-pixel origins and the cheap atlas that go with that.
+      {"AFadeOnlyTrackKeepsWholePixelOrigins",
+       [&] {
+         Host host(kField, kField);
+         sigil::motion::Animatable<float> progress =
+             sigil::motion::animatable(0.5f);  // bound: the track IS live
+         const TextEffect fade =
+             textFx::tween({.from = GlyphModifier{.alpha = 0.0f}});
+         const int distinct = distinctFramesAcrossOnePixel(host, [&](float at) {
+           return ringWith(at, 44.0f, {.effect = fade, .progress = progress});
+         });
+         EXPECT_LE(distinct, kWholePixelCeiling)
+             << "a fade-only track is paying for the subpixel grid";
+       }},
+      // A TWEEN IS ANSWERED BY ITS OWN STOPS, and the two verdicts are measured
+      // the same way so neither can be an accident of the measurement: the same
+      // ring, the same live progress, the same slide of a pixel and a half —
+      // only
+      // the lane the tween publishes into differs.
+      {"ATweenEngagesTheGridOnlyWhereItMovesGlyphs",
+       [&] {
+         sigil::motion::Animatable<float> progress =
+             sigil::motion::animatable(0.5f);
+         const TextEffect colourOnly =
+             textFx::tween({.from = GlyphModifier{
+                                .colorMultiplier = {0.3f, 0.3f, 0.3f, 1.0f}}});
+         const TextEffect offset =
+             textFx::tween({.from = GlyphModifier{.dx = 9.0f}});
+
+         Host cheapHost(kField, kField);
+         const int cheap =
+             distinctFramesAcrossOnePixel(cheapHost, [&](float at) {
+               return ringWith(at, 44.0f,
+                               {.effect = colourOnly, .progress = progress});
+             });
+         Host movingHost(kField, kField);
+         const int moving =
+             distinctFramesAcrossOnePixel(movingHost, [&](float at) {
+               return ringWith(at, 44.0f,
+                               {.effect = offset, .progress = progress});
+             });
+
+         EXPECT_LE(cheap, kWholePixelCeiling)
+             << "a colour-only tween is paying for the subpixel grid";
+         EXPECT_GT(moving, kWholePixelCeiling)
+             << "a tween with an offset is rounding to whole pixels";
+       }},
+      // A SETTLED TRACK IS TYPE AT REST, whatever it does while it runs. Its
+      // glyphs are standing somewhere else and standing still, which is what
+      // whole-pixel origins are for — and the proof is bytes: a settled slide
+      // deviates nothing at all, so its frame must be the frame with no track
+      // on
+      // it, mask for mask. Read off the declaration, so the last frame of the
+      // motion and the first frame of the rest do not disagree.
+      {"ASettledDisplacingTrackReturnsToWholePixels",
+       [&] {
+         const auto shot = [](Host& host, const Element& tree) {
+           host.composer.render(tree);
+           host.frame();
+           SkBitmap bm;
+           bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));
+           host.surface->readPixels(bm.pixmap(), 0, 0);
+           return bm;
+         };
+         Host bare(kField, kField);
+         const SkBitmap untracked = shot(bare, ringAt(0.05f, 44.0f));
+         Host settled(kField, kField);
+         const SkBitmap withTrack =
+             shot(settled, ringWith(0.05f, 44.0f,
+                                    {.effect = textFx::enter(textFx::slide()),
+                                     .progress = 1.0f}));
+         for (int y = 0; y < kField; ++y)
+           for (int x = 0; x < kField; ++x)
+             ASSERT_EQ(untracked.getColor(x, y), withTrack.getColor(x, y))
+                 << "a settled slide moved the ink at " << x << "," << y;
+
+         Host sliding(kField, kField);
+         const int distinct =
+             distinctFramesAcrossOnePixel(sliding, [](float at) {
+               return ringWith(at, 44.0f,
+                               {.effect = textFx::enter(textFx::slide()),
+                                .progress = 1.0f});
+             });
+         EXPECT_LE(distinct, kWholePixelCeiling)
+             << "a settled track is paying for the subpixel grid";
+       }},
   });
-
-  EXPECT_LE(atRest, kWholePixelCeiling)
-      << "a resting run is paying for the subpixel grid";
-  EXPECT_GT(inMotion, kWholePixelCeiling)
-      << "a turning run is rounding to whole pixels";
 }
 
-// …AND A TRACK THAT MOVES NOTHING BUYS NOTHING. A fade is a coverage ramp:
-// every pen position is where the layout put it on every frame of it, so the
-// run is type at rest however hard its progress is running, and it keeps the
-// whole-pixel origins and the cheap atlas that go with that.
-TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
-  Host host(kField, kField);
-  sigil::motion::Animatable<float> progress =
-      sigil::motion::animatable(0.5f);  // bound: the track IS live
-  const TextEffect fade = textFx::tween({.from = GlyphModifier{.alpha = 0.0f}});
-  const int distinct = distinctFramesAcrossOnePixel(host, [&](float at) {
-    return ringWith(at, 44.0f, {.effect = fade, .progress = progress});
+TEST(ComposePathMotion, ATurnedGlyphSnapsToOneLadderCutPerSize) {
+  sigil::compose::test::checkRows({
+      // A TRACK'S OWN ROTATION TAKES THE SAME LADDER as the baseline's tangent.
+      // The two compose onto one letter — the baseline turns it to the curve
+      // and
+      // the track turns it further — so a ladder coarse on either side is the
+      // coarsest thing in the letter's motion and ticks whatever the other side
+      // does.
+      //
+      // Counted as DISTINCT RENDERINGS across a sweep, which is what a ladder
+      // decides and nothing else does: turned through twelve of its own steps a
+      // letter must answer twelve different frames, where a ladder several
+      // times
+      // coarser answers the same two or three over and over and the letter sits
+      // still between them. The sweep is cut by size for the same reason the
+      // ladder is, so the count means the same thing at both.
+      {"ATrackRotationTurnsOnTheBaselinesLadder",
+       [&] {
+         constexpr int kSteps = 12;
+         for (const float size : {14.0f, 44.0f}) {
+           // Twelve steps of a ladder cut at sixteen per pixel of em.
+           const float sweep = (float)kSteps * 360.0f / (16.0f * size);
+           const TextEffect turn(
+               "turn", {},
+               [sweep](const GlyphInfo&, float t,
+                       sigil::core::noise::Mix64Stream&) {
+                 GlyphModifier m;
+                 m.rotateDegrees = sweep * t;
+                 return m;
+               },
+               60.0f);
+           Host host(kField, kField);
+           sigil::motion::Animatable<float> phase =
+               sigil::motion::animatable(0.05f);  // bound, and standing still
+           sigil::motion::Animatable<float> progress =
+               sigil::motion::animatable(0.0f);
+           std::vector<SkBitmap> frames;
+           frames.reserve(kSteps);
+           for (int i = 0; i < kSteps; ++i) {
+             progress = (float)i / (float)(kSteps - 1);
+             host.composer.render(box().children(
+                 {text(u8"H", whiteStyle(size))
+                      .key("ring")
+                      .width(kField)
+                      .height(kField)
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .textOnPath({.path = geometry::shapes::circle(),
+                                   .at = phase,
+                                   .align = TextPath::Align::Center})
+                      .textFx({.effect = turn, .progress = progress})}));
+             host.frame();
+             SkBitmap bm;
+             bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));
+             host.surface->readPixels(bm.pixmap(), 0, 0);
+             frames.push_back(std::move(bm));
+           }
+           auto same = [](const SkBitmap& a, const SkBitmap& b) {
+             for (int y = 0; y < kField; ++y)
+               for (int x = 0; x < kField; ++x)
+                 if (a.getColor(x, y) != b.getColor(x, y)) return false;
+             return true;
+           };
+           int distinct = 0;
+           for (size_t i = 0; i < frames.size(); ++i) {
+             bool seen = false;
+             for (size_t j = 0; j < i; ++j) seen |= same(frames[i], frames[j]);
+             distinct += !seen;
+           }
+           SCOPED_TRACE(testing::Message()
+                        << "size " << size << " sweep " << sweep
+                        << " deg, distinct " << distinct);
+           // A ladder twice as coarse as the sweep can answer at most half the
+           // steps, so half is where the two verdicts part -- a derived bound
+           // rather than a fitted one.
+           EXPECT_GT(distinct, kSteps / 2)
+               << "the track's rotation is on a coarser ladder than the "
+                  "baseline's tangent";
+         }
+       }},
+      // `TextPath::exactTangent` IS THE ROTATION AND NOTHING ELSE. A glyph on a
+      // curve is turned to a snapped tangent by default, because every distinct
+      // rotation is a glyph-atlas strike; the flag buys the exact angle for
+      // artwork set large and paying nothing per frame. Read as ink, that is
+      // two
+      // claims: on a curve the two answers differ at every size the flag is
+      // for,
+      // and on a STRAIGHT baseline — where there is no angle to snap — they are
+      // the same pixels, so nothing else in the placement moves with it.
+      {"ExactTangentOptsOutAndChangesNothingOnAStraightBaseline",
+       [&] {
+         auto render = [](const Shape& path, float size, float phase,
+                          bool exact) {
+           Host host(kField, kField);
+           host.composer.render(box().children(
+               {text(u8"H", whiteStyle(size))
+                    .key("ring")
+                    .width(kField)
+                    .height(kField)
+                    .absolute()
+                    .left(0)
+                    .top(0)
+                    .textOnPath({.path = path,
+                                 .at = phase,
+                                 .align = TextPath::Align::Center,
+                                 .exactTangent = exact})}));
+           host.frame();
+           SkBitmap bm;
+           bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));
+           host.surface->readPixels(bm.pixmap(), 0, 0);
+           return bm;
+         };
+         auto differing = [](const SkBitmap& a, const SkBitmap& b) {
+           int n = 0;
+           for (int y = 0; y < kField; ++y)
+             for (int x = 0; x < kField; ++x)
+               if (a.getColor(x, y) != b.getColor(x, y)) ++n;
+           return n;
+         };
+         // A baseline with no curvature at all: every glyph on it faces the
+         // same way, and that way is already on every ladder.
+         const Shape straight = skiaShape([](SkSize s) {
+           return SkPath::Line({0, s.height() * 0.5f},
+                               {s.width(), s.height() * 0.5f});
+         });
+         for (const float size : {40.0f, 120.0f, 300.0f})
+           for (const float phase : {0.06f, 0.19f, 0.31f}) {
+             EXPECT_GT(
+                 differing(
+                     render(geometry::shapes::circle(), size, phase, false),
+                     render(geometry::shapes::circle(), size, phase, true)),
+                 0)
+                 << "on a ring at " << size << " px, phase " << phase;
+             EXPECT_EQ(differing(render(straight, size, phase, false),
+                                 render(straight, size, phase, true)),
+                       0)
+                 << "on a straight baseline at " << size << " px, phase "
+                 << phase;
+           }
+       }},
   });
-  EXPECT_LE(distinct, kWholePixelCeiling)
-      << "a fade-only track is paying for the subpixel grid";
-}
-
-// A TWEEN IS ANSWERED BY ITS OWN STOPS, and the two verdicts are measured
-// the same way so neither can be an accident of the measurement: the same
-// ring, the same live progress, the same slide of a pixel and a half — only
-// the lane the tween publishes into differs.
-TEST(ComposePathMotion, ATweenEngagesTheGridOnlyWhereItMovesGlyphs) {
-  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.5f);
-  const TextEffect colourOnly = textFx::tween(
-      {.from = GlyphModifier{.colorMultiplier = {0.3f, 0.3f, 0.3f, 1.0f}}});
-  const TextEffect offset = textFx::tween({.from = GlyphModifier{.dx = 9.0f}});
-
-  Host cheapHost(kField, kField);
-  const int cheap = distinctFramesAcrossOnePixel(cheapHost, [&](float at) {
-    return ringWith(at, 44.0f, {.effect = colourOnly, .progress = progress});
-  });
-  Host movingHost(kField, kField);
-  const int moving = distinctFramesAcrossOnePixel(movingHost, [&](float at) {
-    return ringWith(at, 44.0f, {.effect = offset, .progress = progress});
-  });
-
-  EXPECT_LE(cheap, kWholePixelCeiling)
-      << "a colour-only tween is paying for the subpixel grid";
-  EXPECT_GT(moving, kWholePixelCeiling)
-      << "a tween with an offset is rounding to whole pixels";
-}
-
-// A SETTLED TRACK IS TYPE AT REST, whatever it does while it runs. Its
-// glyphs are standing somewhere else and standing still, which is what
-// whole-pixel origins are for — and the proof is bytes: a settled slide
-// deviates nothing at all, so its frame must be the frame with no track on
-// it, mask for mask. Read off the declaration, so the last frame of the
-// motion and the first frame of the rest do not disagree.
-TEST(ComposePathMotion, ASettledDisplacingTrackReturnsToWholePixels) {
-  const auto shot = [](Host& host, const Element& tree) {
-    host.composer.render(tree);
-    host.frame();
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));
-    host.surface->readPixels(bm.pixmap(), 0, 0);
-    return bm;
-  };
-  Host bare(kField, kField);
-  const SkBitmap untracked = shot(bare, ringAt(0.05f, 44.0f));
-  Host settled(kField, kField);
-  const SkBitmap withTrack = shot(
-      settled,
-      ringWith(0.05f, 44.0f,
-               {.effect = textFx::enter(textFx::slide()), .progress = 1.0f}));
-  for (int y = 0; y < kField; ++y)
-    for (int x = 0; x < kField; ++x)
-      ASSERT_EQ(untracked.getColor(x, y), withTrack.getColor(x, y))
-          << "a settled slide moved the ink at " << x << "," << y;
-
-  Host sliding(kField, kField);
-  const int distinct = distinctFramesAcrossOnePixel(sliding, [](float at) {
-    return ringWith(
-        at, 44.0f,
-        {.effect = textFx::enter(textFx::slide()), .progress = 1.0f});
-  });
-  EXPECT_LE(distinct, kWholePixelCeiling)
-      << "a settled track is paying for the subpixel grid";
-}
-
-// A TRACK'S OWN ROTATION TAKES THE SAME LADDER as the baseline's tangent.
-// The two compose onto one letter — the baseline turns it to the curve and
-// the track turns it further — so a ladder coarse on either side is the
-// coarsest thing in the letter's motion and ticks whatever the other side
-// does.
-//
-// Counted as DISTINCT RENDERINGS across a sweep, which is what a ladder
-// decides and nothing else does: turned through twelve of its own steps a
-// letter must answer twelve different frames, where a ladder several times
-// coarser answers the same two or three over and over and the letter sits
-// still between them. The sweep is cut by size for the same reason the
-// ladder is, so the count means the same thing at both.
-TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
-  constexpr int kSteps = 12;
-  for (const float size : {14.0f, 44.0f}) {
-    // Twelve steps of a ladder cut at sixteen per pixel of em.
-    const float sweep = (float)kSteps * 360.0f / (16.0f * size);
-    const TextEffect turn(
-        "turn", {},
-        [sweep](const GlyphInfo&, float t, sigil::core::noise::Mix64Stream&) {
-          GlyphModifier m;
-          m.rotateDegrees = sweep * t;
-          return m;
-        },
-        60.0f);
-    Host host(kField, kField);
-    sigil::motion::Animatable<float> phase =
-        sigil::motion::animatable(0.05f);  // bound, and standing still
-    sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
-    std::vector<SkBitmap> frames;
-    frames.reserve(kSteps);
-    for (int i = 0; i < kSteps; ++i) {
-      progress = (float)i / (float)(kSteps - 1);
-      host.composer.render(box().children(
-          {text(u8"H", whiteStyle(size))
-               .key("ring")
-               .width(kField)
-               .height(kField)
-               .absolute()
-               .left(0)
-               .top(0)
-               .textOnPath({.path = geometry::shapes::circle(),
-                            .at = phase,
-                            .align = TextPath::Align::Center})
-               .textFx({.effect = turn, .progress = progress})}));
-      host.frame();
-      SkBitmap bm;
-      bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));
-      host.surface->readPixels(bm.pixmap(), 0, 0);
-      frames.push_back(std::move(bm));
-    }
-    auto same = [](const SkBitmap& a, const SkBitmap& b) {
-      for (int y = 0; y < kField; ++y)
-        for (int x = 0; x < kField; ++x)
-          if (a.getColor(x, y) != b.getColor(x, y)) return false;
-      return true;
-    };
-    int distinct = 0;
-    for (size_t i = 0; i < frames.size(); ++i) {
-      bool seen = false;
-      for (size_t j = 0; j < i; ++j) seen |= same(frames[i], frames[j]);
-      distinct += !seen;
-    }
-    SCOPED_TRACE(testing::Message() << "size " << size << " sweep " << sweep
-                                    << " deg, distinct " << distinct);
-    // A ladder twice as coarse as the sweep can answer at most half the
-    // steps, so half is where the two verdicts part -- a derived bound
-    // rather than a fitted one.
-    EXPECT_GT(distinct, kSteps / 2)
-        << "the track's rotation is on a coarser ladder than the "
-           "baseline's tangent";
-  }
-}
-
-// `TextPath::exactTangent` IS THE ROTATION AND NOTHING ELSE. A glyph on a
-// curve is turned to a snapped tangent by default, because every distinct
-// rotation is a glyph-atlas strike; the flag buys the exact angle for
-// artwork set large and paying nothing per frame. Read as ink, that is two
-// claims: on a curve the two answers differ at every size the flag is for,
-// and on a STRAIGHT baseline — where there is no angle to snap — they are
-// the same pixels, so nothing else in the placement moves with it.
-TEST(ComposePathMotion, ExactTangentTurnsAGlyphTheLadderSnaps) {
-  auto render = [](const Shape& path, float size, float phase, bool exact) {
-    Host host(kField, kField);
-    host.composer.render(
-        box().children({text(u8"H", whiteStyle(size))
-                            .key("ring")
-                            .width(kField)
-                            .height(kField)
-                            .absolute()
-                            .left(0)
-                            .top(0)
-                            .textOnPath({.path = path,
-                                         .at = phase,
-                                         .align = TextPath::Align::Center,
-                                         .exactTangent = exact})}));
-    host.frame();
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));
-    host.surface->readPixels(bm.pixmap(), 0, 0);
-    return bm;
-  };
-  auto differing = [](const SkBitmap& a, const SkBitmap& b) {
-    int n = 0;
-    for (int y = 0; y < kField; ++y)
-      for (int x = 0; x < kField; ++x)
-        if (a.getColor(x, y) != b.getColor(x, y)) ++n;
-    return n;
-  };
-  // A baseline with no curvature at all: every glyph on it faces the same
-  // way, and that way is already on every ladder.
-  const Shape straight = skiaShape([](SkSize s) {
-    return SkPath::Line({0, s.height() * 0.5f}, {s.width(), s.height() * 0.5f});
-  });
-  for (const float size : {40.0f, 120.0f, 300.0f})
-    for (const float phase : {0.06f, 0.19f, 0.31f}) {
-      EXPECT_GT(
-          differing(render(geometry::shapes::circle(), size, phase, false),
-                    render(geometry::shapes::circle(), size, phase, true)),
-          0)
-          << "on a ring at " << size << " px, phase " << phase;
-      EXPECT_EQ(differing(render(straight, size, phase, false),
-                          render(straight, size, phase, true)),
-                0)
-          << "on a straight baseline at " << size << " px, phase " << phase;
-    }
 }

@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "ReliefTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -123,28 +124,7 @@ void expectPanelMatches(const Host& actual, const Host& expected, int shift) {
 
 }  // namespace
 
-TEST(ComposeRelief, SignedDepthTurnsTheActualOffsetOutlineAndPreservesHoles) {
-  SkPathBuilder ring;
-  ring.addRect(SkRect::MakeLTRB(20, 20, 100, 80));
-  ring.addRect(SkRect::MakeLTRB(40, 40, 80, 60), SkPathDirection::kCCW);
-  const PaintContext context = contextFor(ring.detach());
-  Host raised(128, 100), impressed(128, 100), flat(128, 100);
-  paintWithPen(relief(greySurface(), {.shoulder = 6, .depth = 1}),
-               *raised.surface->getCanvas(), context);
-  paintWithPen(relief(greySurface(), {.shoulder = 6, .depth = -1}),
-               *impressed.surface->getCanvas(), context);
-  paintWithPen(relief(greySurface(), {.shoulder = 6, .depth = 0}),
-               *flat.surface->getCanvas(), context);
-  EXPECT_GT(upward(raised.pixel(60, 22)), upward(raised.pixel(60, 77)) + 30);
-  EXPECT_GT(upward(impressed.pixel(60, 77)),
-            upward(impressed.pixel(60, 22)) + 30);
-  EXPECT_EQ(flat.pixel(60, 22), flat.pixel(60, 77));
-  EXPECT_EQ(raised.pixel(60, 50), SK_ColorBLACK);
-  EXPECT_EQ(impressed.pixel(60, 50), SK_ColorBLACK);
-  EXPECT_EQ(raised.pixel(10, 50), SK_ColorBLACK);
-}
-
-TEST(ComposeRelief, ASharedBrushKeepsDistinctOutlineBakesAcrossRepaints) {
+TEST(ComposeRelief, OneReliefOnTwoOutlinesKeepsEachOutlinesBake) {
   auto reads = std::make_shared<int>(0);
   const auto sampled = [&](SkColor colour) {
     return material::image(
@@ -176,43 +156,8 @@ TEST(ComposeRelief, ASharedBrushKeepsDistinctOutlineBakesAcrossRepaints) {
   EXPECT_EQ(*reads, firstReads);
 }
 
-TEST(ComposeRelief, AuthoredNormalDetailAndItsConventionSurviveTheShoulder) {
-  const material::Material finish =
-      material::from(material::Color{0.6f, 0.6f, 0.6f, 1})
-          .surface({.roughness = 0.8f,
-                    .normal = material::Color{0.5f, 0.8f, 0.9f, 1},
-                    .normalDirectX = false});
-  const PaintContext context = contextFor(rectangle());
-  Host detailOnly(128, 100), combined(128, 100), noDetail(128, 100);
-  paintWithPen(relief(finish, {.shoulder = 6, .depth = 0}),
-               *detailOnly.surface->getCanvas(), context);
-  paintWithPen(relief(finish, {.shoulder = 6, .depth = 1}),
-               *combined.surface->getCanvas(), context);
-  paintWithPen(relief(greySurface(), {.shoulder = 6, .depth = 0}),
-               *noDetail.surface->getCanvas(), context);
-  EXPECT_GT(upward(detailOnly.pixel(60, 50)),
-            upward(noDetail.pixel(60, 50)) + 30);
-  EXPECT_NEAR(upward(combined.pixel(60, 50)), upward(detailOnly.pixel(60, 50)),
-              4);
-  EXPECT_GT(upward(combined.pixel(60, 22)),
-            upward(combined.pixel(60, 77)) + 30);
-}
-
-TEST(ComposeRelief, BakeDensityKeepsLogicalShouldersAndOutlinePlacement) {
-  const Relief mark = relief(greySurface(), {.shoulder = 6});
-  for (const float density : {0.5f, 1.0f, 2.0f}) {
-    Host host(128, 100);
-    PaintContext context = contextFor(rectangle());
-    context.bakeDensity = density;
-    paintWithPen(mark, *host.surface->getCanvas(), context);
-    EXPECT_GT(upward(host.pixel(60, 22)), upward(host.pixel(60, 77)) + 30);
-    EXPECT_EQ(host.pixel(10, 50), SK_ColorBLACK);
-    EXPECT_GT(brightness(host.pixel(60, 50)), 0);
-  }
-}
-
 TEST(ComposeRelief,
-     AComposerPaintsTheShouldersIntoTheNormalMapAndFlatOtherwise) {
+     AReliefPaintsItsShouldersInTheNormalMapAndItsColoursFlatOnAPage) {
   Host host(120, 100);
   const Element tree = box().children(
       {box().absolute().left(20).top(20).width(80).height(60).background(
@@ -227,60 +172,6 @@ TEST(ComposeRelief,
   EXPECT_EQ(host.pixel(22, 50), host.pixel(60, 50));
   EXPECT_EQ(host.pixel(97, 50), host.pixel(60, 50));
   EXPECT_GT(brightness(host.pixel(60, 50)), 0);
-}
-
-TEST(ComposeRelief, TimeAndSurfaceMapBindingsRemainLiveUnderAutomaticCaching) {
-  ASSERT_TRUE(timeColour());
-  Host timed(120, 100);
-  timed.composer.render(box().children({box().width(80).height(60).background(
-      relief(material::skia::base(material::skia::sksl(timeColour()))))}));
-  timed.frame();
-  EXPECT_EQ(timed.pixel(30, 30), SK_ColorRED);
-  EXPECT_TRUE(timed.composer.isRunning());
-  timed.frame(1.0);
-  EXPECT_EQ(timed.pixel(30, 30), SK_ColorBLUE);
-
-  ASSERT_TRUE(scalarMap());
-  motion::Animatable<float> roughness = motion::animatable(0.05f);
-  material::Paint roughMap = material::skia::sksl(scalarMap());
-  roughMap.bind("value", roughness);
-  const material::Material surface =
-      material::from(material::Color{0.6f, 0.6f, 0.6f, 1})
-          .surface(
-              {.metallic = 1.0f, .roughness = material::skia::base(roughMap)});
-  Host mapped(120, 100);
-  mapped.composer.setSurfaceMap(material::texture::Role::Roughness);
-  mapped.composer.render(
-      box().children({box().width(80).height(60).background(relief(surface))}));
-  mapped.frame();
-  const SkColor polished = mapped.pixel(40, 30);
-  roughness = 1.0f;
-  EXPECT_TRUE(mapped.composer.isRunning());
-  mapped.frame();
-  EXPECT_NE(mapped.pixel(40, 30), polished);
-}
-
-TEST(ComposeRelief, AMovingPixelSourceRemainsLiveThroughLoweredPaint) {
-  SkBitmap redFrame, blueFrame;
-  redFrame.allocN32Pixels(80, 60, true);
-  blueFrame.allocN32Pixels(80, 60, true);
-  redFrame.eraseColor(SK_ColorRED);
-  blueFrame.eraseColor(SK_ColorBLUE);
-  redFrame.setImmutable();
-  blueFrame.setImmutable();
-  const material::Texture source(sigil::media::PixelSource(
-      ChangingPicture{redFrame.asImage(), blueFrame.asImage()}));
-  const Relief mark = relief(material::image(source).surface({.unlit = true}));
-  Host host(120, 100);
-  host.composer.render(
-      box().children({box().width(80).height(60).background(mark)}));
-  host.frame();
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
-  EXPECT_TRUE(host.composer.isRunning());
-  host.frame(2.0);
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorBLUE);
-  host.frame();
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorBLUE);
 }
 
 namespace {
@@ -405,128 +296,196 @@ INSTANTIATE_TEST_SUITE_P(
       return info.param.name;
     });
 
-TEST(ComposeRelief, LocalMaterialsDoNotDeclareRootSpaceSampling) {
+TEST(ComposeRelief, HeldPaintSamplingRootSpaceFollowsAMovedAncestor) {
   EXPECT_FALSE(Decoration(relief(greySurface())).usesWorldSpace());
   EXPECT_FALSE(Decoration(decorations::wash(greySurface())).usesWorldSpace());
 }
 
-TEST(ComposeRelief, MaterialLayersCoverageAndPixelEffectsArePreserved) {
-  const material::Material material =
-      material::from(material::Color{0, 0, 1, 1})
-          .layer(material::Color{1, 0, 0, 1})
-          .surface({.unlit = true})
-          .effects(material::Filter::shadow({0, 1, 0, 1}, {.offset = {0, 8}})
-                       .then(material::Filter::stroke(
-                           {1, 1, 0, 1},
-                           {.width = 3,
-                            .position = material::StrokePosition::Inside}))
-                       .then(material::Filter::saturate(0)));
-  Host host(128, 100);
-  host.composer.render(box().children(
-      {box().absolute().left(20).top(20).width(80).height(60).background(
-          relief(material))}));
-  host.frame();
-  const SkColor centre = host.pixel(60, 50);
-  EXPECT_GT(SkColorGetR(centre), 0);
-  EXPECT_EQ(SkColorGetR(centre), SkColorGetG(centre));
-  EXPECT_EQ(SkColorGetG(centre), SkColorGetB(centre));
-  EXPECT_GT(brightness(host.pixel(21, 50)), brightness(centre));
-  EXPECT_GT(brightness(host.pixel(60, 84)), 0);
-  EXPECT_EQ(SkColorGetR(host.pixel(60, 84)), SkColorGetG(host.pixel(60, 84)));
-  EXPECT_EQ(host.pixel(60, 90), SK_ColorBLACK);
+TEST(ComposeRelief, AReliefKeepsItsMaterialsLayersEffectsAndLiveChannels) {
+  sigil::compose::test::checkRows({
+      {"TimeAndSurfaceMapBindingsStayLive",
+       [&] {
+         ASSERT_TRUE(timeColour());
+         Host timed(120, 100);
+         timed.composer.render(
+             box().children({box().width(80).height(60).background(relief(
+                 material::skia::base(material::skia::sksl(timeColour()))))}));
+         timed.frame();
+         EXPECT_EQ(timed.pixel(30, 30), SK_ColorRED);
+         EXPECT_TRUE(timed.composer.isRunning());
+         timed.frame(1.0);
+         EXPECT_EQ(timed.pixel(30, 30), SK_ColorBLUE);
+
+         ASSERT_TRUE(scalarMap());
+         motion::Animatable<float> roughness = motion::animatable(0.05f);
+         material::Paint roughMap = material::skia::sksl(scalarMap());
+         roughMap.bind("value", roughness);
+         const material::Material surface =
+             material::from(material::Color{0.6f, 0.6f, 0.6f, 1})
+                 .surface({.metallic = 1.0f,
+                           .roughness = material::skia::base(roughMap)});
+         Host mapped(120, 100);
+         mapped.composer.setSurfaceMap(material::texture::Role::Roughness);
+         mapped.composer.render(box().children(
+             {box().width(80).height(60).background(relief(surface))}));
+         mapped.frame();
+         const SkColor polished = mapped.pixel(40, 30);
+         roughness = 1.0f;
+         EXPECT_TRUE(mapped.composer.isRunning());
+         mapped.frame();
+         EXPECT_NE(mapped.pixel(40, 30), polished);
+       }},
+      {"AMovingPixelSourceStaysLive",
+       [&] {
+         SkBitmap redFrame, blueFrame;
+         redFrame.allocN32Pixels(80, 60, true);
+         blueFrame.allocN32Pixels(80, 60, true);
+         redFrame.eraseColor(SK_ColorRED);
+         blueFrame.eraseColor(SK_ColorBLUE);
+         redFrame.setImmutable();
+         blueFrame.setImmutable();
+         const material::Texture source(sigil::media::PixelSource(
+             ChangingPicture{redFrame.asImage(), blueFrame.asImage()}));
+         const Relief mark =
+             relief(material::image(source).surface({.unlit = true}));
+         Host host(120, 100);
+         host.composer.render(
+             box().children({box().width(80).height(60).background(mark)}));
+         host.frame();
+         EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
+         EXPECT_TRUE(host.composer.isRunning());
+         host.frame(2.0);
+         EXPECT_EQ(host.pixel(30, 30), SK_ColorBLUE);
+         host.frame();
+         EXPECT_EQ(host.pixel(30, 30), SK_ColorBLUE);
+       }},
+      {"LayersCoverageAndPixelEffects",
+       [&] {
+         const material::Material material =
+             material::from(material::Color{0, 0, 1, 1})
+                 .layer(material::Color{1, 0, 0, 1})
+                 .surface({.unlit = true})
+                 .effects(
+                     material::Filter::shadow({0, 1, 0, 1}, {.offset = {0, 8}})
+                         .then(material::Filter::stroke(
+                             {1, 1, 0, 1},
+                             {.width = 3,
+                              .position = material::StrokePosition::Inside}))
+                         .then(material::Filter::saturate(0)));
+         Host host(128, 100);
+         host.composer.render(box().children(
+             {box().absolute().left(20).top(20).width(80).height(60).background(
+                 relief(material))}));
+         host.frame();
+         const SkColor centre = host.pixel(60, 50);
+         EXPECT_GT(SkColorGetR(centre), 0);
+         EXPECT_EQ(SkColorGetR(centre), SkColorGetG(centre));
+         EXPECT_EQ(SkColorGetG(centre), SkColorGetB(centre));
+         EXPECT_GT(brightness(host.pixel(21, 50)), brightness(centre));
+         EXPECT_GT(brightness(host.pixel(60, 84)), 0);
+         EXPECT_EQ(SkColorGetR(host.pixel(60, 84)),
+                   SkColorGetG(host.pixel(60, 84)));
+         EXPECT_EQ(host.pixel(60, 90), SK_ColorBLACK);
+       }},
+  });
 }
 
-TEST(ComposeRelief, GlyphForegroundFollowsTheSameCoverageAsTextInk) {
-  for (const bool fixed : {false, true}) {
-    SCOPED_TRACE(fixed ? "fixed text box" : "intrinsic text box");
-    Host ordinary(200, 100), dressed(200, 100);
-    const auto describe = [fixed](bool decorated) {
-      Element letters = text(u8"HO", whiteStyle(64));
-      if (fixed) letters.absolute().rect(14, 7, 174, 88);
-      if (decorated)
-        letters.ink(material::Color{0, 0, 0, 0})
-            .decorationOutline(Boundary::Glyphs)
-            .foreground(relief(material::Color{1, 1, 1, 1}));
-      else
-        letters.ink({1, 1, 1, 1});
-      return box().children({letters});
-    };
-    ordinary.composer.render(describe(false));
-    dressed.composer.render(describe(true));
-    for (int frame = 0; frame < 2; ++frame) {
-      SCOPED_TRACE(frame);
-      ordinary.frame();
-      dressed.frame();
-      expectGlyphCoverage(ordinary, dressed, 200, 100);
-    }
-  }
+TEST(ComposeRelief, AGlyphReliefCoversWhatTheTextInkCovers) {
+  sigil::compose::test::checkRows({
+      {"IntrinsicAndFixedBoxes",
+       [&] {
+         for (const bool fixed : {false, true}) {
+           SCOPED_TRACE(fixed ? "fixed text box" : "intrinsic text box");
+           Host ordinary(200, 100), dressed(200, 100);
+           const auto describe = [fixed](bool decorated) {
+             Element letters = text(u8"HO", whiteStyle(64));
+             if (fixed) letters.absolute().rect(14, 7, 174, 88);
+             if (decorated)
+               letters.ink(material::Color{0, 0, 0, 0})
+                   .decorationOutline(Boundary::Glyphs)
+                   .foreground(relief(material::Color{1, 1, 1, 1}));
+             else
+               letters.ink({1, 1, 1, 1});
+             return box().children({letters});
+           };
+           ordinary.composer.render(describe(false));
+           dressed.composer.render(describe(true));
+           for (int frame = 0; frame < 2; ++frame) {
+             SCOPED_TRACE(frame);
+             ordinary.frame();
+             dressed.frame();
+             expectGlyphCoverage(ordinary, dressed, 200, 100);
+           }
+         }
+       }},
+      {"AfterItsFixedBoxChanges",
+       [&] {
+         Host ordinary(260, 110), dressed(260, 110);
+         const auto describe = [](bool decorated, float width) {
+           Element letters = text(u8"HO", whiteStyle(64))
+                                 .absolute()
+                                 .rect(10, 8, width, 90)
+                                 .textAlign(weave::TextAlignment::kCenter);
+           if (decorated)
+             letters.ink(material::Color{0, 0, 0, 0})
+                 .decorationOutline(Boundary::Glyphs)
+                 .foreground(relief(material::Color{1, 1, 1, 1}));
+           else
+             letters.ink({1, 1, 1, 1});
+           return box().children({letters});
+         };
+         for (const float width : {140.0f, 230.0f, 140.0f}) {
+           SCOPED_TRACE(width);
+           ordinary.composer.render(describe(false, width));
+           dressed.composer.render(describe(true, width));
+           ordinary.frame();
+           dressed.frame();
+           expectGlyphCoverage(ordinary, dressed, 260, 110);
+         }
+       }},
+      {"EmptyWhitespaceAndNonTextBoundaries",
+       [&] {
+         for (const char8_t* source : {u8"", u8"   ", u8"O"}) {
+           SCOPED_TRACE(reinterpret_cast<const char*>(source));
+           Host host(200, 100);
+           host.composer.render(box().children(
+               {text(source, whiteStyle(64))
+                    .absolute()
+                    .rect(14, 7, 174, 88)
+                    .ink(material::Color{0, 0, 0, 0})
+                    .decorationOutline(Boundary::Glyphs)
+                    .foreground(relief(material::Color{1, 1, 1, 1}))}));
+           for (int frame = 0; frame < 2; ++frame) {
+             SCOPED_TRACE(frame);
+             host.frame();
+             int covered = 0;
+             for (int y = 0; y < 100; ++y)
+               for (int x = 0; x < 200; ++x)
+                 covered += host.pixel(x, y) != SK_ColorBLACK;
+             if (source[0] == u8'O') {
+               EXPECT_GT(covered, 200);
+               EXPECT_LT(covered, 174 * 88 / 2);
+             } else {
+               EXPECT_EQ(covered, 0);
+             }
+           }
+         }
+
+         Host shape(80, 60);
+         shape.composer.render(box().children(
+             {box()
+                  .width(40)
+                  .height(30)
+                  .decorationOutline(Boundary::Glyphs)
+                  .foreground(relief(material::Color{1, 1, 1, 1}))}));
+         shape.frame();
+         EXPECT_EQ(shape.pixel(20, 15), SK_ColorWHITE);
+         EXPECT_EQ(shape.pixel(50, 15), SK_ColorBLACK);
+       }},
+  });
 }
 
-TEST(ComposeRelief, GlyphForegroundTracksAlignmentAfterItsFixedBoxChanges) {
-  Host ordinary(260, 110), dressed(260, 110);
-  const auto describe = [](bool decorated, float width) {
-    Element letters = text(u8"HO", whiteStyle(64))
-                          .absolute()
-                          .rect(10, 8, width, 90)
-                          .textAlign(weave::TextAlignment::kCenter);
-    if (decorated)
-      letters.ink(material::Color{0, 0, 0, 0})
-          .decorationOutline(Boundary::Glyphs)
-          .foreground(relief(material::Color{1, 1, 1, 1}));
-    else
-      letters.ink({1, 1, 1, 1});
-    return box().children({letters});
-  };
-  for (const float width : {140.0f, 230.0f, 140.0f}) {
-    SCOPED_TRACE(width);
-    ordinary.composer.render(describe(false, width));
-    dressed.composer.render(describe(true, width));
-    ordinary.frame();
-    dressed.frame();
-    expectGlyphCoverage(ordinary, dressed, 260, 110);
-  }
-}
-
-TEST(ComposeRelief, EmptyAndWhitespaceGlyphBoundariesPaintNoRelief) {
-  for (const char8_t* source : {u8"", u8"   ", u8"O"}) {
-    SCOPED_TRACE(reinterpret_cast<const char*>(source));
-    Host host(200, 100);
-    host.composer.render(
-        box().children({text(source, whiteStyle(64))
-                            .absolute()
-                            .rect(14, 7, 174, 88)
-                            .ink(material::Color{0, 0, 0, 0})
-                            .decorationOutline(Boundary::Glyphs)
-                            .foreground(relief(material::Color{1, 1, 1, 1}))}));
-    for (int frame = 0; frame < 2; ++frame) {
-      SCOPED_TRACE(frame);
-      host.frame();
-      int covered = 0;
-      for (int y = 0; y < 100; ++y)
-        for (int x = 0; x < 200; ++x)
-          covered += host.pixel(x, y) != SK_ColorBLACK;
-      if (source[0] == u8'O') {
-        EXPECT_GT(covered, 200);
-        EXPECT_LT(covered, 174 * 88 / 2);
-      } else {
-        EXPECT_EQ(covered, 0);
-      }
-    }
-  }
-
-  Host shape(80, 60);
-  shape.composer.render(
-      box().children({box()
-                          .width(40)
-                          .height(30)
-                          .decorationOutline(Boundary::Glyphs)
-                          .foreground(relief(material::Color{1, 1, 1, 1}))}));
-  shape.frame();
-  EXPECT_EQ(shape.pixel(20, 15), SK_ColorWHITE);
-  EXPECT_EQ(shape.pixel(50, 15), SK_ColorBLACK);
-}
-
-TEST(ComposeRelief, NormalBakesDoNotParticipateInStructuralEquality) {
+TEST(ComposeRelief, AnEqualReliefPrunesWhateverItHasBaked) {
   const Relief mark = relief(greySurface());
   Host host(128, 100);
   paintWithPen(mark, *host.surface->getCanvas(), contextFor(rectangle()));
@@ -540,28 +499,50 @@ TEST(ComposeRelief, NormalBakesDoNotParticipateInStructuralEquality) {
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
-TEST(ComposeRelief, InvalidAndOversizedBakesFallBackToFlatFinitePaint) {
-  for (const material::ReliefOptions options :
-       {material::ReliefOptions{.shoulder =
-                                    std::numeric_limits<float>::infinity()},
-        material::ReliefOptions{.depth =
-                                    std::numeric_limits<float>::quiet_NaN()},
-        material::ReliefOptions{.depth = std::numeric_limits<float>::max()},
-        material::ReliefOptions{.shoulder = -1}}) {
-    Host normal(128, 100), base(128, 100);
-    paintWithPen(relief(material::Color{1, 0, 0, 1}, options),
-                 *normal.surface->getCanvas(), contextFor(rectangle()));
-    paintWithPen(relief(material::Color{1, 0, 0, 1}, options),
-                 *base.surface->getCanvas(),
-                 contextFor(rectangle(), material::texture::Role::BaseColor));
-    EXPECT_EQ(normal.pixel(60, 50), kFacingTheViewer);
-    EXPECT_EQ(normal.pixel(10, 50), SK_ColorBLACK);
-    EXPECT_EQ(base.pixel(60, 50), SK_ColorRED);
-  }
-  Host host(128, 100);
-  PaintContext context = contextFor(rectangle());
-  context.bakeDensity = std::numeric_limits<float>::max();
-  paintWithPen(relief(material::Color{1, 0, 0, 1}), *host.surface->getCanvas(),
-               context);
-  EXPECT_EQ(host.pixel(60, 50), kFacingTheViewer);
+TEST(ComposeRelief,
+     AReliefRaisesOrImpressesItsOutlineByAShoulderInLogicalPixels) {
+  sigil::compose::test::checkRows({
+      {"BakeDensityKeepsLogicalShoulders",
+       [&] {
+         const Relief mark = relief(greySurface(), {.shoulder = 6});
+         for (const float density : {0.5f, 1.0f, 2.0f}) {
+           Host host(128, 100);
+           PaintContext context = contextFor(rectangle());
+           context.bakeDensity = density;
+           paintWithPen(mark, *host.surface->getCanvas(), context);
+           EXPECT_GT(upward(host.pixel(60, 22)),
+                     upward(host.pixel(60, 77)) + 30);
+           EXPECT_EQ(host.pixel(10, 50), SK_ColorBLACK);
+           EXPECT_GT(brightness(host.pixel(60, 50)), 0);
+         }
+       }},
+      {"InvalidOptionsPaintFlatAndFinite",
+       [&] {
+         for (const material::ReliefOptions options :
+              {material::ReliefOptions{
+                   .shoulder = std::numeric_limits<float>::infinity()},
+               material::ReliefOptions{
+                   .depth = std::numeric_limits<float>::quiet_NaN()},
+               material::ReliefOptions{.depth =
+                                           std::numeric_limits<float>::max()},
+               material::ReliefOptions{.shoulder = -1}}) {
+           Host normal(128, 100), base(128, 100);
+           paintWithPen(relief(material::Color{1, 0, 0, 1}, options),
+                        *normal.surface->getCanvas(), contextFor(rectangle()));
+           paintWithPen(
+               relief(material::Color{1, 0, 0, 1}, options),
+               *base.surface->getCanvas(),
+               contextFor(rectangle(), material::texture::Role::BaseColor));
+           EXPECT_EQ(normal.pixel(60, 50), kFacingTheViewer);
+           EXPECT_EQ(normal.pixel(10, 50), SK_ColorBLACK);
+           EXPECT_EQ(base.pixel(60, 50), SK_ColorRED);
+         }
+         Host host(128, 100);
+         PaintContext context = contextFor(rectangle());
+         context.bakeDensity = std::numeric_limits<float>::max();
+         paintWithPen(relief(material::Color{1, 0, 0, 1}),
+                      *host.surface->getCanvas(), context);
+         EXPECT_EQ(host.pixel(60, 50), kFacingTheViewer);
+       }},
+  });
 }

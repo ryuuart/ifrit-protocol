@@ -3,45 +3,7 @@
 // the cycle that is ignored rather than followed.
 
 #include "support/CoreTestSupport.h"
-
-TEST(ComposeDerive, FlowAroundWrapsTextAroundFrame) {
-  const std::u8string body =
-      u8"the quick brown fox jumps over the lazy dog and keeps running "
-      u8"through the tall summer grass until the river bend appears and "
-      u8"the evening light settles over the water in long amber bands";
-
-  auto tree = [&](bool flow) {
-    auto t = text(body, whiteStyle(18)).key("body");
-    if (flow) t.contentFlowAround("frame", 6);
-    return stack().children(
-        {box()
-             .key("frame")
-             .width(150)
-             .height(140)
-             .inset(10, 10, 210, 200)
-             .absolute()
-             .fill(Fill::color({0, 0.4f, 0, 1})),
-         box().inset(0).children({std::move(t)}).zIndex(1)});
-  };
-
-  Host plain(360, 420), flowed(360, 420);
-  plain.composer.render(tree(false));
-  plain.frame();
-  flowed.composer.render(tree(true));
-  flowed.frame();
-
-  // Without the exclusion, text runs under the frame region; with it,
-  // the region stays text-free (frame color only).
-  const SkIRect inner = SkIRect::MakeLTRB(215, 25, 345, 135);
-  EXPECT_TRUE(anyWhiteIn(plain, inner));
-  EXPECT_FALSE(anyWhiteIn(flowed, inner));
-
-  // Displaced words push the flowed paragraph taller.
-  auto plainBounds = plain.composer.bounds("body");
-  auto flowedBounds = flowed.composer.bounds("body");
-  ASSERT_TRUE(plainBounds && flowedBounds);
-  EXPECT_GT(flowedBounds->height(), plainBounds->height());
-}
+#include "support/Rows.h"
 
 namespace {
 
@@ -88,21 +50,68 @@ Element obstacleBox(Shape silhouette) {
 
 }  // namespace
 
-TEST(ComposeDerive, FlowAroundShapelessTargetKeepsItsBox) {
-  // The pin: a target with no silhouette of its own is subtracted by its
-  // BOX, exactly as it always was. Every line the box crosses is cut to
-  // the box's full width, whatever the type does.
-  Host host(360, 460);
-  host.composer.render(flowScene(obstacleBox({}), 6));
-  host.frame();
-  EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeLTRB(106, 46, 254, 194)));
-}
+// A paragraph flows around the keyed node: by its box where it declares no
+// silhouette, and a reference to itself is ignored.
+TEST(ComposeDerive, AParagraphFlowsAroundTheKeyedNode) {
+  sigil::compose::test::checkRows({
+      {"WrapsAroundAFrame",
+       [] {
+         const std::u8string body =
+             u8"the quick brown fox jumps over the lazy dog and keeps running "
+             u8"through the tall summer grass until the river bend appears and "
+             u8"the evening light settles over the water in long amber bands";
 
-TEST(ComposeDerive, FlowAroundCycleIsIgnored) {
-  Host host;
-  host.composer.render(box().children({text(u8"self reference", whiteStyle(16))
-                                           .key("self")
-                                           .contentFlowAround("self")}));
-  host.frame();  // must not hang or exclude itself into nothing
-  EXPECT_NE(host.composer.paragraphLayout("self"), nullptr);
+         auto tree = [&](bool flow) {
+           auto passage = text(body, whiteStyle(18)).key("body");
+           if (flow) passage.contentFlowAround("frame", 6);
+           return stack().children(
+               {box()
+                    .key("frame")
+                    .width(150)
+                    .height(140)
+                    .inset(10, 10, 210, 200)
+                    .absolute()
+                    .fill(Fill::color({0, 0.4f, 0, 1})),
+                box().inset(0).children({std::move(passage)}).zIndex(1)});
+         };
+
+         Host plain(360, 420), flowed(360, 420);
+         plain.composer.render(tree(false));
+         plain.frame();
+         flowed.composer.render(tree(true));
+         flowed.frame();
+
+         // Without the exclusion, text runs under the frame region; with it,
+         // the region stays free of text (the frame's colour only).
+         const SkIRect inner = SkIRect::MakeLTRB(215, 25, 345, 135);
+         EXPECT_TRUE(anyWhiteIn(plain, inner));
+         EXPECT_FALSE(anyWhiteIn(flowed, inner));
+
+         // Displaced words push the flowed paragraph taller.
+         auto plainBounds = plain.composer.bounds("body");
+         auto flowedBounds = flowed.composer.bounds("body");
+         ASSERT_TRUE(plainBounds && flowedBounds);
+         EXPECT_GT(flowedBounds->height(), plainBounds->height());
+       }},
+      {"AShapelessTargetIsSubtractedByItsBox",
+       [] {
+         // A target with no silhouette of its own is subtracted by its BOX:
+         // every line the box crosses is cut to the box's full width,
+         // whatever the type does.
+         Host host(360, 460);
+         host.composer.render(flowScene(obstacleBox({}), 6));
+         host.frame();
+         EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeLTRB(106, 46, 254, 194)));
+       }},
+      {"AReferenceToItselfIsIgnored",
+       [] {
+         Host host;
+         host.composer.render(
+             box().children({text(u8"self reference", whiteStyle(16))
+                                 .key("self")
+                                 .contentFlowAround("self")}));
+         host.frame();  // must not hang or exclude itself into nothing
+         EXPECT_NE(host.composer.paragraphLayout("self"), nullptr);
+       }},
+  });
 }

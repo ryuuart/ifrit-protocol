@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "support/ParagraphTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -26,51 +27,58 @@ void twoFrames(Host& host, float measure = 160.0f) {
 }  // namespace
 
 TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
-  sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
-                                  .add(passage())
-                                  .add(u8" ")
-                                  .add(passage()));
-  Host host(500, 300);
-  host.composer.render(box().row().children(
-      {frame(article).key("a").textThreadTo("b").width(160.0f).height(60.0f),
-       frame(article).key("b").width(160.0f).height(200.0f)}));
-  host.frame();
-  const std::vector<TextUnit> first = host.composer.units(
-      "a", sigil::weave::selectors::each(sigil::weave::Unit::Word),
-      sigil::weave::Unit::Word);
-  const std::vector<TextUnit> second = host.composer.units(
-      "b", sigil::weave::selectors::each(sigil::weave::Unit::Word),
-      sigil::weave::Unit::Word);
-  // The first frame ran out of room, which is the normal case for every
-  // frame of a chain but the last.
-  const sigil::weave::ParagraphLayout* head =
-      host.composer.paragraphLayout("a");
-  ASSERT_NE(head, nullptr);
-  EXPECT_TRUE(head->overflowed());
-  ASSERT_FALSE(first.empty());
-  ASSERT_FALSE(second.empty());
-  // The chain does not repeat itself: the second frame begins past where
-  // the first stopped, in the story's own text.
-  EXPECT_GE(second.front().range.start, first.back().range.end);
-}
-
-TEST(ComposeStory, ANarrowerFirstFrameMovesTheCut) {
-  const auto cutAt = [](float measure) {
-    sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
-                                    .add(passage())
-                                    .add(u8" ")
-                                    .add(passage()));
-    Host host(500, 300);
-    host.composer.render(box().row().children(
-        {frame(article).key("a").textThreadTo("b").width(measure).height(60.0f),
-         frame(article).key("b").width(160.0f).height(200.0f)}));
-    host.frame();
-    const std::vector<TextUnit> second = host.composer.units(
-        "b", sigil::weave::selectors::each(sigil::weave::Unit::Word),
-        sigil::weave::Unit::Word);
-    return second.empty() ? ~0u : second.front().range.start;
-  };
-  EXPECT_LT(cutAt(120.0f), cutAt(220.0f));
+  sigil::compose::test::checkRows({
+      {"TheSecondFrameBeginsPastTheFirst",
+       [&] {
+         sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
+                                         .add(passage())
+                                         .add(u8" ")
+                                         .add(passage()));
+         Host host(500, 300);
+         host.composer.render(box().row().children(
+             {frame(article).key("a").textThreadTo("b").width(160.0f).height(
+                  60.0f),
+              frame(article).key("b").width(160.0f).height(200.0f)}));
+         host.frame();
+         const std::vector<TextUnit> first = host.composer.units(
+             "a", sigil::weave::selectors::each(sigil::weave::Unit::Word),
+             sigil::weave::Unit::Word);
+         const std::vector<TextUnit> second = host.composer.units(
+             "b", sigil::weave::selectors::each(sigil::weave::Unit::Word),
+             sigil::weave::Unit::Word);
+         // The first frame ran out of room, which is the normal case for every
+         // frame of a chain but the last.
+         const sigil::weave::ParagraphLayout* head =
+             host.composer.paragraphLayout("a");
+         ASSERT_NE(head, nullptr);
+         EXPECT_TRUE(head->overflowed());
+         ASSERT_FALSE(first.empty());
+         ASSERT_FALSE(second.empty());
+         // The chain does not repeat itself: the second frame begins past where
+         // the first stopped, in the story's own text.
+         EXPECT_GE(second.front().range.start, first.back().range.end);
+       }},
+      {"ANarrowerFirstFrameMovesTheCut",
+       [&] {
+         const auto cutAt = [](float measure) {
+           sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
+                                           .add(passage())
+                                           .add(u8" ")
+                                           .add(passage()));
+           Host host(500, 300);
+           host.composer.render(box().row().children(
+               {frame(article).key("a").textThreadTo("b").width(measure).height(
+                    60.0f),
+                frame(article).key("b").width(160.0f).height(200.0f)}));
+           host.frame();
+           const std::vector<TextUnit> second = host.composer.units(
+               "b", sigil::weave::selectors::each(sigil::weave::Unit::Word),
+               sigil::weave::Unit::Word);
+           return second.empty() ? ~0u : second.front().range.start;
+         };
+         EXPECT_LT(cutAt(120.0f), cutAt(220.0f));
+       }},
+  });
 }
 
 TEST(ComposeStory, TheMarkerEndsTheChainAndNoCutInsideIt) {
@@ -152,69 +160,77 @@ TEST(ComposeStory, ABalancedRunHoldsTheStoryDownToTheLineItWasGiven) {
   EXPECT_TRUE(holds("c", through + 1));
 }
 
-TEST(ComposeStory, LinesAreNumberedFromTheStoryAndNotFromTheFrame) {
-  Host host(600, 500);
-  twoFrames(host);
-  const sigil::weave::ParagraphLayout* head =
-      host.composer.paragraphLayout("a");
-  ASSERT_NE(head, nullptr);
-  const int headLines = head->lineCount;
-  ASSERT_GT(headLines, 1);
+TEST(ComposeStory, AStoryNumbersItsOwnLinesAndInFrameAddressesOneFrame) {
+  sigil::compose::test::checkRows({
+      {"LinesAreNumberedFromTheStoryAndNotFromTheFrame",
+       [&] {
+         Host host(600, 500);
+         twoFrames(host);
+         const sigil::weave::ParagraphLayout* head =
+             host.composer.paragraphLayout("a");
+         ASSERT_NE(head, nullptr);
+         const int headLines = head->lineCount;
+         ASSERT_GT(headLines, 1);
 
-  // A line the FIRST frame holds is addressed on the first frame and
-  // nowhere else…
-  EXPECT_FALSE(host.composer
-                   .units("a", sigil::weave::selectors::line(0),
-                          sigil::weave::Unit::Line)
-                   .empty());
-  EXPECT_TRUE(host.composer
-                  .units("b", sigil::weave::selectors::line(0),
-                         sigil::weave::Unit::Line)
-                  .empty());
-  // …and the line just past it is the second frame's first line, addressed
-  // by its number in the STORY rather than by its number in the frame.
-  EXPECT_TRUE(host.composer
-                  .units("a",
-                         sigil::weave::selectors::line((uint32_t)headLines),
-                         sigil::weave::Unit::Line)
-                  .empty());
-  EXPECT_FALSE(host.composer
-                   .units("b",
-                          sigil::weave::selectors::line((uint32_t)headLines),
-                          sigil::weave::Unit::Line)
-                   .empty());
-}
+         // A line the FIRST frame holds is addressed on the first frame and
+         // nowhere else…
+         EXPECT_FALSE(host.composer
+                          .units("a", sigil::weave::selectors::line(0),
+                                 sigil::weave::Unit::Line)
+                          .empty());
+         EXPECT_TRUE(host.composer
+                         .units("b", sigil::weave::selectors::line(0),
+                                sigil::weave::Unit::Line)
+                         .empty());
+         // …and the line just past it is the second frame's first line,
+         // addressed by its number in the STORY rather than by its number in
+         // the frame.
+         EXPECT_TRUE(
+             host.composer
+                 .units("a", sigil::weave::selectors::line((uint32_t)headLines),
+                        sigil::weave::Unit::Line)
+                 .empty());
+         EXPECT_FALSE(
+             host.composer
+                 .units("b", sigil::weave::selectors::line((uint32_t)headLines),
+                        sigil::weave::Unit::Line)
+                 .empty());
+       }},
+      {"InFrameIsTheFrameLocalAddressBesideTheStoryWideOnes",
+       [&] {
+         Host host(600, 500);
+         twoFrames(host);
+         const sigil::weave::ParagraphLayout* head =
+             host.composer.paragraphLayout("a");
+         ASSERT_NE(head, nullptr);
 
-TEST(ComposeStory, InFrameIsTheFrameLocalAddressBesideTheStoryWideOnes) {
-  Host host(600, 500);
-  twoFrames(host);
-  const sigil::weave::ParagraphLayout* head =
-      host.composer.paragraphLayout("a");
-  ASSERT_NE(head, nullptr);
-
-  // On its own it is everything that frame holds, and nothing anywhere
-  // else.
-  EXPECT_FALSE(
-      host.composer
-          .units("b", selectors::inFrame("b"), sigil::weave::Unit::Line)
-          .empty());
-  EXPECT_TRUE(host.composer
-                  .units("a", selectors::inFrame("b"), sigil::weave::Unit::Line)
-                  .empty());
-  // Composed, it cuts a story-wide address to one frame: the story's line 0
-  // is in frame a, so asking for it inside frame b addresses nothing.
-  EXPECT_TRUE(
-      host.composer
-          .units("b",
-                 selectors::inFrame("b") & sigil::weave::selectors::line(0),
-                 sigil::weave::Unit::Line)
-          .empty());
-  EXPECT_FALSE(
-      host.composer
-          .units("a",
-                 selectors::inFrame("a") & sigil::weave::selectors::line(0),
-                 sigil::weave::Unit::Line)
-          .empty());
+         // On its own it is everything that frame holds, and nothing anywhere
+         // else.
+         EXPECT_FALSE(
+             host.composer
+                 .units("b", selectors::inFrame("b"), sigil::weave::Unit::Line)
+                 .empty());
+         EXPECT_TRUE(
+             host.composer
+                 .units("a", selectors::inFrame("b"), sigil::weave::Unit::Line)
+                 .empty());
+         // Composed, it cuts a story-wide address to one frame: the story's
+         // line 0 is in frame a, so asking for it inside frame b addresses
+         // nothing.
+         EXPECT_TRUE(host.composer
+                         .units("b",
+                                selectors::inFrame("b") &
+                                    sigil::weave::selectors::line(0),
+                                sigil::weave::Unit::Line)
+                         .empty());
+         EXPECT_FALSE(host.composer
+                          .units("a",
+                                 selectors::inFrame("a") &
+                                     sigil::weave::selectors::line(0),
+                                 sigil::weave::Unit::Line)
+                          .empty());
+       }},
+  });
 }
 
 TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {

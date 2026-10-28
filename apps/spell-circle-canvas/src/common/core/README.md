@@ -212,7 +212,7 @@ every term stay on its side of the seam.
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
 `core_test` over every feature's `test/` and one `core_bench` over every
-feature's `bench/`, ctest one entry per CASE, what a case may pin, and
+feature's `bench/`, ctest one entry per SUITE, what a case may pin, and
 what a label promises. What is only true of SigilCore:
 
 | directory | suites | what they prove |

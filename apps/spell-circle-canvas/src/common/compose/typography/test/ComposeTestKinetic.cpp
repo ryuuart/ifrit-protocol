@@ -4,10 +4,12 @@
 //
 // The text binary's share of the content suites, one file per subject.
 
-#include "DressedTypeProbes.h"
 #include <sigilmotion/ease/Ease.h>
 
-TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
+#include "DressedTypeProbes.h"
+#include "support/Rows.h"
+
+TEST(ComposeKinetic, AStaggeredRiseRevealsHeadFirst) {
   // The stagger law: at mid-progress the early glyphs are fully revealed
   // while the late ones haven't started — the canonical staggered reveal,
   // rendered through batched RSXform draws. Twelve glyphs of 19.2 px
@@ -18,7 +20,8 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
         {text(u8"IIIIIIIIIIII", whiteStyle(32))
              .key("k")
              .textFx({.effect = textFx::enter(textFx::rise(24)),
-                      .tween = {.duration = 200ms, .delay = sigil::motion::stagger(40ms)}, 
+                      .tween = {.duration = 200ms,
+                                .delay = sigil::motion::stagger(40ms)},
                       .progress = std::move(progress)})});
   };
   host.composer.render(tree(0.0f));
@@ -79,7 +82,8 @@ TEST(ComposeKinetic, ATrackKeepsABlurredUnderlayBeneathTheStroke) {
         .absolute()
         .inset(20)
         .textFx({.effect = textFx::enter(textFx::pop()),
-                 .tween = {.duration = 480ms, .delay = sigil::motion::stagger(30ms)}, 
+                 .tween = {.duration = 480ms,
+                           .delay = sigil::motion::stagger(30ms)},
                  .progress = kMidCascade});
   };
 
@@ -117,113 +121,85 @@ TEST(ComposeKinetic, ATrackKeepsABlurredUnderlayBeneathTheStroke) {
          "them: the halo is not beneath the letterform";
 }
 
-TEST(ComposeKinetic, ADescribedProgressPaintsLive) {
-  // The master progress takes the full Animatable treatment: a with()
-  // transition animates the reveal and the node paints live while moving.
-  Host host;
-  auto tree = [](sigil::motion::Animatable<float> progress) {
-    return box().padding(10).children(
-        {text(u8"POP", whiteStyle(40))
-             .key("k")
-             .textFx({.effect = textFx::enter(textFx::pop()),
-                      .tween = {.duration = 150ms, .delay = sigil::motion::stagger(20ms)}, 
-                      .progress = std::move(progress)})});
-  };
-  host.composer.render(tree(0.001f));
-  host.frame();
-  host.composer.render(
-      tree(motion::animate({.to = 1.0f, .duration = 400ms, .ease = sigil::motion::ease::linear})));
-  host.frame(0.2);                                    // mid-ramp
-  EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // live while animating
-  host.frame(0.3);                                    // settle
-  auto b = host.composer.bounds("k");
-  ASSERT_TRUE(b.has_value());
-  EXPECT_TRUE(
-      anyWhiteIn(host, SkIRect::MakeLTRB((int)b->left(), (int)b->top(),
-                                         (int)b->right(), (int)b->bottom())));
-}
+TEST(ComposeKinetic, AMovingProgressPaintsLive) {
+  sigil::compose::test::checkRows({
+      {"ADescribedTransitionPaintsLive",
+       [&] {
+         // The master progress takes the full Animatable treatment: a with()
+         // transition animates the reveal and the node paints live while
+         // moving.
+         Host host;
+         auto tree = [](sigil::motion::Animatable<float> progress) {
+           return box().padding(10).children(
+               {text(u8"POP", whiteStyle(40))
+                    .key("k")
+                    .textFx({.effect = textFx::enter(textFx::pop()),
+                             .tween = {.duration = 150ms,
+                                       .delay = sigil::motion::stagger(20ms)},
+                             .progress = std::move(progress)})});
+         };
+         host.composer.render(tree(0.001f));
+         host.frame();
+         host.composer.render(
+             tree(motion::animate({.to = 1.0f,
+                                   .duration = 400ms,
+                                   .ease = sigil::motion::ease::linear})));
+         host.frame(0.2);  // mid-ramp
+         EXPECT_GT(host.composer.stats().nodesPainted,
+                   0u);    // live while animating
+         host.frame(0.3);  // settle
+         auto b = host.composer.bounds("k");
+         ASSERT_TRUE(b.has_value());
+         EXPECT_TRUE(anyWhiteIn(
+             host, SkIRect::MakeLTRB((int)b->left(), (int)b->top(),
+                                     (int)b->right(), (int)b->bottom())));
+       }},
+      {"ABoundProgressRevealsWithoutARedescribe",
+       [&] {
+         // Glyph progress must be classified as CONTENT volatility, not
+         // paint-only: it rebuilds glyph geometry, so the node's own recording
+         // is invalid the moment it ticks. Classified paint-only,
+         // computeVolatile leaves `ownContent` and `subtreeVolatile` false, the
+         // picture is never reset, and the reveal FREEZES at whatever progress
+         // the last describe recorded.
+         //
+         // Driving the reveal from a BOUND live value is the only way to see
+         // that. Any case that moves the reveal by RE-DESCRIBING marks the node
+         // paint-dirty and hides the question entirely, and a case that only
+         // checks for ink after settling is satisfied by a frozen half-revealed
+         // recording. Hence both halves here: the tail must be dark before, and
+         // lit after, with no describe in between. Twelve glyphs of 19.2 px in
+         // the instrument face at 32 px, plus the padding, need the width.
+         Host host(300, 200);
+         sigil::motion::Animatable<float> progress =
+             sigil::motion::animatable(0.0f);
+         host.composer.render(box().padding(10).children(
+             {text(u8"IIIIIIIIIIII", whiteStyle(32))
+                  .key("k")
+                  .textFx({.effect = textFx::enter(textFx::rise(24)),
+                           .tween = {.duration = 200ms,
+                                     .delay = sigil::motion::stagger(40ms)},
+                           .progress = progress})}));
+         host.frame();
+         auto b = host.composer.bounds("k");
+         ASSERT_TRUE(b.has_value());
+         const SkIRect tail =
+             SkIRect::MakeLTRB((int)b->right() - 24, (int)b->top(),
+                               (int)b->right(), (int)b->bottom());
+         ASSERT_FALSE(anyWhiteIn(host, tail))
+             << "the tail was already revealed at progress 0, so the check "
+                "below "
+                "cannot tell a live reveal from a frozen one";
 
-TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
-  // Glyph progress must be classified as CONTENT volatility, not paint-only:
-  // it rebuilds glyph geometry, so the node's own recording is invalid the
-  // moment it ticks. Classified paint-only, computeVolatile leaves
-  // `ownContent` and `subtreeVolatile` false, the picture is never reset,
-  // and the reveal FREEZES at whatever progress the last describe recorded.
-  //
-  // Driving the reveal from a BOUND live value is the only way to see that. Any
-  // case that moves the reveal by RE-DESCRIBING marks the node paint-dirty
-  // and hides the question entirely, and a case that only checks for ink
-  // after settling is satisfied by a frozen half-revealed recording. Hence
-  // both halves here: the tail must be dark before, and lit after, with no
-  // describe in between. Twelve glyphs of 19.2 px in the instrument face at
-  // 32 px, plus the padding, need the width.
-  Host host(300, 200);
-  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
-  host.composer.render(box().padding(10).children(
-      {text(u8"IIIIIIIIIIII", whiteStyle(32))
-           .key("k")
-           .textFx({.effect = textFx::enter(textFx::rise(24)),
-                    .tween = {.duration = 200ms, .delay = sigil::motion::stagger(40ms)}, 
-                    .progress = progress})}));
-  host.frame();
-  auto b = host.composer.bounds("k");
-  ASSERT_TRUE(b.has_value());
-  const SkIRect tail = SkIRect::MakeLTRB((int)b->right() - 24, (int)b->top(),
-                                         (int)b->right(), (int)b->bottom());
-  ASSERT_FALSE(anyWhiteIn(host, tail))
-      << "the tail was already revealed at progress 0, so the check below "
-         "cannot tell a live reveal from a frozen one";
-
-  progress = 1.0f;  // ONE describe, and the value moves underneath it
-  host.frame();
-  EXPECT_TRUE(anyWhiteIn(host, tail))
-      << "the tail never appeared: the node replayed the recording it made at "
-         "progress 0, so glyph progress is not invalidating its own picture";
-}
-
-TEST(ComposeKinetic, AnEntranceComparesByItsDisplacementAndItsCurve) {
-  // The curve is a motion easing, compared the way every curve slot is: a
-  // named curve by identity, a parameterised one by its numbers.
-  const auto rising = [](sigil::motion::Easing ease) {
-    return textFx::enter({.from = textFx::Displaced{.dy = 26}, .ease = std::move(ease)});
-  };
-  EXPECT_TRUE(rising(sigil::motion::ease::outExpo) ==
-              rising(sigil::motion::ease::outExpo));
-  EXPECT_FALSE(rising(sigil::motion::ease::outExpo) ==
-               rising(sigil::motion::ease::outCubic));
-  EXPECT_TRUE(textFx::enter(textFx::pop(0.35f, 1.7f)) == textFx::enter(textFx::pop(0.35f, 1.7f)));
-  EXPECT_FALSE(textFx::enter(textFx::pop(0.35f, 1.7f)) == textFx::enter(textFx::pop(0.35f, 2.4f)));
-  // A curve that stays inside [0, 1] reserves the travel alone; one that
-  // overshoots reserves its overshoot of the travel and the glyph beyond.
-  EXPECT_FLOAT_EQ(rising(sigil::motion::ease::outCubic).reach(), 26.0f);
-  EXPECT_FLOAT_EQ(textFx::overshootOf(sigil::motion::ease::outCubic), 0.0f);
-  EXPECT_NEAR(textFx::overshootOf(sigil::motion::ease::outBack()), 0.1f, 0.01f);
-  EXPECT_GT(rising(sigil::motion::ease::outBack()).reach(), 26.0f);
-}
-
-TEST(ComposeKinetic, AnEntranceIsOneTweenWhoseTimingIsTheTracks) {
-  const sigil::motion::Tween<textFx::Displaced> landing{
-      .from = textFx::Displaced{.dy = 24},
-      .duration = 480ms,
-      .delay = sigil::motion::stagger(28ms),
-      .ease = sigil::motion::ease::outExpo,
-      .loop = -1,
-      .loopDelay = 100ms};
-  const Track track =
-      textFx::entrance(landing, {.unit = sigil::weave::Unit::Word});
-  // The path is the effect; the timing is the track's schedule, and the
-  // unit's own progress runs straight because the path carries the curve.
-  EXPECT_TRUE(track.effect == textFx::enter(landing));
-  EXPECT_EQ(track.tween.duration, landing.duration);
-  EXPECT_EQ(track.tween.delay, landing.delay);
-  EXPECT_EQ(track.tween.loop, -1);
-  EXPECT_EQ(track.tween.loopDelay, sigil::motion::Duration(100ms));
-  EXPECT_FALSE((bool)track.tween.ease);
-  EXPECT_EQ(track.unit, sigil::weave::Unit::Word);
-  EXPECT_TRUE(track.timing().loop);
-  // A stock entrance carries the timing a track defaults to.
-  EXPECT_TRUE(sigil::motion::tweenEqual(textFx::entrance(textFx::rise()).tween,
-                                        Track{}.tween));
+         progress = 1.0f;  // ONE describe, and the value moves underneath it
+         host.frame();
+         EXPECT_TRUE(anyWhiteIn(host, tail))
+             << "the tail never appeared: the node replayed the recording it "
+                "made at "
+                "progress 0, so glyph progress is not invalidating its own "
+                "picture";
+       }},
+  });
 }
 
 TEST(ComposeKinetic, ATracksTweenShapesWhatEachUnitsProgressReads) {
@@ -245,14 +221,72 @@ TEST(ComposeKinetic, ATracksTweenShapesWhatEachUnitsProgressReads) {
   EXPECT_FLOAT_EQ(there.unitProgress(1.0f), 0.0f);
 }
 
-TEST(ComposeKinetic, AnEntranceHomeIsWhereTheGlyphRests) {
-  // The path runs from `.from` home over one unit of progress: half way
-  // on a straight curve the glyph is half way up, and at the end it rests.
-  const TextEffect straight = textFx::enter(
-      {.from = textFx::Displaced{.dy = 20, .fadeOver = 0},
-       .ease = sigil::motion::ease::linear});
-  sigil::core::noise::Mix64Stream stream(1);
-  EXPECT_FLOAT_EQ(straight(GlyphInfo{}, 0.5f, stream).dy, 10.0f);
-  EXPECT_FLOAT_EQ(straight(GlyphInfo{}, 1.0f, stream).dy, 0.0f);
-  EXPECT_FLOAT_EQ(straight(GlyphInfo{}, 0.0f, stream).alpha, 1.0f);
+TEST(ComposeKinetic, AnEntranceIsOneTweenOfTheDisplacedLanes) {
+  sigil::compose::test::checkRows({
+      {"ItComparesByItsDisplacementAndCurveAndReachesItsOvershoot",
+       [&] {
+         // The curve is a motion easing, compared the way every curve slot is:
+         // a named curve by identity, a parameterised one by its numbers.
+         const auto rising = [](sigil::motion::Easing ease) {
+           return textFx::enter(
+               {.from = textFx::Displaced{.dy = 26}, .ease = std::move(ease)});
+         };
+         EXPECT_TRUE(rising(sigil::motion::ease::outExpo) ==
+                     rising(sigil::motion::ease::outExpo));
+         EXPECT_FALSE(rising(sigil::motion::ease::outExpo) ==
+                      rising(sigil::motion::ease::outCubic));
+         EXPECT_TRUE(textFx::enter(textFx::pop(0.35f, 1.7f)) ==
+                     textFx::enter(textFx::pop(0.35f, 1.7f)));
+         EXPECT_FALSE(textFx::enter(textFx::pop(0.35f, 1.7f)) ==
+                      textFx::enter(textFx::pop(0.35f, 2.4f)));
+         // A curve that stays inside [0, 1] reserves the travel alone; one that
+         // overshoots reserves its overshoot of the travel and the glyph
+         // beyond.
+         EXPECT_FLOAT_EQ(rising(sigil::motion::ease::outCubic).reach(), 26.0f);
+         EXPECT_FLOAT_EQ(textFx::overshootOf(sigil::motion::ease::outCubic),
+                         0.0f);
+         EXPECT_NEAR(textFx::overshootOf(sigil::motion::ease::outBack()), 0.1f,
+                     0.01f);
+         EXPECT_GT(rising(sigil::motion::ease::outBack()).reach(), 26.0f);
+       }},
+      {"ItsTimingIsTheTracks",
+       [&] {
+         const sigil::motion::Tween<textFx::Displaced> landing{
+             .from = textFx::Displaced{.dy = 24},
+             .duration = 480ms,
+             .delay = sigil::motion::stagger(28ms),
+             .ease = sigil::motion::ease::outExpo,
+             .loop = -1,
+             .loopDelay = 100ms};
+         const Track track =
+             textFx::entrance(landing, {.unit = sigil::weave::Unit::Word});
+         // The path is the effect; the timing is the track's schedule, and the
+         // unit's own progress runs straight because the path carries the
+         // curve.
+         EXPECT_TRUE(track.effect == textFx::enter(landing));
+         EXPECT_EQ(track.tween.duration, landing.duration);
+         EXPECT_EQ(track.tween.delay, landing.delay);
+         EXPECT_EQ(track.tween.loop, -1);
+         EXPECT_EQ(track.tween.loopDelay, sigil::motion::Duration(100ms));
+         EXPECT_FALSE((bool)track.tween.ease);
+         EXPECT_EQ(track.unit, sigil::weave::Unit::Word);
+         EXPECT_TRUE(track.timing().loop);
+         // A stock entrance carries the timing a track defaults to.
+         EXPECT_TRUE(sigil::motion::tweenEqual(
+             textFx::entrance(textFx::rise()).tween, Track{}.tween));
+       }},
+      {"ItsHomeIsWhereTheGlyphRests",
+       [&] {
+         // The path runs from `.from` home over one unit of progress: half way
+         // on a straight curve the glyph is half way up, and at the end it
+         // rests.
+         const TextEffect straight =
+             textFx::enter({.from = textFx::Displaced{.dy = 20, .fadeOver = 0},
+                            .ease = sigil::motion::ease::linear});
+         sigil::core::noise::Mix64Stream stream(1);
+         EXPECT_FLOAT_EQ(straight(GlyphInfo{}, 0.5f, stream).dy, 10.0f);
+         EXPECT_FLOAT_EQ(straight(GlyphInfo{}, 1.0f, stream).dy, 0.0f);
+         EXPECT_FLOAT_EQ(straight(GlyphInfo{}, 0.0f, stream).alpha, 1.0f);
+       }},
+  });
 }

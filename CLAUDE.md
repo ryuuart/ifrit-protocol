@@ -141,8 +141,11 @@ builds release only, and oneTBB shared, the one linkage oneTBB supports.
 Each library has ONE test binary and ONE benchmark binary — `<lib>_test`
 under `build/bin/<config>/tests/`, `<lib>_bench` under `.../benches/` —
 built from every feature directory's `test/` and `bench/`. ctest
-discovers one entry per CASE, so `ctest -R '^Suite\.'` selects a suite
-and `-R 'Suite.Case'` one case with no target behind either, and a case
+discovers one entry per SUITE of each binary, named `<lib>.<Suite>`, so
+`ctest -R '^<lib>\.'` selects a library and `ctest -R '^<lib>\.Suite$'`
+one suite with no target behind either, and a suite's cases run in one
+process; one case runs through the binary itself,
+`build/bin/Release/tests/<lib>_test --gtest_filter='Suite.Case'`. A case
 that needs something a machine may not have carries a label (`gpu`,
 `fonts`, …) on its suite.
 
@@ -169,9 +172,10 @@ library's own build module lives with the library
 `src/sketch/cmake/SketchLinkSurface.cmake`); `cmake/` at the app root
 holds only what the whole tree shares: `cmake/Sigil.cmake`, the calls
 every Sigil library is built from, `cmake/EmbedShaders.cmake`, which
-embeds a feature's `shaders/` directory, `cmake/Docs.cmake`, the overlay
-triplet and the Skia sanitizer pin, with the helpers' own test under
-`cmake/test/`.
+embeds a feature's `shaders/` directory, `cmake/Docs.cmake`,
+`cmake/SigilTestSuites.cmake`, which ctest runs to list each test
+binary's suites and to run one, the overlay triplet and the Skia
+sanitizer pin, with the helpers' own test under `cmake/test/`.
 
 ### Visual work
 

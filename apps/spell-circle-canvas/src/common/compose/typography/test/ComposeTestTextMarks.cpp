@@ -4,60 +4,17 @@
 //
 // The text binary's share of the content suites, one file per subject.
 
+#include <sigilcompose/core/StyleSheet.h>
+
 #include <cmath>
 #include <memory>
 #include <string_view>
 
-#include <sigilcompose/core/StyleSheet.h>
-
 #include "DressedTypeProbes.h"
+#include "support/Rows.h"
 
 // ---------------------------------------------------------------------------
 // textFx::tint — the colour reveal, and the inversion it hides
-
-TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
-  // The stops read in TIME ORDER while the mechanism runs the other
-  // way: colorMultiplier MULTIPLIES, so the element is set in the destination
-  // and the effect divides down toward the origin. At t = 1 the multiplier must
-  // therefore be white — anything else tints a line that has arrived.
-  const sigil::material::Color pale{0.9f, 0.8f, 0.4f, 1};
-  const sigil::material::Color sung{0.3f, 0.6f, 0.8f, 1};
-  const TextEffect ramp = textFx::tint({.from = pale, .to = sung});
-  GlyphInfo glyph;
-  sigil::core::noise::Mix64Stream rng(1);
-  const GlyphModifier start = ramp(glyph, 0.0f, rng);
-  const GlyphModifier end = ramp(glyph, 1.0f, rng);
-  const GlyphModifier middle = ramp(glyph, 0.5f, rng);
-
-  // Origin: the multiplier that takes the DESTINATION to `pale`.
-  EXPECT_NEAR(start.colorMultiplier.r * sung.r, pale.r, 1e-5f);
-  EXPECT_NEAR(start.colorMultiplier.g * sung.g, pale.g, 1e-5f);
-  EXPECT_NEAR(start.colorMultiplier.b * sung.b, pale.b, 1e-5f);
-  // Destination: no tint at all.
-  EXPECT_NEAR(end.colorMultiplier.r, 1.0f, 1e-5f);
-  EXPECT_NEAR(end.colorMultiplier.g, 1.0f, 1e-5f);
-  EXPECT_NEAR(end.colorMultiplier.b, 1.0f, 1e-5f);
-  // And a monotone ramp between them on every channel, in whichever
-  // direction that channel happens to run.
-  for (auto lane : {&sigil::material::Color::r, &sigil::material::Color::g,
-                    &sigil::material::Color::b}) {
-    const float a = start.colorMultiplier.*lane,
-                b = middle.colorMultiplier.*lane;
-    EXPECT_GT((b - a) * (1.0f - a), 0.0f)
-        << "the middle of the ramp is not between its ends";
-  }
-  // Alpha is left alone: a reveal that also fades is a separate track.
-  EXPECT_FLOAT_EQ(start.colorMultiplier.a, 1.0f);
-  // The value is comparable, which is what lets a re-described wipe prune.
-  EXPECT_TRUE(textFx::tint({.from = pale, .to = sung}) == ramp);
-  EXPECT_FALSE(textFx::tint({.from = sung, .to = pale}) == ramp);
-  // A destination channel of zero cannot be departed from, and the ramp
-  // says so by holding at 1 rather than dividing by nothing.
-  const GlyphModifier dark =
-      textFx::tint({.from = sigil::material::Color{1, 1, 1, 1},
-                    .to = sigil::material::Color{0, 0, 0, 1}})(glyph, 0.0f, rng);
-  EXPECT_FLOAT_EQ(dark.colorMultiplier.r, 1.0f);
-}
 
 namespace {
 
@@ -80,90 +37,148 @@ bool drawsColour(Host& host, const sigil::material::Color& colour, int w,
 
 }  // namespace
 
-TEST(ComposeTextFx, ATintNamingNoRestComesToRestAtTheLeafsInk) {
-  // The model first: the rest is the ink the glyph is handed, read when
-  // the effect is applied, and local 0 is `from` divided by it.
-  const sigil::material::Color pale{0.2f, 0.3f, 0.4f, 1};
-  const TextEffect wipe = textFx::tint({.from = pale});
-  GlyphInfo glyph;
-  glyph.ink = {0.4f, 0.6f, 0.8f, 1};
-  sigil::core::noise::Mix64Stream rng(1);
-  const GlyphModifier start = wipe(glyph, 0.0f, rng);
-  const GlyphModifier end = wipe(glyph, 1.0f, rng);
-  EXPECT_NEAR(start.colorMultiplier.r * glyph.ink.r, pale.r, 1e-5f);
-  EXPECT_NEAR(start.colorMultiplier.b * glyph.ink.b, pale.b, 1e-5f);
-  EXPECT_FLOAT_EQ(end.colorMultiplier.g, 1.0f);
-  EXPECT_FALSE(wipe == textFx::tint({.from = pale, .to = pale}));
-  EXPECT_FALSE(wipe.displaces());
+TEST(ComposeTextTint, ATintMultipliesTowardItsStopsInTimeOrder) {
+  sigil::compose::test::checkRows({
+      {"RampsBetweenTheTwoColoursInTimeOrder",
+       [&] {
+         // The stops read in TIME ORDER while the mechanism runs the other
+         // way: colorMultiplier MULTIPLIES, so the element is set in the
+         // destination and the effect divides down toward the origin. At t = 1
+         // the multiplier must therefore be white — anything else tints a line
+         // that has arrived.
+         const sigil::material::Color pale{0.9f, 0.8f, 0.4f, 1};
+         const sigil::material::Color sung{0.3f, 0.6f, 0.8f, 1};
+         const TextEffect ramp = textFx::tint({.from = pale, .to = sung});
+         GlyphInfo glyph;
+         sigil::core::noise::Mix64Stream rng(1);
+         const GlyphModifier start = ramp(glyph, 0.0f, rng);
+         const GlyphModifier end = ramp(glyph, 1.0f, rng);
+         const GlyphModifier middle = ramp(glyph, 0.5f, rng);
 
-  // Then on a leaf inked from a sheet's property, at either end of the
-  // wipe, and again once a class restates the property.
-  const sigil::material::Color sung{0.4f, 0.8f, 1.0f, 1};
-  const sigil::material::Color restated{1.0f, 0.6f, 0.8f, 1};
-  const auto lyric = [&](float progress, std::string_view classes) {
-    Text line = text(u8"I");
-    if (!classes.empty()) line.styleClass(classes);
-    line.ink(var("sung")).textFx(
-        {.effect = wipe,
-         .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)},
-         .progress = progress});
-    return box()
-        .padding(8)
-        .font({.face = sigil::test::instrument::sans(), .size = 64})
-        .applyStyleSheet({rule(":root").var("sung", sung),
-                          rule(".restated").var("sung", restated)})
-        .children({std::move(line)});
-  };
-  for (const std::string_view classes : {"", "restated"}) {
-    const sigil::material::Color rest = classes.empty() ? sung : restated;
-    Host atStart(160, 120), atRest(160, 120);
-    atStart.composer.render(lyric(0.0f, classes));
-    atRest.composer.render(lyric(1.0f, classes));
-    atStart.frame();
-    atRest.frame();
-    EXPECT_TRUE(drawsColour(atStart, pale, 160, 120))
-        << "local 0 does not draw from, under '" << classes << "'";
-    EXPECT_FALSE(drawsColour(atStart, rest, 160, 120));
-    EXPECT_TRUE(drawsColour(atRest, rest, 160, 120))
-        << "local 1 does not draw the ink, under '" << classes << "'";
-    EXPECT_FALSE(drawsColour(atRest, pale, 160, 120));
-  }
-}
+         // Origin: the multiplier that takes the DESTINATION to `pale`.
+         EXPECT_NEAR(start.colorMultiplier.r * sung.r, pale.r, 1e-5f);
+         EXPECT_NEAR(start.colorMultiplier.g * sung.g, pale.g, 1e-5f);
+         EXPECT_NEAR(start.colorMultiplier.b * sung.b, pale.b, 1e-5f);
+         // Destination: no tint at all.
+         EXPECT_NEAR(end.colorMultiplier.r, 1.0f, 1e-5f);
+         EXPECT_NEAR(end.colorMultiplier.g, 1.0f, 1e-5f);
+         EXPECT_NEAR(end.colorMultiplier.b, 1.0f, 1e-5f);
+         // And a monotone ramp between them on every channel, in whichever
+         // direction that channel happens to run.
+         for (auto lane :
+              {&sigil::material::Color::r, &sigil::material::Color::g,
+               &sigil::material::Color::b}) {
+           const float a = start.colorMultiplier.*lane,
+                       b = middle.colorMultiplier.*lane;
+           EXPECT_GT((b - a) * (1.0f - a), 0.0f)
+               << "the middle of the ramp is not between its ends";
+         }
+         // Alpha is left alone: a reveal that also fades is a separate track.
+         EXPECT_FLOAT_EQ(start.colorMultiplier.a, 1.0f);
+         // The value is comparable, which is what lets a re-described wipe
+         // prune.
+         EXPECT_TRUE(textFx::tint({.from = pale, .to = sung}) == ramp);
+         EXPECT_FALSE(textFx::tint({.from = sung, .to = pale}) == ramp);
+         // A destination channel of zero cannot be departed from, and the ramp
+         // says so by holding at 1 rather than dividing by nothing.
+         const GlyphModifier dark = textFx::tint(
+             {.from = sigil::material::Color{1, 1, 1, 1},
+              .to = sigil::material::Color{0, 0, 0, 1}})(glyph, 0.0f, rng);
+         EXPECT_FLOAT_EQ(dark.colorMultiplier.r, 1.0f);
+       }},
+      {"ATintNamingNoRestComesToRestAtTheLeafsInk",
+       [&] {
+         // The model first: the rest is the ink the glyph is handed, read when
+         // the effect is applied, and local 0 is `from` divided by it.
+         const sigil::material::Color pale{0.2f, 0.3f, 0.4f, 1};
+         const TextEffect wipe = textFx::tint({.from = pale});
+         GlyphInfo glyph;
+         glyph.ink = {0.4f, 0.6f, 0.8f, 1};
+         sigil::core::noise::Mix64Stream rng(1);
+         const GlyphModifier start = wipe(glyph, 0.0f, rng);
+         const GlyphModifier end = wipe(glyph, 1.0f, rng);
+         EXPECT_NEAR(start.colorMultiplier.r * glyph.ink.r, pale.r, 1e-5f);
+         EXPECT_NEAR(start.colorMultiplier.b * glyph.ink.b, pale.b, 1e-5f);
+         EXPECT_FLOAT_EQ(end.colorMultiplier.g, 1.0f);
+         EXPECT_FALSE(wipe == textFx::tint({.from = pale, .to = pale}));
+         EXPECT_FALSE(wipe.displaces());
 
-TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {
-  // Stacked tracks multiply their colour multipliers, so a tint under a
-  // second tint is the product — not the last one to run. The letter is set
-  // in white so the product is readable straight off the pixels.
-  Host host(160, 120);
-  host.composer.render(box().padding(8).children(
-      {text(u8"I", whiteStyle(64))
-           .key("k")
-           // Both tracks are AT REST (progress 0), where each contributes
-           // its own origin: 0.5 on red and 0.5 on green.
-           .textFx({.effect = textFx::tint({.from = sigil::material::Color{0.5f, 1, 1, 1},
-                                              .to = sigil::material::Color{1, 1, 1, 1}}),
-                    .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)}, 
-                    .progress = 0.0f})
-           .textFx({.effect = textFx::tint({.from = sigil::material::Color{1, 0.5f, 1, 1},
-                                              .to = sigil::material::Color{1, 1, 1, 1}}),
-                    .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)}, 
-                    .progress = 0.0f})}));
-  host.frame();
-  bool sawProduct = false;
-  for (int y = 0; y < 120 && !sawProduct; ++y)
-    for (int x = 0; x < 160; ++x) {
-      const SkColor c = host.pixel(x, y);
-      if (SkColorGetB(c) < 200) continue;  // not a glyph pixel
-      // Half red AND half green, within the multiplier's quantization.
-      if (std::abs((int)SkColorGetR(c) - 128) < 24 &&
-          std::abs((int)SkColorGetG(c) - 128) < 24) {
-        sawProduct = true;
-        break;
-      }
-      EXPECT_FALSE(SkColorGetR(c) > 200 && SkColorGetG(c) > 200)
-          << "one of the two tints never reached the glyph";
-    }
-  EXPECT_TRUE(sawProduct) << "the two tints did not multiply";
+         // Then on a leaf inked from a sheet's property, at either end of the
+         // wipe, and again once a class restates the property.
+         const sigil::material::Color sung{0.4f, 0.8f, 1.0f, 1};
+         const sigil::material::Color restated{1.0f, 0.6f, 0.8f, 1};
+         const auto lyric = [&](float progress, std::string_view classes) {
+           Text line = text(u8"I");
+           if (!classes.empty()) line.styleClass(classes);
+           line.ink(var("sung"))
+               .textFx({.effect = wipe,
+                        .tween = {.duration = 100ms,
+                                  .delay = sigil::motion::stagger(0ms)},
+                        .progress = progress});
+           return box()
+               .padding(8)
+               .font({.face = sigil::test::instrument::sans(), .size = 64})
+               .applyStyleSheet({rule(":root").var("sung", sung),
+                                 rule(".restated").var("sung", restated)})
+               .children({std::move(line)});
+         };
+         for (const std::string_view classes : {"", "restated"}) {
+           const sigil::material::Color rest =
+               classes.empty() ? sung : restated;
+           Host atStart(160, 120), atRest(160, 120);
+           atStart.composer.render(lyric(0.0f, classes));
+           atRest.composer.render(lyric(1.0f, classes));
+           atStart.frame();
+           atRest.frame();
+           EXPECT_TRUE(drawsColour(atStart, pale, 160, 120))
+               << "local 0 does not draw from, under '" << classes << "'";
+           EXPECT_FALSE(drawsColour(atStart, rest, 160, 120));
+           EXPECT_TRUE(drawsColour(atRest, rest, 160, 120))
+               << "local 1 does not draw the ink, under '" << classes << "'";
+           EXPECT_FALSE(drawsColour(atRest, pale, 160, 120));
+         }
+       }},
+      {"StackedTintsMultiply",
+       [&] {
+         // Stacked tracks multiply their colour multipliers, so a tint under a
+         // second tint is the product — not the last one to run. The letter is
+         // set in white so the product is readable straight off the pixels.
+         Host host(160, 120);
+         host.composer.render(box().padding(8).children(
+             {text(u8"I", whiteStyle(64))
+                  .key("k")
+                  // Both tracks are AT REST (progress 0), where each
+                  // contributes its own origin: 0.5 on red and 0.5 on green.
+                  .textFx({.effect = textFx::tint(
+                               {.from = sigil::material::Color{0.5f, 1, 1, 1},
+                                .to = sigil::material::Color{1, 1, 1, 1}}),
+                           .tween = {.duration = 100ms,
+                                     .delay = sigil::motion::stagger(0ms)},
+                           .progress = 0.0f})
+                  .textFx({.effect = textFx::tint(
+                               {.from = sigil::material::Color{1, 0.5f, 1, 1},
+                                .to = sigil::material::Color{1, 1, 1, 1}}),
+                           .tween = {.duration = 100ms,
+                                     .delay = sigil::motion::stagger(0ms)},
+                           .progress = 0.0f})}));
+         host.frame();
+         bool sawProduct = false;
+         for (int y = 0; y < 120 && !sawProduct; ++y)
+           for (int x = 0; x < 160; ++x) {
+             const SkColor c = host.pixel(x, y);
+             if (SkColorGetB(c) < 200) continue;  // not a glyph pixel
+             // Half red AND half green, within the multiplier's quantization.
+             if (std::abs((int)SkColorGetR(c) - 128) < 24 &&
+                 std::abs((int)SkColorGetG(c) - 128) < 24) {
+               sawProduct = true;
+               break;
+             }
+             EXPECT_FALSE(SkColorGetR(c) > 200 && SkColorGetG(c) > 200)
+                 << "one of the two tints never reached the glyph";
+           }
+         EXPECT_TRUE(sawProduct) << "the two tints did not multiply";
+       }},
+  });
 }
 
 namespace {
@@ -176,283 +191,320 @@ SkRect markRect(Host& host, std::string_view key) {
 
 }  // namespace
 
-TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
-  // A mark's box IS the unit's rect when it says nothing about its own
-  // placement — and it is the SAME rect the schedule read-back reports, so
-  // a caret and a beat can never disagree about where a word is.
-  Host host(400, 140);
-  host.composer.render(box().padding(10).children(
-      {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
-           .key("line")
-           .textFx(
-               {.effect = textFx::enter(textFx::rise(4)), .unit = sigil::weave::Unit::Word})
-           .textAttach(sigil::weave::selectors::word(1),
-                       box().key("caret").fill(green()))}));
-  host.frame();
-  const std::vector<Beat> beats = host.composer.beatsOf("line", 0);
-  ASSERT_EQ(beats.size(), 3u);
-  const SkRect caret = markRect(host, "caret");
-  EXPECT_NEAR(caret.left(), beats[1].rect.left(), 0.01f);
-  EXPECT_NEAR(caret.top(), beats[1].rect.top(), 0.01f);
-  EXPECT_NEAR(caret.width(), beats[1].rect.width(), 0.01f);
-  EXPECT_NEAR(caret.height(), beats[1].rect.height(), 0.01f);
-  EXPECT_GT(caret.width(), 1.0f) << "the mark collapsed to nothing";
+TEST(ComposeTextAttach, AMarksParentBoxIsTheRestRectItsSelectorResolves) {
+  sigil::compose::test::checkRows({
+      {"TheMarkIsTheRectBeatsOfReports",
+       [&] {
+         // A mark's box IS the unit's rect when it says nothing about its own
+         // placement — and it is the SAME rect the schedule read-back reports,
+         // so a caret and a beat can never disagree about where a word is.
+         Host host(400, 140);
+         host.composer.render(box().padding(10).children(
+             {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+                  .key("line")
+                  .textFx({.effect = textFx::enter(textFx::rise(4)),
+                           .unit = sigil::weave::Unit::Word})
+                  .textAttach(sigil::weave::selectors::word(1),
+                              box().key("caret").fill(green()))}));
+         host.frame();
+         const std::vector<Beat> beats = host.composer.beatsOf("line", 0);
+         ASSERT_EQ(beats.size(), 3u);
+         const SkRect caret = markRect(host, "caret");
+         EXPECT_NEAR(caret.left(), beats[1].rect.left(), 0.01f);
+         EXPECT_NEAR(caret.top(), beats[1].rect.top(), 0.01f);
+         EXPECT_NEAR(caret.width(), beats[1].rect.width(), 0.01f);
+         EXPECT_NEAR(caret.height(), beats[1].rect.height(), 0.01f);
+         EXPECT_GT(caret.width(), 1.0f) << "the mark collapsed to nothing";
 
-  // Its own placement longhand is read INSIDE that rect, which is the whole
-  // difference from a slot: a 2 px caret pinned to the unit's leading edge
-  // and hanging below it.
-  Host pinned(400, 140);
-  pinned.composer.render(box().padding(10).children(
-      {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
-           .key("line")
-           .textAttach(
-               sigil::weave::selectors::word(1),
-               box().key("caret").left(0).top(percent(100)).width(2).height(9).fill(
-                   green()))}));
-  pinned.frame();
-  const SkRect tick = markRect(pinned, "caret");
-  EXPECT_NEAR(tick.left(), caret.left(), 0.01f);
-  EXPECT_NEAR(tick.top(), caret.bottom(), 0.01f)
-      << "percent(100) of the unit's rect is its bottom edge";
-  EXPECT_FLOAT_EQ(tick.width(), 2.0f);
-}
+         // Its own placement longhand is read INSIDE that rect, which is the
+         // whole difference from a slot: a 2 px caret pinned to the unit's
+         // leading edge and hanging below it.
+         Host pinned(400, 140);
+         pinned.composer.render(box().padding(10).children(
+             {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+                  .key("line")
+                  .textAttach(sigil::weave::selectors::word(1),
+                              box()
+                                  .key("caret")
+                                  .left(0)
+                                  .top(percent(100))
+                                  .width(2)
+                                  .height(9)
+                                  .fill(green()))}));
+         pinned.frame();
+         const SkRect tick = markRect(pinned, "caret");
+         EXPECT_NEAR(tick.left(), caret.left(), 0.01f);
+         EXPECT_NEAR(tick.top(), caret.bottom(), 0.01f)
+             << "percent(100) of the unit's rect is its bottom edge";
+         EXPECT_FLOAT_EQ(tick.width(), 2.0f);
+       }},
+      {"MarginsFarInsetsAndFontLengthsResolveInsideTheRect",
+       [&] {
+         Host host(400, 200);
+         const auto selected = sigil::weave::selectors::word(0);
+         const auto describe = [&](float drop) {
+           return box().padding(20).fontSize(20).children(
+               {box().key("lineHeight").width(1).height(sigil::weave::lh(1)),
+                text(u8"ALPHA", whiteStyle(24))
+                    .var("drop", Dimension(drop))
+                    .textAttach(selected, box().key("anchor"))
+                    .textAttach(selected, box()
+                                              .key("near")
+                                              .width(2)
+                                              .height(8)
+                                              .left(0)
+                                              .top(percent(100))
+                                              .marginLeft(4)
+                                              .marginTop(var("drop")))
+                    .textAttach(selected, box()
+                                              .key("far")
+                                              .width(2)
+                                              .height(8)
+                                              .right(-10)
+                                              .bottom(-20)
+                                              .marginRight(3)
+                                              .marginBottom(4))
+                    .textAttach(selected, box()
+                                              .key("stretch")
+                                              .left(1)
+                                              .right(2)
+                                              .top(3)
+                                              .bottom(4)
+                                              .margin(2))
+                    .textAttach(selected,
+                                box()
+                                    .key("font")
+                                    .width(2)
+                                    .height(8)
+                                    .fontSize(20)
+                                    .left(Dimension(sigil::weave::em(0.5f)) +
+                                          Dimension(3))
+                                    .top(sigil::weave::lh(1)))});
+         };
+         for (const float drop : {12.0f, 24.0f}) {
+           host.composer.render(describe(drop));
+           host.frame();
+           const SkRect anchor = markRect(host, "anchor");
+           ASSERT_GT(anchor.width(), 20);
+           const SkRect near = markRect(host, "near");
+           EXPECT_NEAR(near.left(), anchor.left() + 4, 0.01f);
+           EXPECT_NEAR(near.top(), anchor.bottom() + drop, 0.01f);
+           const SkRect far = markRect(host, "far");
+           EXPECT_NEAR(far.right(), anchor.right() + 7, 0.01f);
+           EXPECT_NEAR(far.bottom(), anchor.bottom() + 16, 0.01f);
+           const SkRect stretch = markRect(host, "stretch");
+           EXPECT_NEAR(stretch.left(), anchor.left() + 3, 0.01f);
+           EXPECT_NEAR(stretch.top(), anchor.top() + 5, 0.01f);
+           EXPECT_NEAR(stretch.right(), anchor.right() - 4, 0.01f);
+           EXPECT_NEAR(stretch.bottom(), anchor.bottom() - 6, 0.01f);
+           const SkRect font = markRect(host, "font");
+           EXPECT_NEAR(font.left(), anchor.left() + 13, 0.01f);
+           const float lineHeight = markRect(host, "lineHeight").height();
+           EXPECT_GT(lineHeight, 15);
+           EXPECT_NEAR(font.top(), anchor.top() + lineHeight, 0.01f);
+         }
+       }},
+      {"APercentagePlusPixelInsetResolvesAgainstTheRect",
+       [&] {
+         // A sum holding a percentage stays a length until its consumer knows
+         // the extent: on a mark that extent is the selected unit's rect, so
+         // `top(percent(100) + 12)` is that rect's bottom and twelve more — and
+         // it follows the rect when the type is resized.
+         Host host(400, 200);
+         const auto selected = sigil::weave::selectors::text(u8"L");
+         for (const float size : {24.0f, 40.0f}) {
+           host.composer.render(box().padding(10).children(
+               {text(u8"ALPHA", whiteStyle(size))
+                    .textAttach(selected, box().key("letter"))
+                    .textAttach(selected, box()
+                                              .key("drop")
+                                              .left(0)
+                                              .top(percent(100) + Dimension(12))
+                                              .width(1)
+                                              .height(8)
+                                              .fill(green()))}));
+           host.frame();
+           const SkRect letter = markRect(host, "letter");
+           ASSERT_GT(letter.height(), size * 0.5f) << "at " << size << " px";
+           const SkRect drop = markRect(host, "drop");
+           EXPECT_NEAR(drop.left(), letter.left(), 0.01f)
+               << "at " << size << " px";
+           EXPECT_NEAR(drop.top(), letter.bottom() + 12, 0.01f)
+               << "at " << size << " px";
+           EXPECT_FLOAT_EQ(drop.height(), 8.0f);
+         }
+       }},
+      {"TheMarkFollowsItsUnitThroughAReflow",
+       [&] {
+         // The rect is read off the placement, so a narrower box that pushes
+         // the word onto the next line takes the mark with it — the reason to
+         // anchor a caret rather than compute one.
+         const auto placeAt = [](float width) {
+           Host host(400, 200);
+           host.composer.render(box().padding(10).children(
+               {text(u8"ALPHA BETA GAMMA DELTA", whiteStyle(24))
+                    .key("line")
+                    .width(width)
+                    .textAttach(sigil::weave::selectors::word(3),
+                                box().key("caret").fill(green()))}));
+           host.frame();
+           return markRect(host, "caret");
+         };
+         const SkRect wide = placeAt(360);
+         const SkRect narrow = placeAt(150);
+         ASSERT_FALSE(wide.isEmpty());
+         ASSERT_FALSE(narrow.isEmpty());
+         EXPECT_GT(narrow.top(), wide.top())
+             << "the word wrapped onto another line and the mark stayed behind";
+       }},
+      {"TheMarkStandsAtRestUnderACascade",
+       [&] {
+         // The rect is where the LAYOUT put the glyphs, not where a track has
+         // thrown them: a deviation is per glyph and per track and several
+         // compose, so there is no one place a moving unit "is". A mark that
+         // must ride the motion reads beatsOf and drives its own transform.
+         const auto placeAtProgress = [](float progress) {
+           Host host(400, 200);
+           host.composer.render(box().padding(10).children(
+               {text(u8"ALPHA BETA", whiteStyle(24))
+                    .key("line")
+                    .textFx({.effect = textFx::enter(textFx::rise(40)),
+                             .tween = {.duration = 100ms,
+                                       .delay = sigil::motion::stagger(0ms)},
+                             .progress = progress})
+                    .textAttach(sigil::weave::selectors::word(1),
+                                box().key("caret").fill(green()))}));
+           host.frame();
+           return markRect(host, "caret");
+         };
+         const SkRect early = placeAtProgress(0.0f);
+         const SkRect settled = placeAtProgress(1.0f);
+         ASSERT_FALSE(settled.isEmpty());
+         EXPECT_NEAR(early.top(), settled.top(), 0.01f);
+         EXPECT_NEAR(early.left(), settled.left(), 0.01f);
+       }},
+      {"OnAPathRunTheMarkStandsOnTheCurve",
+       [&] {
+         // A path-laid run's marks stand on the CURVE the letters stand on: the
+         // rect is the union of the advance boxes where the baseline placed
+         // them, the same placement beatsOf reports — so a caret and a beat
+         // cannot disagree on a ring any more than they can on a line. Resolved
+         // after layout, because the curve resolves against the node's final
+         // box.
+         Host host;
+         host.composer.render(box().padding(10).children(
+             {text(u8"AROUND THE RING IT GOES", whiteStyle(18))
+                  .key("ring")
+                  .width(180)
+                  .height(180)
+                  .textOnPath({.path = geometry::shapes::circle()})
+                  .textFx({.effect = textFx::enter(textFx::rise(4)),
+                           .unit = sigil::weave::Unit::Word})
+                  .textAttach(sigil::weave::selectors::word(2),
+                              box().key("caret").fill(green()))}));
+         host.frame();
+         const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
+         ASSERT_GT(beats.size(), 2u);
+         const SkRect caret = markRect(host, "caret");
+         ASSERT_FALSE(caret.isEmpty())
+             << "the mark placed nothing on the curve";
+         EXPECT_NEAR(caret.left(), beats[2].rect.left(), 0.01f);
+         EXPECT_NEAR(caret.top(), beats[2].rect.top(), 0.01f);
+         EXPECT_NEAR(caret.width(), beats[2].rect.width(), 0.01f);
+         EXPECT_NEAR(caret.height(), beats[2].rect.height(), 0.01f);
+         // And it IS the curved placement, not the straight flow line the run
+         // does not use: the same content laid straight puts the word somewhere
+         // else entirely.
+         Host straight;
+         straight.composer.render(box().padding(10).children(
+             {text(u8"AROUND THE RING IT GOES", whiteStyle(18))
+                  .key("ring")
+                  .width(180)
+                  .height(180)
+                  .textFx({.effect = textFx::enter(textFx::rise(4)),
+                           .unit = sigil::weave::Unit::Word})
+                  .textAttach(sigil::weave::selectors::word(2),
+                              box().key("caret").fill(green()))}));
+         straight.frame();
+         const SkRect flow = markRect(straight, "caret");
+         EXPECT_TRUE(std::abs(caret.left() - flow.left()) > 1.0f ||
+                     std::abs(caret.top() - flow.top()) > 1.0f)
+             << "the curved rect matched the straight one — the probe proves "
+                "nothing at this size";
+       }},
+      {"ASelectorResolvingNothingPlacesNothing",
+       [&] {
+         // The silent-no-op family's terms, with the warning that goes with
+         // them: a style name no run carries selects nothing, and a mark on
+         // nothing must draw nothing rather than land at the text node's
+         // origin.
+         Host host(300, 140);
+         host.composer.render(box().padding(10).children(
+             {text(u8"ALPHA BETA", whiteStyle(24))
+                  .key("line")
+                  .textAttach(
+                      selectors::style("nobody"),
+                      box().key("caret").width(30).height(30).fill(green()))}));
+         host.frame();
+         EXPECT_TRUE(markRect(host, "caret").isEmpty())
+             << "a mark on nothing took a box anyway";
+         int greens = 0;
+         for (int y = 0; y < 140; ++y)
+           for (int x = 0; x < 300; ++x)
+             if (host.pixel(x, y) == SK_ColorGREEN) ++greens;
+         EXPECT_EQ(greens, 0) << "a mark on nothing drew something";
+       }},
+      {"AnEqualMarkPrunesAndAMovedOneReResolves",
+       [&] {
+         // A mark is a comparable selector plus the key of the child it
+         // anchors, so a re-described identical mark must prune — and one
+         // pointed at a different word must not, or the caret keeps the rect it
+         // had.
+         Host host(400, 140);
+         const auto describe = [](uint32_t word) {
+           return box().padding(10).children(
+               {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+                    .key("line")
+                    .textAttach(sigil::weave::selectors::word(word),
+                                box().key("caret").fill(green()))});
+         };
+         host.composer.render(describe(0));
+         host.frame();
+         const SkRect first = markRect(host, "caret");
+         host.composer.render(describe(0));
+         host.frame();
+         EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+             << "an unchanged mark list did not prune";
+         EXPECT_NEAR(markRect(host, "caret").left(), first.left(), 0.01f);
 
-TEST(ComposeTextFx, MarkResolvesMarginsFarInsetsAndFontLengths) {
-  Host host(400, 200);
-  const auto selected = sigil::weave::selectors::word(0);
-  const auto describe = [&](float drop) {
-    return box().padding(20).fontSize(20).children({
-        box().key("lineHeight").width(1).height(sigil::weave::lh(1)),
-        text(u8"ALPHA", whiteStyle(24))
-            .var("drop", Dimension(drop))
-            .textAttach(selected, box().key("anchor"))
-            .textAttach(selected, box().key("near").width(2).height(8)
-                                      .left(0).top(percent(100))
-                                      .marginLeft(4).marginTop(var("drop")))
-            .textAttach(selected, box().key("far").width(2).height(8)
-                                      .right(-10).bottom(-20)
-                                      .marginRight(3).marginBottom(4))
-            .textAttach(selected, box().key("stretch")
-                                      .left(1).right(2).top(3).bottom(4)
-                                      .margin(2))
-            .textAttach(selected, box().key("font").width(2).height(8)
-                                      .fontSize(20)
-                                      .left(Dimension(sigil::weave::em(0.5f)) + Dimension(3))
-                                      .top(sigil::weave::lh(1))) });
-  };
-  for (const float drop : {12.0f, 24.0f}) {
-    host.composer.render(describe(drop));
-    host.frame();
-    const SkRect anchor = markRect(host, "anchor");
-    ASSERT_GT(anchor.width(), 20);
-    const SkRect near = markRect(host, "near");
-    EXPECT_NEAR(near.left(), anchor.left() + 4, 0.01f);
-    EXPECT_NEAR(near.top(), anchor.bottom() + drop, 0.01f);
-    const SkRect far = markRect(host, "far");
-    EXPECT_NEAR(far.right(), anchor.right() + 7, 0.01f);
-    EXPECT_NEAR(far.bottom(), anchor.bottom() + 16, 0.01f);
-    const SkRect stretch = markRect(host, "stretch");
-    EXPECT_NEAR(stretch.left(), anchor.left() + 3, 0.01f);
-    EXPECT_NEAR(stretch.top(), anchor.top() + 5, 0.01f);
-    EXPECT_NEAR(stretch.right(), anchor.right() - 4, 0.01f);
-    EXPECT_NEAR(stretch.bottom(), anchor.bottom() - 6, 0.01f);
-    const SkRect font = markRect(host, "font");
-    EXPECT_NEAR(font.left(), anchor.left() + 13, 0.01f);
-    const float lineHeight = markRect(host, "lineHeight").height();
-    EXPECT_GT(lineHeight, 15);
-    EXPECT_NEAR(font.top(), anchor.top() + lineHeight, 0.01f);
-  }
-}
-
-TEST(ComposeTextFx, MarkResolvesAPercentagePlusPixelInset) {
-  // A sum holding a percentage stays a length until its consumer knows
-  // the extent: on a mark that extent is the selected unit's rect, so
-  // `top(percent(100) + 12)` is that rect's bottom and twelve more — and it
-  // follows the rect when the type is resized.
-  Host host(400, 200);
-  const auto selected = sigil::weave::selectors::text(u8"L");
-  for (const float size : {24.0f, 40.0f}) {
-    host.composer.render(box().padding(10).children(
-        {text(u8"ALPHA", whiteStyle(size))
-             .textAttach(selected, box().key("letter"))
-             .textAttach(selected, box()
-                                       .key("drop")
-                                       .left(0)
-                                       .top(percent(100) + Dimension(12))
-                                       .width(1)
-                                       .height(8)
-                                       .fill(green()))}));
-    host.frame();
-    const SkRect letter = markRect(host, "letter");
-    ASSERT_GT(letter.height(), size * 0.5f) << "at " << size << " px";
-    const SkRect drop = markRect(host, "drop");
-    EXPECT_NEAR(drop.left(), letter.left(), 0.01f) << "at " << size << " px";
-    EXPECT_NEAR(drop.top(), letter.bottom() + 12, 0.01f)
-        << "at " << size << " px";
-    EXPECT_FLOAT_EQ(drop.height(), 8.0f);
-  }
-}
-
-TEST(ComposeTextFx, MarkFollowsItsUnitWhenTheTextReflows) {
-  // The rect is read off the placement, so a narrower box that pushes the
-  // word onto the next line takes the mark with it — the reason to anchor a
-  // caret rather than compute one.
-  const auto placeAt = [](float width) {
-    Host host(400, 200);
-    host.composer.render(box().padding(10).children(
-        {text(u8"ALPHA BETA GAMMA DELTA", whiteStyle(24))
-             .key("line")
-             .width(width)
-             .textAttach(sigil::weave::selectors::word(3),
-                         box().key("caret").fill(green()))}));
-    host.frame();
-    return markRect(host, "caret");
-  };
-  const SkRect wide = placeAt(360);
-  const SkRect narrow = placeAt(150);
-  ASSERT_FALSE(wide.isEmpty());
-  ASSERT_FALSE(narrow.isEmpty());
-  EXPECT_GT(narrow.top(), wide.top())
-      << "the word wrapped onto another line and the mark stayed behind";
-}
-
-TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
-  // The rect is where the LAYOUT put the glyphs, not where a track has
-  // thrown them: a deviation is per glyph and per track and several
-  // compose, so there is no one place a moving unit "is". A mark that must
-  // ride the motion reads beatsOf and drives its own transform.
-  const auto placeAtProgress = [](float progress) {
-    Host host(400, 200);
-    host.composer.render(box().padding(10).children(
-        {text(u8"ALPHA BETA", whiteStyle(24))
-             .key("line")
-             .textFx({.effect = textFx::enter(textFx::rise(40)),
-                      .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)}, 
-                      .progress = progress})
-             .textAttach(sigil::weave::selectors::word(1),
-                         box().key("caret").fill(green()))}));
-    host.frame();
-    return markRect(host, "caret");
-  };
-  const SkRect early = placeAtProgress(0.0f);
-  const SkRect settled = placeAtProgress(1.0f);
-  ASSERT_FALSE(settled.isEmpty());
-  EXPECT_NEAR(early.top(), settled.top(), 0.01f);
-  EXPECT_NEAR(early.left(), settled.left(), 0.01f);
-}
-
-TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
-  // A path-laid run's marks stand on the CURVE the letters stand on: the
-  // rect is the union of the advance boxes where the baseline placed them,
-  // the same placement beatsOf reports — so a caret and a beat cannot
-  // disagree on a ring any more than they can on a line. Resolved after
-  // layout, because the curve resolves against the node's final box.
-  Host host;
-  host.composer.render(box().padding(10).children(
-      {text(u8"AROUND THE RING IT GOES", whiteStyle(18))
-           .key("ring")
-           .width(180)
-           .height(180)
-           .textOnPath({.path = geometry::shapes::circle()})
-           .textFx(
-               {.effect = textFx::enter(textFx::rise(4)), .unit = sigil::weave::Unit::Word})
-           .textAttach(sigil::weave::selectors::word(2),
-                       box().key("caret").fill(green()))}));
-  host.frame();
-  const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
-  ASSERT_GT(beats.size(), 2u);
-  const SkRect caret = markRect(host, "caret");
-  ASSERT_FALSE(caret.isEmpty()) << "the mark placed nothing on the curve";
-  EXPECT_NEAR(caret.left(), beats[2].rect.left(), 0.01f);
-  EXPECT_NEAR(caret.top(), beats[2].rect.top(), 0.01f);
-  EXPECT_NEAR(caret.width(), beats[2].rect.width(), 0.01f);
-  EXPECT_NEAR(caret.height(), beats[2].rect.height(), 0.01f);
-  // And it IS the curved placement, not the straight flow line the run
-  // does not use: the same content laid straight puts the word somewhere
-  // else entirely.
-  Host straight;
-  straight.composer.render(box().padding(10).children(
-      {text(u8"AROUND THE RING IT GOES", whiteStyle(18))
-           .key("ring")
-           .width(180)
-           .height(180)
-           .textFx(
-               {.effect = textFx::enter(textFx::rise(4)), .unit = sigil::weave::Unit::Word})
-           .textAttach(sigil::weave::selectors::word(2),
-                       box().key("caret").fill(green()))}));
-  straight.frame();
-  const SkRect flow = markRect(straight, "caret");
-  EXPECT_TRUE(std::abs(caret.left() - flow.left()) > 1.0f ||
-              std::abs(caret.top() - flow.top()) > 1.0f)
-      << "the curved rect matched the straight one — the probe proves "
-         "nothing at this size";
-}
-
-TEST(ComposeTextFx, MarkResolvingNothingPlacesNothing) {
-  // The silent-no-op family's terms, with the warning that goes with them:
-  // a style name no run carries selects nothing, and a mark on nothing must
-  // draw nothing rather than land at the text node's origin.
-  Host host(300, 140);
-  host.composer.render(box().padding(10).children(
-      {text(u8"ALPHA BETA", whiteStyle(24))
-           .key("line")
-           .textAttach(
-               selectors::style("nobody"),
-               box().key("caret").width(30).height(30).fill(green()))}));
-  host.frame();
-  EXPECT_TRUE(markRect(host, "caret").isEmpty())
-      << "a mark on nothing took a box anyway";
-  int greens = 0;
-  for (int y = 0; y < 140; ++y)
-    for (int x = 0; x < 300; ++x)
-      if (host.pixel(x, y) == SK_ColorGREEN) ++greens;
-  EXPECT_EQ(greens, 0) << "a mark on nothing drew something";
-}
-
-TEST(ComposeTextFx, MarkPrunesAndReResolvesWhenItMoves) {
-  // A mark is a comparable selector plus the key of the child it anchors,
-  // so a re-described identical mark must prune — and one pointed at a
-  // different word must not, or the caret keeps the rect it had.
-  Host host(400, 140);
-  const auto describe = [](uint32_t word) {
-    return box().padding(10).children(
-        {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
-             .key("line")
-             .textAttach(sigil::weave::selectors::word(word),
-                         box().key("caret").fill(green()))});
-  };
-  host.composer.render(describe(0));
-  host.frame();
-  const SkRect first = markRect(host, "caret");
-  host.composer.render(describe(0));
-  host.frame();
-  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
-      << "an unchanged mark list did not prune";
-  EXPECT_NEAR(markRect(host, "caret").left(), first.left(), 0.01f);
-
-  host.composer.render(describe(2));
-  host.frame();
-  EXPECT_GT(markRect(host, "caret").left(), first.left() + 1.0f)
-      << "the mark kept the rect the previous selector resolved";
-}
-
-TEST(ComposeTextFx, MarkIsNotASlotAndReservesNoSpaceInTheFlow) {
-  // The distinction the header states: a slot's box is woven into the line
-  // and the type after it starts further along; a mark is placed on a line
-  // laid out as though it were not there.
-  const auto widthOf = [](Element leaf) {
-    Host host(400, 140);
-    host.composer.render(
-        box().padding(10).children({std::move(leaf).key("line")}));
-    host.frame();
-    return host.composer.bounds("line").value_or(geometry::path::Rect{}).width();
-  };
-  const float bare = widthOf(text(u8"ALPHA BETA", whiteStyle(24)));
-  const float marked =
-      widthOf(text(u8"ALPHA BETA", whiteStyle(24))
-                  .textAttach(sigil::weave::selectors::word(0),
-                              box().key("m").width(40).fill(green())));
-  EXPECT_NEAR(marked, bare, 0.01f) << "the mark reserved space in the flow";
+         host.composer.render(describe(2));
+         host.frame();
+         EXPECT_GT(markRect(host, "caret").left(), first.left() + 1.0f)
+             << "the mark kept the rect the previous selector resolved";
+       }},
+      {"AMarkReservesNoSpaceInTheFlow",
+       [&] {
+         // The distinction the header states: a slot's box is woven into the
+         // line and the type after it starts further along; a mark is placed on
+         // a line laid out as though it were not there.
+         const auto widthOf = [](Element leaf) {
+           Host host(400, 140);
+           host.composer.render(
+               box().padding(10).children({std::move(leaf).key("line")}));
+           host.frame();
+           return host.composer.bounds("line")
+               .value_or(geometry::path::Rect{})
+               .width();
+         };
+         const float bare = widthOf(text(u8"ALPHA BETA", whiteStyle(24)));
+         const float marked =
+             widthOf(text(u8"ALPHA BETA", whiteStyle(24))
+                         .textAttach(sigil::weave::selectors::word(0),
+                                     box().key("m").width(40).fill(green())));
+         EXPECT_NEAR(marked, bare, 0.01f)
+             << "the mark reserved space in the flow";
+       }},
+  });
 }
 
 namespace {

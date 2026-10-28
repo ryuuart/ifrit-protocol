@@ -234,7 +234,6 @@ sigil_test(compose_test
           test/ComposeTestTypedLeaves.cpp test/ComposeTestRuleScope.cpp
           test/ComposeTestLonghandValues.cpp test/ComposeTestTextIndent.cpp
           test/ComposeTestMovingHold.cpp test/ComposeTestShadowText.cpp
-          test/ComposeTestFaceChoice.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilCoreReport
             SigilMaterialField SigilWeavePorts

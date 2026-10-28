@@ -6,48 +6,9 @@
 #include <memory>
 
 #include "DressedTypeProbes.h"
+#include "support/Rows.h"
 
-TEST(TextLayout, FullyConstrainedAbsoluteTextPaints) {
-  // Yoga skips the measure callback when absolute insets determine both
-  // dimensions; the kernel must lay the paragraph out at paint time.
-  Host host;
-  sigil::weave::TextStyle style = styleAt(40);
-  style.paint.foreground.setColor(SK_ColorWHITE);
-  host.composer.render(stack().children(
-      {text(u8"WWWW", style)
-           .absolute()
-           .inset(10, 10, 120, 10)}));
-  host.frame();
-  int lit = 0;
-  for (int x = 10; x < 190; x += 4)
-    for (int y = 10; y < 70; y += 4)
-      if (host.pixel(x, y) != SK_ColorBLACK) lit++;
-  EXPECT_GT(lit, 20);  // glyph coverage, not empty
-}
-
-TEST(TextLayout, AlignItemsCentersTextLeaf) {
-  Host host;
-  sigil::weave::TextStyle style = styleAt(40);
-  style.paint.foreground.setColor(SK_ColorWHITE);
-  host.composer.render(box()
-                           .width(200)
-                           .height(60)
-                           .alignItems(Align::Center)
-                           .children({text(u8"W", style)}));
-  host.frame();
-
-  int litLeft = 0, litMiddle = 0;
-  for (int x = 0; x < 50; x += 2)
-    for (int y = 0; y < 60; y += 2)
-      if (host.pixel(x, y) != SK_ColorBLACK) litLeft++;
-  for (int x = 75; x < 125; x += 2)
-    for (int y = 0; y < 60; y += 2)
-      if (host.pixel(x, y) != SK_ColorBLACK) litMiddle++;
-  EXPECT_EQ(litLeft, 0);    // nothing hugging the start edge
-  EXPECT_GT(litMiddle, 5);  // the glyph sits in the middle
-}
-
-TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
+TEST(TextRich, EachRunIsDrawnInItsOwnStyle) {
   Host host(400, 200);
   auto para = std::make_shared<sigil::weave::Paragraph>();
   sigil::weave::TextStyle big = styleAt(40);
@@ -68,31 +29,72 @@ TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
   EXPECT_GT(lit, 15);  // both spans shaped and painted
 }
 
-TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
-  // Text inside a BaselineGrid, nested in an absolute column, inside a
-  // stack(). A custom layout scheme writes back into Yoga out of band, and
-  // an absolute ancestor changes how its subtree is sized, so this is the
-  // combination most likely to leave the text laid out at zero size and
-  // therefore invisible.
-  Host host;
-  host.composer.render(stack().children(
-      {box()
-           .column()
-           .absolute()
-           .inset(10)
-           .children(
-               {layout(layouts::BaselineGrid{.rhythm = 24})
-                    .width(percent(100))
-                    .children({text(u8"probe", whiteStyle(28)).key("p")})})}));
-  host.frame();
-  auto b = host.composer.bounds("p");
-  ASSERT_TRUE(b.has_value());
-  EXPECT_GT(b->width(), 5.0f) << "placed rect " << b->left() << "," << b->top()
-                              << " " << b->width() << "x" << b->height();
-  EXPECT_GT(b->height(), 5.0f);
-  EXPECT_TRUE(
-      anyWhiteIn(host, SkIRect::MakeLTRB((int)b->left(), (int)b->top(),
-                                         (int)b->right(), (int)b->bottom())))
-      << "placed rect " << b->left() << "," << b->top() << " " << b->width()
-      << "x" << b->height();
+TEST(TextLayout, ATextLeafPaintsInWhateverBoxLayoutGivesIt) {
+  sigil::compose::test::checkRows({
+      {"AnAbsoluteBoxItsInsetsFix",
+       [&] {
+         // Yoga skips the measure callback when absolute insets determine both
+         // dimensions; the kernel must lay the paragraph out at paint time.
+         Host host;
+         sigil::weave::TextStyle style = styleAt(40);
+         style.paint.foreground.setColor(SK_ColorWHITE);
+         host.composer.render(stack().children(
+             {text(u8"WWWW", style).absolute().inset(10, 10, 120, 10)}));
+         host.frame();
+         int lit = 0;
+         for (int x = 10; x < 190; x += 4)
+           for (int y = 10; y < 70; y += 4)
+             if (host.pixel(x, y) != SK_ColorBLACK) lit++;
+         EXPECT_GT(lit, 20);  // glyph coverage, not empty
+       }},
+      {"ABoxItsParentCentres",
+       [&] {
+         Host host;
+         sigil::weave::TextStyle style = styleAt(40);
+         style.paint.foreground.setColor(SK_ColorWHITE);
+         host.composer.render(box()
+                                  .width(200)
+                                  .height(60)
+                                  .alignItems(Align::Center)
+                                  .children({text(u8"W", style)}));
+         host.frame();
+
+         int litLeft = 0, litMiddle = 0;
+         for (int x = 0; x < 50; x += 2)
+           for (int y = 0; y < 60; y += 2)
+             if (host.pixel(x, y) != SK_ColorBLACK) litLeft++;
+         for (int x = 75; x < 125; x += 2)
+           for (int y = 0; y < 60; y += 2)
+             if (host.pixel(x, y) != SK_ColorBLACK) litMiddle++;
+         EXPECT_EQ(litLeft, 0);    // nothing hugging the start edge
+         EXPECT_GT(litMiddle, 5);  // the glyph sits in the middle
+       }},
+      {"ABaselineGridInsideAStackedAbsoluteColumn",
+       [&] {
+         // Text inside a BaselineGrid, nested in an absolute column, inside a
+         // stack(). A custom layout scheme writes back into Yoga out of band,
+         // and an absolute ancestor changes how its subtree is sized, so this
+         // is the combination most likely to leave the text laid out at zero
+         // size and therefore invisible.
+         Host host;
+         host.composer.render(
+             stack().children({box().column().absolute().inset(10).children(
+                 {layout(layouts::BaselineGrid{.rhythm = 24})
+                      .width(percent(100))
+                      .children(
+                          {text(u8"probe", whiteStyle(28)).key("p")})})}));
+         host.frame();
+         auto b = host.composer.bounds("p");
+         ASSERT_TRUE(b.has_value());
+         EXPECT_GT(b->width(), 5.0f)
+             << "placed rect " << b->left() << "," << b->top() << " "
+             << b->width() << "x" << b->height();
+         EXPECT_GT(b->height(), 5.0f);
+         EXPECT_TRUE(anyWhiteIn(
+             host, SkIRect::MakeLTRB((int)b->left(), (int)b->top(),
+                                     (int)b->right(), (int)b->bottom())))
+             << "placed rect " << b->left() << "," << b->top() << " "
+             << b->width() << "x" << b->height();
+       }},
+  });
 }

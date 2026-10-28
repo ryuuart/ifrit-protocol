@@ -5,7 +5,7 @@
 #   sigil_library()          one feature target: its sources, its public
 #                            headers and the links the call names
 #   sigil_test()             this directory's cases, in its library's one
-#                            GoogleTest binary, one ctest entry per case
+#                            GoogleTest binary, one ctest entry per suite
 #   sigil_bench()            this directory's benchmarks, in its library's
 #                            one Google Benchmark binary, never a test
 #   sigil_finalize_tests()   the ctest entries, once every directory has
@@ -26,8 +26,8 @@
 # function's contract is stated above it. A build module only ONE library
 # needs lives in that library's own cmake/ directory instead.
 
-# Where gtest_discover_tests() comes from.
-include(GoogleTest)
+# What ctest runs to list each test binary's suites and to run one.
+set(SIGIL_TEST_SUITES_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/SigilTestSuites.cmake)
 
 # Documentation registration is shared by every library root.
 include(${CMAKE_CURRENT_LIST_DIR}/Docs.cmake)
@@ -268,15 +268,18 @@ endfunction()
 
 # sigil_finalize_tests()
 #   Once, after every subdirectory has been added. One ctest entry per
-#   CASE, discovered from each binary when ctest runs, so a suite or a
-#   case is selected by name with no target behind it. A group of cases
-#   that carries labels is discovered by itself with those labels on it;
-#   everything the groups do not name is discovered with the binary's own.
-#   A case one group names by Suite.Case is that group's alone, even when
-#   another group names its whole suite. A group labelled `timed` runs
-#   each of its cases with no other case beside it: what such a case
-#   asserts is a duration, and a device or processor another process is
-#   driving stretches it.
+#   SUITE of each binary, named <library>.<Suite> (compose.ComposeGrid for
+#   compose_test), discovered from the binary when ctest runs, so a suite
+#   or a whole library is selected by name with no target behind it and a
+#   suite's cases run together in one process; one case is run with the
+#   binary's own --gtest_filter. A group of cases that carries labels is discovered by
+#   itself with those labels on it; everything the groups do not name is
+#   discovered with the binary's own. A case one group names by Suite.Case
+#   is that group's alone, even when another group names its whole suite,
+#   and is an entry of its own named <library>.<Suite>.<Case>. A group labelled `timed`
+#   runs each of its entries with no other entry beside it: what such a
+#   case asserts is a duration, and a device or processor another process
+#   is driving stretches it.
 function(sigil_finalize_tests)
   get_property(binaries GLOBAL PROPERTY SIGIL_TEST_BINARIES)
   foreach(target IN LISTS binaries)
@@ -301,15 +304,6 @@ function(_sigil_test_group_patterns group out_labels out_patterns)
   set(${out_patterns} "${patterns}" PARENT_SCOPE)
 endfunction()
 
-# The properties a group's labels add beyond the labels themselves.
-function(_sigil_test_serial labels out_properties)
-  set(properties)
-  if("timed" IN_LIST labels)
-    set(properties RUN_SERIAL TRUE)
-  endif()
-  set(${out_properties} ${properties} PARENT_SCOPE)
-endfunction()
-
 function(_sigil_discover_tests target)
   get_property(groups TARGET ${target} PROPERTY SIGIL_TEST_LABEL_GROUPS)
   set(labelled)
@@ -332,11 +326,7 @@ function(_sigil_discover_tests target)
       list(JOIN claimed_elsewhere ":" excluded)
       string(APPEND filter "-${excluded}")
     endif()
-    _sigil_test_serial("${labels}" serial)
-    gtest_discover_tests(${target}
-      TEST_FILTER "${filter}"
-      PROPERTIES LABELS "${labels}" ${serial}
-      DISCOVERY_MODE PRE_TEST)
+    _sigil_discover_suites(${target} "${filter}" "${labels}")
   endforeach()
   set(rest)
   if(labelled)
@@ -345,11 +335,69 @@ function(_sigil_discover_tests target)
   endif()
   get_property(labels TARGET ${target} PROPERTY SIGIL_TEST_LABELS)
   list(REMOVE_DUPLICATES labels)
-  _sigil_test_serial("${labels}" serial)
-  gtest_discover_tests(${target}
-    TEST_FILTER "${rest}"
-    PROPERTIES LABELS "${labels}" ${serial}
-    DISCOVERY_MODE PRE_TEST)
+  _sigil_discover_suites(${target} "${rest}" "${labels}")
+endfunction()
+
+# Registers, for ctest to run before it tests, the discovery of one entry
+# per suite of @p target's cases under @p filter, labelled @p labels; the
+# discovery itself is SigilTestSuites.cmake. The entries are listed again
+# whenever the binary or that script is newer than the last listing, and a
+# binary not yet built is one `<target>_NOT_BUILT` entry.
+function(_sigil_discover_suites target filter labels)
+  get_property(count TARGET ${target} PROPERTY SIGIL_TEST_SUITE_GROUPS)
+  if(NOT count)
+    set(count 0)
+  endif()
+  math(EXPR next "${count} + 1")
+  set_property(TARGET ${target} PROPERTY SIGIL_TEST_SUITE_GROUPS ${next})
+  set(serial FALSE)
+  if("timed" IN_LIST labels)
+    set(serial TRUE)
+  endif()
+  set(script "${SIGIL_TEST_SUITES_SCRIPT}")
+  string(REGEX REPLACE "_test$" "" library "${target}")
+  set(base "${CMAKE_CURRENT_BINARY_DIR}/${target}_suites_${count}")
+  string(CONCAT content
+    "set(executable [==[$<TARGET_FILE:${target}>]==])\n"
+    "set(listing [==[${base}_$<CONFIG>.cmake]==])\n"
+    "if(EXISTS \"\${executable}\")\n"
+    "  if(NOT EXISTS \"\${listing}\"\n"
+    "     OR \"\${executable}\" IS_NEWER_THAN \"\${listing}\"\n"
+    "     OR [==[${script}]==] IS_NEWER_THAN \"\${listing}\")\n"
+    "    execute_process(\n"
+    "      COMMAND [==[${CMAKE_COMMAND}]==] -D SIGIL_SUITES_STEP=discover\n"
+    "        -D \"TEST_EXECUTABLE=\${executable}\"\n"
+    "        -D [==[TEST_FILTER=${filter}]==]\n"
+    "        -D [==[TEST_LABELS=${labels}]==]\n"
+    "        -D TEST_SERIAL=${serial}\n"
+    "        -D [==[TEST_WORKING_DIRECTORY=${CMAKE_BINARY_DIR}]==]\n"
+    "        -D [==[TEST_LIBRARY=${library}]==]\n"
+    "        -D \"TESTS_FILE=\${listing}\"\n"
+    "        -P [==[${script}]==]\n"
+    "      RESULT_VARIABLE result)\n"
+    "    if(NOT result EQUAL 0)\n"
+    "      message(FATAL_ERROR \"${target} could not list its suites\")\n"
+    "    endif()\n"
+    "  endif()\n"
+    "  include(\"\${listing}\")\n"
+    "else()\n"
+    "  add_test(${target}_NOT_BUILT ${target}_NOT_BUILT)\n"
+    "endif()\n")
+  file(GENERATE OUTPUT "${base}_include_$<CONFIG>.cmake" CONTENT "${content}")
+  set(dispatch "${base}_include.cmake")
+  get_property(multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+  if(multi_config)
+    file(WRITE "${dispatch}"
+      "if(EXISTS \"${base}_include_\${CTEST_CONFIGURATION_TYPE}.cmake\")\n"
+      "  include(\"${base}_include_\${CTEST_CONFIGURATION_TYPE}.cmake\")\n"
+      "else()\n"
+      "  add_test(${target}_NOT_BUILT ${target}_NOT_BUILT)\n"
+      "endif()\n")
+  else()
+    file(WRITE "${dispatch}"
+      "include(\"${base}_include_${CMAKE_BUILD_TYPE}.cmake\")\n")
+  endif()
+  set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES "${dispatch}")
 endfunction()
 
 # sigil_test(<library>_test SOURCES <file>... [LIBRARIES <item>...]

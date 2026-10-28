@@ -11,6 +11,7 @@
 #include <cmath>
 #include <utility>
 
+#include "support/Rows.h"
 #include "support/SurfaceSceneFixture.h"
 
 namespace {
@@ -66,83 +67,89 @@ float leansRight(const SkColor4f& normal) {
 
 }  // namespace
 
-TEST(ComposeSurfaceScene, ACanvasFillPlacesItsNormalWhereItPlacesItsColour) {
-  // A card inset in the page, from 32 to 80 across, filled with a split
-  // picture as wide as the canvas laid from the canvas's corner: the split
-  // falls at 64, the canvas's middle, in the base colour and the normal
-  // alike. Laid from the card's own corner it would fall at 96, past the
-  // card, which would show only the left half.
-  const auto pageWith = [](PaintBox over) {
-    return box().width(kWidth).height(kHeight).children(
-        {box()
-             .absolute()
-             .rect(32, 24, 48, 40)
-             .fill(splitFinish(kWidth), over)});
-  };
-  const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
-  ASSERT_NE(scene, nullptr);
-  scene->render(pageWith(PaintBox::Canvas));
-  SkBitmap base = pixelsOf(*scene, Role::BaseColor);
-  SkBitmap normal = pixelsOf(*scene, Role::Normal);
-  ASSERT_FALSE(base.empty());
-  for (const int x : {40, 60, 68, 76}) {
-    const float expected = x < 64 ? 1.0f : 0.0f;
-    EXPECT_EQ(leftHalfOf(base.getColor4f(x, 44)), expected) << "x " << x;
-    EXPECT_EQ(leansRight(normal.getColor4f(x, 44)), expected) << "x " << x;
-  }
-  // On the card's own box both maps move together with the card.
-  scene->render(pageWith(PaintBox::Element), 1);
-  base = pixelsOf(*scene, Role::BaseColor);
-  normal = pixelsOf(*scene, Role::Normal);
-  for (const int x : {40, 60, 68, 76}) {
-    EXPECT_EQ(leftHalfOf(base.getColor4f(x, 44)), 1) << "x " << x;
-    EXPECT_EQ(leansRight(normal.getColor4f(x, 44)), 1) << "x " << x;
-  }
-}
-
-TEST(ComposeSurfaceScene, AGlyphInkRestartsItsNormalOnEachGlyphWithItsColour) {
-  // Two capitals inked with the split picture restarting on each glyph:
-  // every letter shows both halves, and wherever the base colour shows a
-  // half the normal leans that half's way.
-  const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
-  ASSERT_NE(scene, nullptr);
-  scene->render(box().width(kWidth).height(kHeight).children(
-      {text(u8"HH", whiteStyle(44))
-           .absolute()
-           .rect(0, 32, 128, 48)
-           .ink(splitFinish(0), PaintBox::Glyph)}));
-  const SkBitmap base = pixelsOf(*scene, Role::BaseColor);
-  const SkBitmap normal = pixelsOf(*scene, Role::Normal);
-  ASSERT_FALSE(base.empty());
-  // Each letter's columns, split where the second one begins: the inked
-  // columns' middle.
-  int first = kWidth, last = -1;
-  for (int y = 32; y < 80; ++y)
-    for (int x = 0; x < kWidth; ++x)
-      if (base.getColor4f(x, y).fA > .99f) {
-        first = std::min(first, x);
-        last = std::max(last, x);
-      }
-  ASSERT_LT(first, last);
-  const int between = (first + last) / 2;
-  int halves[2][2] = {{0, 0}, {0, 0}};
-  int agreeing = 0, inked = 0;
-  for (int y = 32; y < 80; ++y)
-    for (int x = 0; x < kWidth; ++x) {
-      const SkColor4f colour = base.getColor4f(x, y);
-      if (colour.fA < .99f) continue;
-      const float half = leftHalfOf(colour);
-      if (half == .5f) continue;
-      ++inked;
-      ++halves[x < between ? 0 : 1][half == 1 ? 0 : 1];
-      if (leansRight(normal.getColor4f(x, y)) == half) ++agreeing;
-    }
-  ASSERT_GT(inked, 50);
-  EXPECT_EQ(agreeing, inked);
-  for (const auto& letter : halves) {
-    EXPECT_GT(letter[0], 10) << "a letter shows no left half";
-    EXPECT_GT(letter[1], 10) << "a letter shows no right half";
-  }
+TEST(ComposeSurfaceScene, EveryChannelStandsOnTheUnitItsColourDoes) {
+  sigil::compose::test::checkRows({
+      {"ACanvasFillPlacesItsNormalWhereItPlacesItsColour",
+       [&] {
+         // A card inset in the page, from 32 to 80 across, filled with a split
+         // picture as wide as the canvas laid from the canvas's corner: the
+         // split falls at 64, the canvas's middle, in the base colour and the
+         // normal alike. Laid from the card's own corner it would fall at 96,
+         // past the card, which would show only the left half.
+         const auto pageWith = [](PaintBox over) {
+           return box().width(kWidth).height(kHeight).children(
+               {box()
+                    .absolute()
+                    .rect(32, 24, 48, 40)
+                    .fill(splitFinish(kWidth), over)});
+         };
+         const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+         ASSERT_NE(scene, nullptr);
+         scene->render(pageWith(PaintBox::Canvas));
+         SkBitmap base = pixelsOf(*scene, Role::BaseColor);
+         SkBitmap normal = pixelsOf(*scene, Role::Normal);
+         ASSERT_FALSE(base.empty());
+         for (const int x : {40, 60, 68, 76}) {
+           const float expected = x < 64 ? 1.0f : 0.0f;
+           EXPECT_EQ(leftHalfOf(base.getColor4f(x, 44)), expected) << "x " << x;
+           EXPECT_EQ(leansRight(normal.getColor4f(x, 44)), expected)
+               << "x " << x;
+         }
+         // On the card's own box both maps move together with the card.
+         scene->render(pageWith(PaintBox::Element), 1);
+         base = pixelsOf(*scene, Role::BaseColor);
+         normal = pixelsOf(*scene, Role::Normal);
+         for (const int x : {40, 60, 68, 76}) {
+           EXPECT_EQ(leftHalfOf(base.getColor4f(x, 44)), 1) << "x " << x;
+           EXPECT_EQ(leansRight(normal.getColor4f(x, 44)), 1) << "x " << x;
+         }
+       }},
+      {"AGlyphInkRestartsItsNormalOnEachGlyph",
+       [&] {
+         // Two capitals inked with the split picture restarting on each glyph:
+         // every letter shows both halves, and wherever the base colour shows a
+         // half the normal leans that half's way.
+         const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+         ASSERT_NE(scene, nullptr);
+         scene->render(box().width(kWidth).height(kHeight).children(
+             {text(u8"HH", whiteStyle(44))
+                  .absolute()
+                  .rect(0, 32, 128, 48)
+                  .ink(splitFinish(0), PaintBox::Glyph)}));
+         const SkBitmap base = pixelsOf(*scene, Role::BaseColor);
+         const SkBitmap normal = pixelsOf(*scene, Role::Normal);
+         ASSERT_FALSE(base.empty());
+         // Each letter's columns, split where the second one begins: the inked
+         // columns' middle.
+         int first = kWidth, last = -1;
+         for (int y = 32; y < 80; ++y)
+           for (int x = 0; x < kWidth; ++x)
+             if (base.getColor4f(x, y).fA > .99f) {
+               first = std::min(first, x);
+               last = std::max(last, x);
+             }
+         ASSERT_LT(first, last);
+         const int between = (first + last) / 2;
+         int halves[2][2] = {{0, 0}, {0, 0}};
+         int agreeing = 0, inked = 0;
+         for (int y = 32; y < 80; ++y)
+           for (int x = 0; x < kWidth; ++x) {
+             const SkColor4f colour = base.getColor4f(x, y);
+             if (colour.fA < .99f) continue;
+             const float half = leftHalfOf(colour);
+             if (half == .5f) continue;
+             ++inked;
+             ++halves[x < between ? 0 : 1][half == 1 ? 0 : 1];
+             if (leansRight(normal.getColor4f(x, y)) == half) ++agreeing;
+           }
+         ASSERT_GT(inked, 50);
+         EXPECT_EQ(agreeing, inked);
+         for (const auto& letter : halves) {
+           EXPECT_GT(letter[0], 10) << "a letter shows no left half";
+           EXPECT_GT(letter[1], 10) << "a letter shows no right half";
+         }
+       }},
+  });
 }
 
 TEST(ComposeSurfaceScene, ANormalIsWrittenInThePageAsItsNodeIsTurned) {

@@ -6,21 +6,26 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkGraphics.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkM44.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPixmap.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypes.h>
 #include <include/effects/SkImageFilters.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <cmath>
 #include <memory>
+#include <vector>
 
 using namespace sigil::material;
 
@@ -131,9 +136,8 @@ void through(benchmark::State& state, const Filter& effect) {
 /** The cheap bloom: one tap and a small Gaussian, which is the price the
  *  gathered phosphor recipe is judged against. */
 void BM_Layer_BrightPass(benchmark::State& state) {
-  through(state,
-          Filter::brightPass(0.52f, 0.30f)
-              .then(skia::filter(SkImageFilters::Blur(4, 4, nullptr))));
+  through(state, Filter::brightPass(0.52f, 0.30f)
+                     .then(skia::filter(SkImageFilters::Blur(4, 4, nullptr))));
 }
 BENCHMARK(BM_Layer_BrightPass);
 
@@ -160,8 +164,8 @@ BENCHMARK(BM_Layer_PhosphorBloom_Wide);
  *  opened, its content drawn and the bloom run as it closes, on a canvas
  *  the size of a screen. What the bloom costs should follow the layer —
  *  a caption line and a caption box — and not the canvas around it. */
-void throughLiveLayer(benchmark::State& state, const Filter& effect,
-                      int width, int height) {
+void throughLiveLayer(benchmark::State& state, const Filter& effect, int width,
+                      int height) {
   constexpr int kCanvasWidth = 1920, kCanvasHeight = 1080;
   const sk_sp<SkImage> content = litField(width, height);
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
@@ -201,6 +205,68 @@ void BM_LiveLayer_PhosphorBloom_CaptionBox(benchmark::State& state) {
   throughLiveLayer(state, Filter::phosphorBloom(), 900, 300);
 }
 BENCHMARK(BM_LiveLayer_PhosphorBloom_CaptionBox);
+
+// ---- a mask read from a ramp of many stops --------------------------------
+//
+// A page masked by a ramp of two hundred and fifty-six stops against the
+// same page masked by that ramp painted once into a strip. The ramp is
+// read from a lookup made once per paint, so its cost per pixel stays
+// near the strip's however many stops it carries.
+
+constexpr int kMaskedPage = 512;
+
+Material rampOfManyStops() {
+  std::vector<ColorStop> stops;
+  for (int index = 0; index < 256; ++index) {
+    const float along = (float)index / 255.0f;
+    const float grey = 0.5f + 0.5f * std::sin(along * 37.0f);
+    stops.push_back({along * along, Color{grey, grey, grey, 1}});
+  }
+  return linearGradient({0, 0}, {1, 0}, stops);
+}
+
+Material stripOf(const Material& ramp) {
+  SkBitmap strip;
+  strip.allocPixels(SkImageInfo::MakeN32Premul(256, 1));
+  {
+    SkCanvas canvas(strip);
+    SkPaint paint;
+    paint.setShader(
+        skia::shader(skia::paint(ramp), FrameData{.resolution = {256, 1}}));
+    canvas.drawPaint(paint);
+  }
+  strip.setImmutable();
+  return skia::base(skia::image(
+      strip.asImage(), Repeat::Pad, Repeat::Pad,
+      SkMatrix::Scale((float)kMaskedPage / 256.0f, (float)kMaskedPage),
+      SkSamplingOptions(SkFilterMode::kLinear)));
+}
+
+void paintMaskedPage(benchmark::State& state, const Material& mask) {
+  const Material page = Material(Color{0.9f, 0.2f, 0.1f, 1})
+                            .layer(Color{0.1f, 0.3f, 0.9f, 1},
+                                   {.mask = {mask, ColorChannel::Luminance}});
+  const FrameData frame{.resolution = {(float)kMaskedPage, (float)kMaskedPage}};
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(kMaskedPage, kMaskedPage));
+  SkCanvas canvas(bitmap);
+  SkPaint paint;
+  paint.setShader(skia::shader(skia::paint(page), frame));
+  for ([[maybe_unused]] auto iteration : state) {
+    canvas.drawPaint(paint);
+    benchmark::DoNotOptimize(bitmap.getColor(kMaskedPage / 2, kMaskedPage / 2));
+  }
+}
+
+void BM_RampMask_ManyStops(benchmark::State& state) {
+  paintMaskedPage(state, rampOfManyStops());
+}
+BENCHMARK(BM_RampMask_ManyStops);
+
+void BM_RampMask_Strip(benchmark::State& state) {
+  paintMaskedPage(state, stripOf(rampOfManyStops()));
+}
+BENCHMARK(BM_RampMask_Strip);
 
 }  // namespace
 

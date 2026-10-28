@@ -114,6 +114,38 @@ static void BM_Draw_KineticText(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_KineticText)->Arg(14)->Arg(56)->Unit(benchmark::kMicrosecond);
 
+/** A word whose glyphs fade every frame under a blurred glow, in a leaf the
+ *  size of the word (0) and in a leaf the size of the screen (1). Nothing
+ *  the fade repaints reads the leaf's box, so the two arms cost alike. */
+static void BM_Draw_ChangingGlow(benchmark::State& state) {
+  const bool screenSized = state.range(0) == 1;
+  const float width = screenSized ? 1280.0f : 64.0f;
+  const float height = screenSized ? 780.0f : 64.0f;
+  Host host(1300, 800);
+  sigil::weave::TextStyle style;
+  style.shaping.fontSize = 24.0f;
+  const auto describe = [&](float progress) {
+    return box()
+        .ink(sigil::material::Color{1, 1, 1, 1})
+        .children({text(u8"RAIN", style)
+                       .width(width)
+                       .height(height)
+                       .textShadow({.blur = 9, .color = {0, 1, 0, 1}})
+                       .textFx({.effect = textFx::tween(
+                                    {.from = GlyphModifier{.alpha = 0.0f}}),
+                                .progress = progress})});
+  };
+  host.composer.render(describe(0.2f));
+  host.draw();
+  int frame = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    host.composer.render(describe(0.2f + 0.03f * (float)(frame++ % 24)));
+    host.canvas().clear(SK_ColorBLACK);
+    host.draw();
+  }
+}
+BENCHMARK(BM_Draw_ChangingGlow)->Arg(0)->Arg(1)->Unit(benchmark::kMicrosecond);
+
 // ---- Letters spinning in, under a composer live and not -------------------
 //
 // Eight lines of capitals tumbling in under `textFx::spinIn`, each line an

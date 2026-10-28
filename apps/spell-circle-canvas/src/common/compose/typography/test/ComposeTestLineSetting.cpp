@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "GlyphCanvas.h"
+#include "support/Rows.h"
 #include "support/TextTestSupport.h"
 
 namespace {
@@ -74,113 +75,130 @@ std::vector<sigil::test::GlyphDraw> glyphsUnder(TextJustify method) {
 
 }  // namespace
 
-TEST(ComposeLineSetting, EachTextWrapLaysThePassageAsTheRawFieldDoes) {
-  struct Case {
-    TextWrap wrap;
-    ParagraphBlock raw;
-  };
-  const std::vector<Case> cases = {
-      {TextWrap::Auto, {.lineBreak = LineBreakStrategy::kGreedy}},
-      {TextWrap::Stable, {.lineBreak = LineBreakStrategy::kGreedy}},
-      {TextWrap::Pretty, {.lineBreak = LineBreakStrategy::kKnuthPlass}},
-      {TextWrap::Balance,
-       {.balanceRaggedLines = true,
-        .lineBreak = LineBreakStrategy::kKnuthPlass}},
-  };
-  for (const Case& each : cases) {
-    const std::vector<SkRect> longhand = linesUnder(
-        [&](Element node) { return node.textWrap(each.wrap); },
-        kRaggedPassage);
-    const std::vector<SkRect> raw = linesUnder(
-        [&](Element node) { return node.paragraph(each.raw); },
-        kRaggedPassage);
-    ASSERT_GE(longhand.size(), 2u);
-    EXPECT_TRUE(sameLines(longhand, raw)) << int(each.wrap);
-  }
-  // The values tell each other apart: the optimizing breaker moves a
-  // break filling in turn made, and balancing narrows what it set.
-  const auto under = [](TextWrap wrap) {
-    return linesUnder([&](Element node) { return node.textWrap(wrap); },
-                      kRaggedPassage);
-  };
-  const std::vector<SkRect> automatic = under(TextWrap::Auto);
-  const std::vector<SkRect> pretty = under(TextWrap::Pretty);
-  const std::vector<SkRect> balance = under(TextWrap::Balance);
-  EXPECT_TRUE(sameLines(under(TextWrap::Stable), automatic));
-  EXPECT_FALSE(sameLines(pretty, automatic));
-  EXPECT_FALSE(sameLines(balance, pretty));
-  const auto widest = [](const std::vector<SkRect>& lines) {
-    float width = 0;
-    for (const SkRect& line : lines) width = std::max(width, line.width());
-    return width;
-  };
-  EXPECT_LT(widest(balance), widest(pretty) - 1.0f);
-  EXPECT_LT(widest(pretty), widest(automatic) - 1.0f);
-}
-
-TEST(ComposeLineSetting, ALaterTextWrapUndoesAnEarlierBalance) {
-  EXPECT_TRUE(sameLines(
-      linesUnder(
-          [](Element node) {
-            return node.textWrap(TextWrap::Balance).textWrap(TextWrap::Pretty);
-          },
-          kRaggedPassage),
-      linesUnder([](Element node) { return node.textWrap(TextWrap::Pretty); },
+TEST(ComposeLineSetting, TextWrapSetsTheBreakerAsTheRawFieldsDo) {
+  sigil::compose::test::checkRows({
+      {"EachValueLaysThePassageAsTheRawFieldsDo",
+       [&] {
+         struct Case {
+           TextWrap wrap;
+           ParagraphBlock raw;
+         };
+         const std::vector<Case> cases = {
+             {TextWrap::Auto, {.lineBreak = LineBreakStrategy::kGreedy}},
+             {TextWrap::Stable, {.lineBreak = LineBreakStrategy::kGreedy}},
+             {TextWrap::Pretty, {.lineBreak = LineBreakStrategy::kKnuthPlass}},
+             {TextWrap::Balance,
+              {.balanceRaggedLines = true,
+               .lineBreak = LineBreakStrategy::kKnuthPlass}},
+         };
+         for (const Case& each : cases) {
+           const std::vector<SkRect> longhand = linesUnder(
+               [&](Element node) { return node.textWrap(each.wrap); },
+               kRaggedPassage);
+           const std::vector<SkRect> raw = linesUnder(
+               [&](Element node) { return node.paragraph(each.raw); },
+               kRaggedPassage);
+           ASSERT_GE(longhand.size(), 2u);
+           EXPECT_TRUE(sameLines(longhand, raw)) << int(each.wrap);
+         }
+         // The values tell each other apart: the optimizing breaker moves a
+         // break filling in turn made, and balancing narrows what it set.
+         const auto under = [](TextWrap wrap) {
+           return linesUnder([&](Element node) { return node.textWrap(wrap); },
+                             kRaggedPassage);
+         };
+         const std::vector<SkRect> automatic = under(TextWrap::Auto);
+         const std::vector<SkRect> pretty = under(TextWrap::Pretty);
+         const std::vector<SkRect> balance = under(TextWrap::Balance);
+         EXPECT_TRUE(sameLines(under(TextWrap::Stable), automatic));
+         EXPECT_FALSE(sameLines(pretty, automatic));
+         EXPECT_FALSE(sameLines(balance, pretty));
+         const auto widest = [](const std::vector<SkRect>& lines) {
+           float width = 0;
+           for (const SkRect& line : lines)
+             width = std::max(width, line.width());
+           return width;
+         };
+         EXPECT_LT(widest(balance), widest(pretty) - 1.0f);
+         EXPECT_LT(widest(pretty), widest(automatic) - 1.0f);
+       }},
+      {"ALaterPrettyUndoesAnEarlierBalance",
+       [&] {
+         EXPECT_TRUE(sameLines(
+             linesUnder(
+                 [](Element node) {
+                   return node.textWrap(TextWrap::Balance)
+                       .textWrap(TextWrap::Pretty);
+                 },
+                 kRaggedPassage),
+             linesUnder(
+                 [](Element node) { return node.textWrap(TextWrap::Pretty); },
                  kRaggedPassage)));
+       }},
+  });
 }
 
-TEST(ComposeLineSetting, EachTextJustifyLaysThePassageAsTheRawFieldDoes) {
-  struct Case {
-    TextJustify justify;
-    JustificationMethod raw;
-  };
-  const std::vector<Case> cases = {
-      {TextJustify::Auto, JustificationMethod::kAuto},
-      {TextJustify::InterWord, JustificationMethod::kInterWord},
-      {TextJustify::InterCharacter, JustificationMethod::kInterCharacter},
-      {TextJustify::None, JustificationMethod::kNone},
-  };
-  for (const Case& each : cases) {
-    const std::vector<SkRect> longhand = linesUnder([&](Element node) {
-      return node.textAlign(TextAlignment::kJustify).textJustify(each.justify);
-    });
-    const std::vector<SkRect> raw = linesUnder([&](Element node) {
-      return node.paragraph({.alignment = TextAlignment::kJustify,
-                             .justificationMethod = each.raw});
-    });
-    ASSERT_GE(longhand.size(), 2u);
-    EXPECT_TRUE(sameLines(longhand, raw)) << int(each.justify);
-  }
-  // None sets the justified passage as a ragged one; the rest reach the
-  // measure on the first line.
-  const std::vector<SkRect> none = linesUnder([](Element node) {
-    return node.textAlign(TextAlignment::kJustify)
-        .textJustify(TextJustify::None);
+TEST(ComposeLineSetting,
+     TextJustifySpendsAJustifiedLinesSlackAsTheRawFieldDoes) {
+  sigil::compose::test::checkRows({
+      {"EachValueLaysThePassageAsTheRawFieldDoes",
+       [&] {
+         struct Case {
+           TextJustify justify;
+           JustificationMethod raw;
+         };
+         const std::vector<Case> cases = {
+             {TextJustify::Auto, JustificationMethod::kAuto},
+             {TextJustify::InterWord, JustificationMethod::kInterWord},
+             {TextJustify::InterCharacter,
+              JustificationMethod::kInterCharacter},
+             {TextJustify::None, JustificationMethod::kNone},
+         };
+         for (const Case& each : cases) {
+           const std::vector<SkRect> longhand = linesUnder([&](Element node) {
+             return node.textAlign(TextAlignment::kJustify)
+                 .textJustify(each.justify);
+           });
+           const std::vector<SkRect> raw = linesUnder([&](Element node) {
+             return node.paragraph({.alignment = TextAlignment::kJustify,
+                                    .justificationMethod = each.raw});
+           });
+           ASSERT_GE(longhand.size(), 2u);
+           EXPECT_TRUE(sameLines(longhand, raw)) << int(each.justify);
+         }
+         // None sets the justified passage as a ragged one; the rest reach the
+         // measure on the first line.
+         const std::vector<SkRect> none = linesUnder([](Element node) {
+           return node.textAlign(TextAlignment::kJustify)
+               .textJustify(TextJustify::None);
+         });
+         const std::vector<SkRect> ragged =
+             linesUnder([](Element node) { return node; });
+         EXPECT_TRUE(sameLines(none, ragged));
+         const std::vector<SkRect> spread = linesUnder([](Element node) {
+           return node.textAlign(TextAlignment::kJustify)
+               .textJustify(TextJustify::InterCharacter);
+         });
+         ASSERT_FALSE(spread.empty());
+         EXPECT_NEAR(spread.front().right(), kMeasure, 0.01f)
+             << "the first line does not end on the measure";
+       }},
+      {"InterCharacterMovesTheLettersInterWordDoesNot",
+       [&] {
+         // The same lines, justified two ways: between the words alone the
+         // letters of a word keep their shaped spacing, between every cluster
+         // they move apart.
+         const auto words = glyphsUnder(TextJustify::InterWord);
+         const auto clusters = glyphsUnder(TextJustify::InterCharacter);
+         ASSERT_GE(words.size(), 3u);
+         ASSERT_EQ(words.size(), clusters.size());
+         EXPECT_FLOAT_EQ(words.front().position.x(),
+                         clusters.front().position.x());
+         EXPECT_GT(clusters[2].position.x() - clusters[1].position.x(),
+                   words[2].position.x() - words[1].position.x() + 0.01f)
+             << "the letters of the first word did not move apart";
+       }},
   });
-  const std::vector<SkRect> ragged =
-      linesUnder([](Element node) { return node; });
-  EXPECT_TRUE(sameLines(none, ragged));
-  const std::vector<SkRect> spread = linesUnder([](Element node) {
-    return node.textAlign(TextAlignment::kJustify)
-        .textJustify(TextJustify::InterCharacter);
-  });
-  ASSERT_FALSE(spread.empty());
-  EXPECT_NEAR(spread.front().right(), kMeasure, 0.01f)
-      << "the first line does not end on the measure";
-}
-
-TEST(ComposeLineSetting, InterCharacterMovesTheLettersInterWordDoesNot) {
-  // The same lines, justified two ways: between the words alone the
-  // letters of a word keep their shaped spacing, between every cluster
-  // they move apart.
-  const auto words = glyphsUnder(TextJustify::InterWord);
-  const auto clusters = glyphsUnder(TextJustify::InterCharacter);
-  ASSERT_GE(words.size(), 3u);
-  ASSERT_EQ(words.size(), clusters.size());
-  EXPECT_FLOAT_EQ(words.front().position.x(), clusters.front().position.x());
-  EXPECT_GT(clusters[2].position.x() - clusters[1].position.x(),
-            words[2].position.x() - words[1].position.x() + 0.01f)
-      << "the letters of the first word did not move apart";
 }
 
 TEST(ComposeLineSetting, BothLonghandsAreStatableInARule) {

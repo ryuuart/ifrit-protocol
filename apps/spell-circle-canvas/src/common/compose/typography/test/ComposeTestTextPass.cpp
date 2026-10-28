@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 
+#include "support/Rows.h"
 #include "support/TextTestSupport.h"
 
 namespace {
@@ -110,7 +111,8 @@ class LayerPictureCanvas final : public SkNoDrawCanvas {
     const SkShaderBase* base = as_SB(shader);
     switch (base->type()) {
       case SkShaderBase::ShaderType::kPicture:
-        pictures.push_back(static_cast<const SkPictureShader*>(base)->picture());
+        pictures.push_back(
+            static_cast<const SkPictureShader*>(base)->picture());
         break;
       case SkShaderBase::ShaderType::kLocalMatrix:
         collect(static_cast<const SkLocalMatrixShader*>(base)
@@ -153,24 +155,7 @@ class RouteCountingCanvas final : public SkNoDrawCanvas {
 
 }  // namespace
 
-TEST(TextPass, RecipeMaterialsCompareByDefinition) {
-  // Two materials over one recipe compare EQUAL — a helper may rebuild its
-  // material every describe and still prune.
-  const material::Material a = passOver(kFloodSksl);
-  const material::Material b = passOver(kFloodSksl);
-  EXPECT_TRUE(a == b);
-  EXPECT_FALSE(a == passOver(kIdentitySksl));
-  // And so do the pass effects wrapping them.
-  EXPECT_TRUE(textFx::pass(a) == textFx::pass(b));
-  EXPECT_FALSE(textFx::pass(a) == textFx::pass(passOver(kIdentitySksl)));
-  EXPECT_TRUE(textFx::mix(textFx::pass(a), textFx::pass(a)) ==
-              textFx::mix(textFx::pass(b), textFx::pass(b)));
-  EXPECT_FALSE(
-      textFx::mix(textFx::pass(a), textFx::pass(a)) ==
-      textFx::mix(textFx::pass(b), textFx::pass(passOver(kIdentitySksl))));
-}
-
-TEST(TextPass, NonRecipeMaterialRefusedAndGlyphsSurvive) {
+TEST(TextPass, ANonRecipeMaterialIsRefusedAndTheGlyphsDrawAtRest) {
   // textFx::pass demands the recipe-backed form (the runtime specializes the
   // recipe per unit count). A compiled-effect material is refused: the
   // effect is EMPTY, the track is skipped, and the text draws at rest
@@ -188,223 +173,197 @@ TEST(TextPass, NonRecipeMaterialRefusedAndGlyphsSurvive) {
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(20, 20, 160, 100)));
 }
 
-TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
-  Host host;
-  host.composer.render(box().padding(20).children(
-      {text(u8"ABC DEF", whiteStyle(30))
-           .key("probe")
-           .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
-                    .tween = {.duration = 200ms,
-                              .delay = sigil::motion::stagger(90ms)},
-                    .unit = sigil::weave::Unit::Cluster,
-                    .progress = 0.55f})}));
-  host.frame();
+TEST(TextPass, APassPaintsTheBoxGrownByItsReachAndMovesNothing) {
+  sigil::compose::test::checkRows({
+      {"ItFillsTheBoxGrownByItsReachAndNothingBeyond",
+       [&] {
+         // The flood pass returns opaque green at EVERY coordinate — so
+         // wherever green lands is exactly the pass's footprint. It must fill
+         // the node's box grown by the track's reach and nothing beyond it.
+         Host host;
+         host.composer.render(box().padding(60).children(
+             {text(u8"IN", whiteStyle(30))
+                  .key("bounded")
+                  .textFx({.effect = textFx::pass(passOver(kFloodSksl)),
+                           .reach = 12.0f})}));
+         host.frame();
+         const std::optional<geometry::path::Rect> laidOut =
+             host.composer.bounds("bounded");
+         ASSERT_TRUE(laidOut.has_value());
+         const SkRect box =
+             geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
+         const SkColor green = SkColorSetRGB(0, 255, 0);
+         // Inside the box: flooded.
+         EXPECT_EQ(host.pixel((int)box.centerX(), (int)box.centerY()), green);
+         // Inside the reach band, outside the box: still the pass's to paint.
+         EXPECT_EQ(host.pixel((int)box.left() - 6, (int)box.centerY()), green);
+         // Beyond box + reach: untouched, unlike a whole-canvas effect pass.
+         EXPECT_EQ(host.pixel((int)box.left() - 20, (int)box.centerY()),
+                   SK_ColorBLACK);
+         EXPECT_EQ(host.pixel((int)box.centerX(), (int)box.top() - 20),
+                   SK_ColorBLACK);
+       }},
+      {"TheReachGrowsTheBoundsWithoutMovingContent",
+       [&] {
+         // `Track::reach` grows the pass's painted BOUNDS and touches nothing
+         // else: the layer's pixels land exactly where the glyphs were placed,
+         // and the band beyond the box is the pass's to paint. Both halves are
+         // asserted against ONE pair of renders, because either alone is
+         // satisfiable by a broken mapping — a layer stretched or shifted into
+         // the grown rect still covers the band, and a rect never grown keeps
+         // the content in place — and only the pair pins the contract. The lift
+         // deviation stands each glyph's top proud of the box, so the box edge
+         // separates the two assertions cleanly.
+         const TextEffect lift = textFx::effect(
+             "test-lift",
+             [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+               GlyphModifier m;
+               m.dy = -14.0f;
+               return m;
+             });
+         const auto describe = [&](float reach) {
+           return box().padding(60).children(
+               {text(u8"HOIST", whiteStyle(34))
+                    .key("hoist")
+                    .textFx({.effect = lift})
+                    .textFx({.effect = textFx::pass(passOver(kIdentitySksl)),
+                             .reach = reach})});
+         };
+         Host snug;
+         snug.composer.render(describe(0.0f));
+         snug.frame();
+         Host wide;
+         wide.composer.render(describe(40.0f));
+         wide.frame();
+         const std::optional<geometry::path::Rect> laidOut =
+             wide.composer.bounds("hoist");
+         ASSERT_TRUE(laidOut.has_value());
+         const SkRect box =
+             geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
 
-  const std::vector<Beat> beats = host.composer.beatsOf("probe", 0);
-  ASSERT_GT(beats.size(), 4u);
-  // The cascade spreads the beats, so the local times differ across units —
-  // and each unit's rect carries ITS OWN time in the red channel, which is
-  // the per-unit uniforms observed end to end.
-  bool sawDistinct = false;
-  for (const Beat& beat : beats) {
-    const SkColor probe =
-        host.pixel((int)beat.rect.centre().x, (int)beat.rect.centre().y);
-    const float painted = (float)SkColorGetR(probe) / 255.0f;
-    EXPECT_NEAR(painted, beat.localProgress, 0.02f)
-        << "unit " << beat.unitIndex << " painted a different local time "
-        << "than beatsOf reports";
-    sawDistinct |=
-        std::abs(beat.localProgress - beats.front().localProgress) > 0.05f;
-  }
-  EXPECT_TRUE(sawDistinct) << "every beat read the same time — the cascade "
-                              "never reached the uniforms";
+         // Inside the box, byte for byte the same picture: the reach must not
+         // move, scale or resample what the glyphs painted. Probed per pixel —
+         // and there must BE glyph pixels here, or the equality proved nothing.
+         const std::vector<SkColor> snugPx = grab(snug);
+         const std::vector<SkColor> widePx = grab(wide);
+         SkIRect inside = box.round();
+         inside.inset(1, 1);
+         int mismatches = 0;
+         int glyphPixels = 0;
+         for (int y = inside.top(); y < inside.bottom(); ++y)
+           for (int x = inside.left(); x < inside.right(); ++x) {
+             const size_t i = (size_t)y * 200 + (size_t)x;
+             if (snugPx[i] != widePx[i]) ++mismatches;
+             if (snugPx[i] == SK_ColorWHITE) ++glyphPixels;
+           }
+         EXPECT_EQ(mismatches, 0) << "reach moved the layer's content";
+         EXPECT_GT(glyphPixels, 0) << "no glyph pixels inside the box — the "
+                                      "placement comparison compared nothing";
+
+         // And the band beyond the box is painted: the lifted glyph tops the
+         // snug pass clips at the box edge survive under the wide one.
+         const SkIRect band =
+             SkIRect::MakeLTRB((int)box.left(), (int)box.top() - 16,
+                               (int)box.right(), (int)box.top() - 1);
+         EXPECT_TRUE(anyWhiteIn(wide, band));
+         EXPECT_FALSE(anyWhiteIn(snug, band));
+         // Beyond box + reach stays the pass's hard edge, reach or no reach.
+         EXPECT_EQ(wide.pixel((int)box.centerX(), (int)box.top() - 50),
+                   SK_ColorBLACK);
+       }},
+  });
 }
 
-TEST(TextPass, TwoUnitCountsInOneSessionEachDrawTheirOwn) {
-  // Two nodes, two unit counts, one source: each track compiles (or finds)
-  // its own specialization and both draw.
-  Host host;
-  host.composer.render(box().column().padding(16).gap(12).children(
-      {text(u8"AB", whiteStyle(28))
-           .key("two")
-           .textFx({.effect = textFx::pass(passOver(kIdentitySksl))}),
-       text(u8"ABCDE", whiteStyle(28))
-           .key("five")
-           .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
-  host.frame();
-  const std::vector<Beat> two = host.composer.beatsOf("two", 0);
-  const std::vector<Beat> five = host.composer.beatsOf("five", 0);
-  ASSERT_FALSE(two.empty());
-  ASSERT_FALSE(five.empty());
-  EXPECT_NE(two.size(), five.size());
-  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 40)));
-  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 50, 180, 60)));
-}
+TEST(TextPass, EachUnitsRectAndTimeReachThePassFromTheScheduleBeatsOfReports) {
+  sigil::compose::test::checkRows({
+      {"EachUnitPaintsTheTimeBeatsOfReports",
+       [&] {
+         Host host;
+         host.composer.render(box().padding(20).children(
+             {text(u8"ABC DEF", whiteStyle(30))
+                  .key("probe")
+                  .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
+                           .tween = {.duration = 200ms,
+                                     .delay = sigil::motion::stagger(90ms)},
+                           .unit = sigil::weave::Unit::Cluster,
+                           .progress = 0.55f})}));
+         host.frame();
 
-TEST(TextPass, ThePassFillsTheBoxGrownByItsReachAndNothingBeyond) {
-  // The flood pass returns opaque green at EVERY coordinate — so wherever
-  // green lands is exactly the pass's footprint. It must fill the node's
-  // box grown by the track's reach and nothing beyond it.
-  Host host;
-  host.composer.render(box().padding(60).children(
-      {text(u8"IN", whiteStyle(30))
-           .key("bounded")
-           .textFx({.effect = textFx::pass(passOver(kFloodSksl)),
-                    .reach = 12.0f})}));
-  host.frame();
-  const std::optional<geometry::path::Rect> laidOut =
-      host.composer.bounds("bounded");
-  ASSERT_TRUE(laidOut.has_value());
-  const SkRect box =
-      geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
-  const SkColor green = SkColorSetRGB(0, 255, 0);
-  // Inside the box: flooded.
-  EXPECT_EQ(host.pixel((int)box.centerX(), (int)box.centerY()), green);
-  // Inside the reach band, outside the box: still the pass's to paint.
-  EXPECT_EQ(host.pixel((int)box.left() - 6, (int)box.centerY()), green);
-  // Beyond box + reach: untouched, unlike a whole-canvas effect pass.
-  EXPECT_EQ(host.pixel((int)box.left() - 20, (int)box.centerY()),
-            SK_ColorBLACK);
-  EXPECT_EQ(host.pixel((int)box.centerX(), (int)box.top() - 20), SK_ColorBLACK);
-}
-
-TEST(TextPass, ReachGrowsBoundsWithoutMovingContent) {
-  // `Track::reach` grows the pass's painted BOUNDS and touches nothing
-  // else: the layer's pixels land exactly where the glyphs were placed,
-  // and the band beyond the box is the pass's to paint. Both halves are
-  // asserted against ONE pair of renders, because either alone is
-  // satisfiable by a broken mapping — a layer stretched or shifted into
-  // the grown rect still covers the band, and a rect never grown keeps
-  // the content in place — and only the pair pins the contract. The lift
-  // deviation stands each glyph's top proud of the box, so the box edge
-  // separates the two assertions cleanly.
-  const TextEffect lift = textFx::effect(
-      "test-lift",
-      [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-        GlyphModifier m;
-        m.dy = -14.0f;
-        return m;
-      });
-  const auto describe = [&](float reach) {
-    return box().padding(60).children(
-        {text(u8"HOIST", whiteStyle(34))
-             .key("hoist")
-             .textFx({.effect = lift})
-             .textFx({.effect = textFx::pass(passOver(kIdentitySksl)),
-                      .reach = reach})});
-  };
-  Host snug;
-  snug.composer.render(describe(0.0f));
-  snug.frame();
-  Host wide;
-  wide.composer.render(describe(40.0f));
-  wide.frame();
-  const std::optional<geometry::path::Rect> laidOut =
-      wide.composer.bounds("hoist");
-  ASSERT_TRUE(laidOut.has_value());
-  const SkRect box =
-      geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
-
-  // Inside the box, byte for byte the same picture: the reach must not
-  // move, scale or resample what the glyphs painted. Probed per pixel —
-  // and there must BE glyph pixels here, or the equality proved nothing.
-  const std::vector<SkColor> snugPx = grab(snug);
-  const std::vector<SkColor> widePx = grab(wide);
-  SkIRect inside = box.round();
-  inside.inset(1, 1);
-  int mismatches = 0;
-  int glyphPixels = 0;
-  for (int y = inside.top(); y < inside.bottom(); ++y)
-    for (int x = inside.left(); x < inside.right(); ++x) {
-      const size_t i = (size_t)y * 200 + (size_t)x;
-      if (snugPx[i] != widePx[i]) ++mismatches;
-      if (snugPx[i] == SK_ColorWHITE) ++glyphPixels;
-    }
-  EXPECT_EQ(mismatches, 0) << "reach moved the layer's content";
-  EXPECT_GT(glyphPixels, 0) << "no glyph pixels inside the box — the "
-                               "placement comparison compared nothing";
-
-  // And the band beyond the box is painted: the lifted glyph tops the
-  // snug pass clips at the box edge survive under the wide one.
-  const SkIRect band = SkIRect::MakeLTRB((int)box.left(), (int)box.top() - 16,
-                                         (int)box.right(), (int)box.top() - 1);
-  EXPECT_TRUE(anyWhiteIn(wide, band));
-  EXPECT_FALSE(anyWhiteIn(snug, band));
-  // Beyond box + reach stays the pass's hard edge, reach or no reach.
-  EXPECT_EQ(wide.pixel((int)box.centerX(), (int)box.top() - 50), SK_ColorBLACK);
-}
-
-TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
-  // The pass's per-unit times ride the track's progress: a transition
-  // moves them frame over frame, and once it settles the picture holds
-  // byte for byte.
-  Host host;
-  const auto describe = [&](float target) {
-    return box().padding(20).children(
-        {text(u8"ABCD", whiteStyle(30))
-             .key("run")
-             .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
-                      .tween = {.duration = 200ms,
-                                .delay = sigil::motion::stagger(60ms)},
-                      .unit = sigil::weave::Unit::Cluster,
-                      .progress = motion::animate(
-                          {.to = target, .duration = 200ms})})});
-  };
-  host.composer.render(describe(0.0f));
-  host.frame();
-  host.composer.render(describe(1.0f));
-  host.frame(0.05);
-  const std::vector<SkColor> early = grab(host);
-  host.frame(0.05);
-  const std::vector<SkColor> later = grab(host);
-  EXPECT_NE(early, later) << "the pass never saw the progress move";
-  // Run the transition out, then two more frames must be identical.
-  for (int i = 0; i < 20; ++i) host.frame(0.05);
-  const std::vector<SkColor> settledA = grab(host);
-  host.frame(0.05);
-  EXPECT_EQ(settledA, grab(host)) << "a settled pass kept repainting "
-                                     "differently";
-}
-
-TEST(TextPass, ComposesDownstreamOfDeviationTracks) {
-  // Deviations apply FIRST; the pass reads the deviated pixels. An
-  // alpha-zero deviation empties the layer, so the identity pass shows
-  // nothing — where without the deviation it shows the letters.
-  const TextEffect hide = textFx::effect(
-      "test-hide",
-      [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-        GlyphModifier m;
-        m.alpha = 0.0f;
-        return m;
-      });
-  Host hidden;
-  hidden.composer.render(box().padding(30).children(
-      {text(u8"GONE", whiteStyle(40))
-           .key("t")
-           .textFx({.effect = hide})
-           .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
-  hidden.frame();
-  EXPECT_FALSE(anyWhiteIn(hidden, SkIRect::MakeXYWH(10, 10, 180, 180)));
-
-  Host shown;
-  shown.composer.render(box().padding(30).children(
-      {text(u8"GONE", whiteStyle(40))
-           .key("t")
-           .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
-  shown.frame();
-  EXPECT_TRUE(anyWhiteIn(shown, SkIRect::MakeXYWH(10, 10, 180, 180)));
-}
-
-TEST(TextPass, AddressedGlyphsDrawOnlyThroughTheirPass) {
-  // A pass that returns transparent erases its units: were the glyphs also
-  // drawn directly, the letters would still show underneath.
-  Host host;
-  host.composer.render(box().padding(30).children(
-      {text(u8"ERASED", whiteStyle(40))
-           .key("t")
-           .textFx({.effect = textFx::pass(passOver(kEraseSksl))})}));
-  host.frame();
-  EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
+         const std::vector<Beat> beats = host.composer.beatsOf("probe", 0);
+         ASSERT_GT(beats.size(), 4u);
+         // The cascade spreads the beats, so the local times differ across
+         // units — and each unit's rect carries ITS OWN time in the red
+         // channel, which is the per-unit uniforms observed end to end.
+         bool sawDistinct = false;
+         for (const Beat& beat : beats) {
+           const SkColor probe =
+               host.pixel((int)beat.rect.centre().x, (int)beat.rect.centre().y);
+           const float painted = (float)SkColorGetR(probe) / 255.0f;
+           EXPECT_NEAR(painted, beat.localProgress, 0.02f)
+               << "unit " << beat.unitIndex
+               << " painted a different local time "
+               << "than beatsOf reports";
+           sawDistinct |= std::abs(beat.localProgress -
+                                   beats.front().localProgress) > 0.05f;
+         }
+         EXPECT_TRUE(sawDistinct)
+             << "every beat read the same time — the cascade "
+                "never reached the uniforms";
+       }},
+      {"TwoUnitCountsEachDrawTheirOwn",
+       [&] {
+         // Two nodes, two unit counts, one source: each track compiles (or
+         // finds) its own specialization and both draw.
+         Host host;
+         host.composer.render(box().column().padding(16).gap(12).children(
+             {text(u8"AB", whiteStyle(28))
+                  .key("two")
+                  .textFx({.effect = textFx::pass(passOver(kIdentitySksl))}),
+              text(u8"ABCDE", whiteStyle(28))
+                  .key("five")
+                  .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
+         host.frame();
+         const std::vector<Beat> two = host.composer.beatsOf("two", 0);
+         const std::vector<Beat> five = host.composer.beatsOf("five", 0);
+         ASSERT_FALSE(two.empty());
+         ASSERT_FALSE(five.empty());
+         EXPECT_NE(two.size(), five.size());
+         EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 40)));
+         EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 50, 180, 60)));
+       }},
+      {"TheTimesRideTheProgressAndSettle",
+       [&] {
+         // The pass's per-unit times ride the track's progress: a transition
+         // moves them frame over frame, and once it settles the picture holds
+         // byte for byte.
+         Host host;
+         const auto describe = [&](float target) {
+           return box().padding(20).children(
+               {text(u8"ABCD", whiteStyle(30))
+                    .key("run")
+                    .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
+                             .tween = {.duration = 200ms,
+                                       .delay = sigil::motion::stagger(60ms)},
+                             .unit = sigil::weave::Unit::Cluster,
+                             .progress = motion::animate(
+                                 {.to = target, .duration = 200ms})})});
+         };
+         host.composer.render(describe(0.0f));
+         host.frame();
+         host.composer.render(describe(1.0f));
+         host.frame(0.05);
+         const std::vector<SkColor> early = grab(host);
+         host.frame(0.05);
+         const std::vector<SkColor> later = grab(host);
+         EXPECT_NE(early, later) << "the pass never saw the progress move";
+         // Run the transition out, then two more frames must be identical.
+         for (int i = 0; i < 20; ++i) host.frame(0.05);
+         const std::vector<SkColor> settledA = grab(host);
+         host.frame(0.05);
+         EXPECT_EQ(settledA, grab(host)) << "a settled pass kept repainting "
+                                            "differently";
+       }},
+  });
 }
 
 TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
@@ -460,7 +419,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   EXPECT_FALSE(lettersShow(erase.restsAt(1.0f), loop, 0.05f));
 }
 
-TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
+TEST(TextPass, APassIsAComparableValueOfItsMaterialAndItsRests) {
   // The declaration is part of the effect's identity: two passes differing
   // only in their rests must compare unequal, or a re-described track
   // would prune onto the old declaration and keep (or keep skipping) a
@@ -483,34 +442,81 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
   EXPECT_TRUE(plain.restsAt(0.0f).restPhases().empty());
 }
 
-TEST(TextPass, ThePassFollowsAPathBaseline) {
-  Host host;
-  host.composer.render(box().padding(10).children(
-      {text(u8"AROUND THE RING", whiteStyle(22))
-           .key("ring")
-           .width(180)
-           .height(180)
-           .textOnPath({.path = geometry::shapes::circle()})
-           .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
-  host.frame();
-  // The identity pass hands back the curved lettering it was given.
-  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
-  // And the schedule stands on the curve, exactly as beatsOf reports it.
-  EXPECT_FALSE(host.composer.beatsOf("ring", 0).empty());
-}
+TEST(TextPass, APassReadsTheGlyphsWhereTheyWerePlacedAndDeviated) {
+  sigil::compose::test::checkRows({
+      {"DeviationsApplyFirst",
+       [&] {
+         // Deviations apply FIRST; the pass reads the deviated pixels. An
+         // alpha-zero deviation empties the layer, so the identity pass shows
+         // nothing — where without the deviation it shows the letters.
+         const TextEffect hide = textFx::effect(
+             "test-hide",
+             [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+               GlyphModifier m;
+               m.alpha = 0.0f;
+               return m;
+             });
+         Host hidden;
+         hidden.composer.render(box().padding(30).children(
+             {text(u8"GONE", whiteStyle(40))
+                  .key("t")
+                  .textFx({.effect = hide})
+                  .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
+         hidden.frame();
+         EXPECT_FALSE(anyWhiteIn(hidden, SkIRect::MakeXYWH(10, 10, 180, 180)));
 
-TEST(TextPass, ThePassFollowsAVerticalColumn) {
-  Host host;
-  host.composer.render(box().padding(10).children(
-      {text(u8"VERTICAL", whiteStyle(22))
-           .key("col")
-           .width(160)
-           .height(180)
-           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
-  host.frame();
-  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
-  EXPECT_FALSE(host.composer.beatsOf("col", 0).empty());
+         Host shown;
+         shown.composer.render(box().padding(30).children(
+             {text(u8"GONE", whiteStyle(40))
+                  .key("t")
+                  .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
+         shown.frame();
+         EXPECT_TRUE(anyWhiteIn(shown, SkIRect::MakeXYWH(10, 10, 180, 180)));
+       }},
+      {"AnAddressedGlyphDrawsOnlyThroughItsPass",
+       [&] {
+         // A pass that returns transparent erases its units: were the glyphs
+         // also drawn directly, the letters would still show underneath.
+         Host host;
+         host.composer.render(box().padding(30).children(
+             {text(u8"ERASED", whiteStyle(40))
+                  .key("t")
+                  .textFx({.effect = textFx::pass(passOver(kEraseSksl))})}));
+         host.frame();
+         EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
+       }},
+      {"ThePassFollowsAPathBaseline",
+       [&] {
+         Host host;
+         host.composer.render(box().padding(10).children(
+             {text(u8"AROUND THE RING", whiteStyle(22))
+                  .key("ring")
+                  .width(180)
+                  .height(180)
+                  .textOnPath({.path = geometry::shapes::circle()})
+                  .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
+         host.frame();
+         // The identity pass hands back the curved lettering it was given.
+         EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
+         // And the schedule stands on the curve, exactly as beatsOf reports it.
+         EXPECT_FALSE(host.composer.beatsOf("ring", 0).empty());
+       }},
+      {"ThePassFollowsAVerticalColumn",
+       [&] {
+         Host host;
+         host.composer.render(box().padding(10).children(
+             {text(u8"VERTICAL", whiteStyle(22))
+                  .key("col")
+                  .width(160)
+                  .height(180)
+                  .paragraph(
+                      {.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                  .textFx({.effect = textFx::pass(passOver(kIdentitySksl))})}));
+         host.frame();
+         EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
+         EXPECT_FALSE(host.composer.beatsOf("col", 0).empty());
+       }},
+  });
 }
 
 namespace {
@@ -534,48 +540,6 @@ sk_sp<SkRuntimeEffect> wideUniformEffect() {
 }
 
 }  // namespace
-
-TEST(TextPass, WideAndArrayUniformsBindByDeclaredSize) {
-  Host host;
-  host.composer.render(
-      box().children({box().width(60).height(60).fill(material::skia::base(
-          material::skia::sksl(wideUniformEffect())
-              .set("uPair", std::array<float, 2>{1, 0})
-              .set("uQuad", std::array<float, 4>{0, 1, 0, 0})
-              .set("uVals", std::vector<float>{0, 0, 1, 0})))}));
-  host.frame();
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorWHITE);  // all three lanes landed
-}
-
-TEST(TextPass, MisSizedUniformsWarnOnceAndAreIgnored) {
-  // An undeclared name, and a declared one at the wrong TOTAL size, are
-  // both dropped at the door — so the material still equals one that never
-  // made the call, and nothing was stored for the builder to refuse.
-  const material::Paint base = material::skia::sksl(wideUniformEffect());
-  material::Paint wrong = material::skia::sksl(wideUniformEffect());
-  wrong.set("uVals", std::vector<float>{1, 2, 3});       // [4] wants 4
-  wrong.set("uNothing", std::vector<float>{1, 2, 3});    // undeclared
-  wrong.set("uPair", std::array<float, 4>{1, 2, 3, 4});  // float2 slot
-  EXPECT_TRUE(base == wrong);
-
-  material::Filter effect = material::skia::program(wideUniformEffect());
-  material::Filter wrongEffect = material::skia::program(wideUniformEffect());
-  wrongEffect.set("uVals", std::vector<float>{1, 2, 3});
-  wrongEffect.set("uNothing", 1.0f);
-  EXPECT_TRUE(effect == wrongEffect);
-}
-
-TEST(TextPass, EffectConstantLanesParticipateInEquality) {
-  material::Filter a = material::skia::program(wideUniformEffect());
-  a.set("uPair", std::array<float, 2>{1, 0});
-  a.set("uVals", std::vector<float>{1, 2, 3, 4});
-  material::Filter b = material::skia::program(wideUniformEffect());
-  b.set("uPair", std::array<float, 2>{1, 0});
-  b.set("uVals", std::vector<float>{1, 2, 3, 4});
-  EXPECT_TRUE(a == b);
-  b.set("uQuad", std::array<float, 4>{1, 0, 0, 0});
-  EXPECT_FALSE(a == b);
-}
 
 TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
   auto block = std::make_shared<sigil::material::UniformBlock>(4);
@@ -695,8 +659,7 @@ TEST(TextPass, AFreshComposersFirstDrawOfATextEffectPaintsAsItsSecond) {
       {"a driven face", {{.effect = drive}}},
       {"a pass", {{.effect = textFx::pass(passOver(kIdentitySksl))}}},
       {"a driven face through a pass",
-       {{.effect = drive},
-        {.effect = textFx::pass(passOver(kIdentitySksl))}}},
+       {{.effect = drive}, {.effect = textFx::pass(passOver(kIdentitySksl))}}},
   };
   for (const auto& [name, tracks] : cases) {
     Host host;

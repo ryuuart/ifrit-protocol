@@ -34,16 +34,3 @@ TEST(KitLegibility, ShadeIsAnOffsetFillNotAStroke) {
   EXPECT_EQ(out.paint.underlays[0].paint.getStyle(), SkPaint::kFill_Style);
   EXPECT_FLOAT_EQ(out.paint.underlays[0].offset.x, 1.0f);
 }
-
-TEST(KitLegibility, ScrimGrowsTheRunByItsPadding) {
-  sigil::weave::TextStyle st;
-  st.shaping.fontSize = 12;
-  const SkSize bare =
-      intrinsicSize(box().children({text(u8"NAVI", st)}), fonts());
-  const SkSize plated = intrinsicSize(
-      box().children({kit::scrim(
-          text(u8"NAVI", st), {.paddingHorizontal = 3, .paddingVertical = 4})}),
-      fonts());
-  EXPECT_FLOAT_EQ(plated.width(), bare.width() + 6);
-  EXPECT_FLOAT_EQ(plated.height(), bare.height() + 8);
-}

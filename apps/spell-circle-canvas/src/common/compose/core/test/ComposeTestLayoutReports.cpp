@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -142,162 +143,176 @@ TEST(ComposeLayoutReports,
   }
 }
 
-TEST(ComposeLayoutReports, OnlyAnExplicitMinimumThatSquashesALeafIsSaid) {
-  const float lines = linesHeight();
-  struct Row {
-    const char* name;
-    Element leaf;
-    // Words the one report says, or empty where nothing is said.
-    std::string cause;
-    float shorter;
-  };
-  const std::vector<Row> rows = {
-      {"its minimum unstated", passage(), "", 0.0f},
-      {"a stated height shorter than its lines", passage().height(20), "",
-       0.0f},
-      {"a stated minimum of zero", passage().minHeight(0),
-       "its stated minimum height lets the column shrink it", lines - 30.0f},
-      {"a stated basis of zero", passage().flexBasis(0),
-       "its stated basis lets the column shrink it", lines},
-  };
-  for (const Row& row : rows) {
-    SCOPED_TRACE(row.name);
-    Host host;
-    Heard heard;
-    host.composer.render(shortColumn(row.leaf));
-    host.frame();
-    // A leaf that keeps its lines overflows the column, which is said as
-    // the column's; only what the leaf itself says is read here.
-    std::vector<std::string> squashes;
-    for (const std::string& message : heard.messages)
-      if (says(message, "shorter than its lines")) squashes.push_back(message);
-    if (row.cause.empty()) {
-      EXPECT_TRUE(squashes.empty()) << everything(squashes);
-      continue;
-    }
-    ASSERT_EQ(squashes.size(), 1u) << everything(heard.messages);
-    const std::string& message = squashes.front();
-    EXPECT_TRUE(says(message,
-                     "the text \"Several words that wrap onto "
-                     "more…\" at \"passage\""))
-        << message;
-    EXPECT_TRUE(says(message, "in the column at \"column\"")) << message;
-    EXPECT_TRUE(says(message, row.cause)) << message;
-    EXPECT_TRUE(says(message, std::to_string((int)std::round(row.shorter)) +
-                                  " pixels shorter"))
-        << message;
-    const size_t said = heard.messages.size();
-    host.frame();
-    EXPECT_EQ(heard.messages.size(), said) << "a redraw says it again";
-  }
-}
-
-TEST(ComposeLayoutReports, ASpillIsSaidOnceUnlessAClipAnswersForIt) {
-  // Two boxes 80 and 60 tall that will not shrink, in a column 100 tall:
-  // the line runs 40 pixels past its box.
-  const auto spilling = [](Element sidebar) {
-    return sidebar.key("sidebar").width(50).height(100).children(
-        {box().key("upper").height(80).flexShrink(0),
-         box().key("lower").height(60).flexShrink(0)});
-  };
-  // The spilling column under a clipping ancestor @p height tall.
-  const auto clippedAt = [&](float height) {
-    return box().children({box()
-                               .height(height)
-                               .overflow(Overflow::Clip)
-                               .children({spilling(box())})});
-  };
-  struct Row {
-    const char* name;
-    std::function<Element()> tree;
-    // Words the one report says, or empty where nothing is said.
-    std::vector<std::string> words;
-  };
-  const std::vector<Row> rows = {
-      {"a spill with nothing over it",
-       [&] { return box().children({spilling(box())}); },
-       {"the column at \"sidebar\"", "140 pixels tall in 100 pixels of room",
-        "40 pixels past its box", "the box at \"lower\""}},
-      {"a spill the column clips itself",
-       [&] {
-         return box().children({spilling(box().overflow(Overflow::Clip))});
-       },
-       {}},
-      {"a spill wholly past a clipping ancestor's box",
-       [&] { return clippedAt(100); },
-       {}},
-      {"a spill a clipping ancestor's box holds whole",
-       [&] { return clippedAt(200); },
-       {}},
-      {"a spill a clipping ancestor cuts in part",
-       [&] { return clippedAt(120); },
-       {"the column at \"sidebar\""}},
-      {"a row whose spill shows",
+// Layout names a spill no clip answers for and a text leaf a stated minimum
+// lets a column shrink, each with its cause, once when it starts and again
+// only after the node has fit.
+TEST(ComposeLayoutReports, LayoutSaysWhatItWouldOtherwiseDrawWithoutAWord) {
+  sigil::compose::test::checkRows({
+      {"ASquashingMinimum",
        [] {
-         return box().children(
-             {box().row().key("strip").width(100).height(20).children(
-                 {box().width(80).flexShrink(0),
-                  box().width(60).flexShrink(0)})});
-       },
-       {"the row at \"strip\"", "140 pixels wide"}},
-      {"a text leaf holding its lines past its column",
-       [] { return shortColumn(passage()); },
-       {"the column at \"column\"", "the text \"Several words that wrap"}},
-      {"children that fit", [] { return column(20); }, {}},
-      {"children that give the room back",
+         const float lines = linesHeight();
+         struct Row {
+           const char* name;
+           Element leaf;
+           // Words the one report says, or empty where nothing is said.
+           std::string cause;
+           float shorter;
+         };
+         const std::vector<Row> rows = {
+             {"its minimum unstated", passage(), "", 0.0f},
+             {"a stated height shorter than its lines", passage().height(20),
+              "", 0.0f},
+             {"a stated minimum of zero", passage().minHeight(0),
+              "its stated minimum height lets the column shrink it",
+              lines - 30.0f},
+             {"a stated basis of zero", passage().flexBasis(0),
+              "its stated basis lets the column shrink it", lines},
+         };
+         for (const Row& row : rows) {
+           SCOPED_TRACE(row.name);
+           Host host;
+           Heard heard;
+           host.composer.render(shortColumn(row.leaf));
+           host.frame();
+           // A leaf that keeps its lines overflows the column, which is said as
+           // the column's; only what the leaf itself says is read here.
+           std::vector<std::string> squashes;
+           for (const std::string& message : heard.messages)
+             if (says(message, "shorter than its lines"))
+               squashes.push_back(message);
+           if (row.cause.empty()) {
+             EXPECT_TRUE(squashes.empty()) << everything(squashes);
+             continue;
+           }
+           ASSERT_EQ(squashes.size(), 1u) << everything(heard.messages);
+           const std::string& message = squashes.front();
+           EXPECT_TRUE(says(message,
+                            "the text \"Several words that wrap onto "
+                            "more…\" at \"passage\""))
+               << message;
+           EXPECT_TRUE(says(message, "in the column at \"column\"")) << message;
+           EXPECT_TRUE(says(message, row.cause)) << message;
+           EXPECT_TRUE(
+               says(message, std::to_string((int)std::round(row.shorter)) +
+                                 " pixels shorter"))
+               << message;
+           const size_t said = heard.messages.size();
+           host.frame();
+           EXPECT_EQ(heard.messages.size(), said) << "a redraw says it again";
+         }
+       }},
+      {"ASpill",
        [] {
-         return box().children(
-             {box().key("sidebar").width(50).height(100).children(
-                 {box().height(80), box().height(60)})});
-       },
-       {}},
-      {"a child out of the flow",
+         // Two boxes 80 and 60 tall that will not shrink, in a column 100 tall:
+         // the line runs 40 pixels past its box.
+         const auto spilling = [](Element sidebar) {
+           return sidebar.key("sidebar").width(50).height(100).children(
+               {box().key("upper").height(80).flexShrink(0),
+                box().key("lower").height(60).flexShrink(0)});
+         };
+         // The spilling column under a clipping ancestor @p height tall.
+         const auto clippedAt = [&](float height) {
+           return box().children({box()
+                                      .height(height)
+                                      .overflow(Overflow::Clip)
+                                      .children({spilling(box())})});
+         };
+         struct Row {
+           const char* name;
+           std::function<Element()> tree;
+           // Words the one report says, or empty where nothing is said.
+           std::vector<std::string> words;
+         };
+         const std::vector<Row> rows = {
+             {"a spill with nothing over it",
+              [&] { return box().children({spilling(box())}); },
+              {"the column at \"sidebar\"",
+               "140 pixels tall in 100 pixels of room",
+               "40 pixels past its box", "the box at \"lower\""}},
+             {"a spill the column clips itself",
+              [&] {
+                return box().children(
+                    {spilling(box().overflow(Overflow::Clip))});
+              },
+              {}},
+             {"a spill wholly past a clipping ancestor's box",
+              [&] { return clippedAt(100); },
+              {}},
+             {"a spill a clipping ancestor's box holds whole",
+              [&] { return clippedAt(200); },
+              {}},
+             {"a spill a clipping ancestor cuts in part",
+              [&] { return clippedAt(120); },
+              {"the column at \"sidebar\""}},
+             {"a row whose spill shows",
+              [] {
+                return box().children(
+                    {box().row().key("strip").width(100).height(20).children(
+                        {box().width(80).flexShrink(0),
+                         box().width(60).flexShrink(0)})});
+              },
+              {"the row at \"strip\"", "140 pixels wide"}},
+             {"a text leaf holding its lines past its column",
+              [] { return shortColumn(passage()); },
+              {"the column at \"column\"",
+               "the text \"Several words that wrap"}},
+             {"children that fit", [] { return column(20); }, {}},
+             {"children that give the room back",
+              [] {
+                return box().children(
+                    {box().key("sidebar").width(50).height(100).children(
+                        {box().height(80), box().height(60)})});
+              },
+              {}},
+             {"a child out of the flow",
+              [] {
+                return box().children(
+                    {box().key("sidebar").width(50).height(100).children(
+                        {box().height(80).flexShrink(0),
+                         box().height(160).absolute().top(0).left(0)})});
+              },
+              {}},
+         };
+         for (const Row& row : rows) {
+           SCOPED_TRACE(row.name);
+           Host host;
+           Heard heard;
+           host.composer.render(row.tree());
+           host.frame();
+           if (row.words.empty()) {
+             EXPECT_TRUE(heard.messages.empty()) << everything(heard.messages);
+             continue;
+           }
+           ASSERT_EQ(heard.messages.size(), 1u) << everything(heard.messages);
+           for (const std::string& words : row.words)
+             EXPECT_TRUE(says(heard.messages.front(), words))
+                 << heard.messages.front();
+           host.frame();
+           EXPECT_EQ(heard.messages.size(), 1u) << "a redraw says it again";
+         }
+       }},
+      {"AStandingOverflowIsSaidAgainOnlyAfterItFits",
        [] {
-         return box().children(
-             {box().key("sidebar").width(50).height(100).children(
-                 {box().height(80).flexShrink(0),
-                  box().height(160).absolute().top(0).left(0)})});
-       },
-       {}},
-  };
-  for (const Row& row : rows) {
-    SCOPED_TRACE(row.name);
-    Host host;
-    Heard heard;
-    host.composer.render(row.tree());
-    host.frame();
-    if (row.words.empty()) {
-      EXPECT_TRUE(heard.messages.empty()) << everything(heard.messages);
-      continue;
-    }
-    ASSERT_EQ(heard.messages.size(), 1u) << everything(heard.messages);
-    for (const std::string& words : row.words)
-      EXPECT_TRUE(says(heard.messages.front(), words))
-          << heard.messages.front();
-    host.frame();
-    EXPECT_EQ(heard.messages.size(), 1u) << "a redraw says it again";
-  }
-}
+         Host host;
+         Heard heard;
+         host.composer.render(column(60));
+         host.frame();
+         ASSERT_EQ(heard.messages.size(), 1u);
 
-TEST(ComposeLayoutReports, AStandingOverflowIsSaidAgainOnlyAfterItFits) {
-  Host host;
-  Heard heard;
-  host.composer.render(column(60));
-  host.frame();
-  ASSERT_EQ(heard.messages.size(), 1u);
+         // A layout that leaves the overflow where it stood says nothing.
+         host.composer.render(column(60));
+         host.frame();
+         host.composer.setSize({300, 300});
+         host.frame();
+         EXPECT_EQ(heard.messages.size(), 1u) << everything(heard.messages);
 
-  // A layout that leaves the overflow where it stood says nothing.
-  host.composer.render(column(60));
-  host.frame();
-  host.composer.setSize({300, 300});
-  host.frame();
-  EXPECT_EQ(heard.messages.size(), 1u) << everything(heard.messages);
-
-  // Once the column fits, an overflow that comes back is news again.
-  host.composer.render(column(10));
-  host.frame();
-  EXPECT_EQ(heard.messages.size(), 1u) << everything(heard.messages);
-  host.composer.render(column(60));
-  host.frame();
-  EXPECT_EQ(heard.messages.size(), 2u) << everything(heard.messages);
+         // Once the column fits, an overflow that comes back is news again.
+         host.composer.render(column(10));
+         host.frame();
+         EXPECT_EQ(heard.messages.size(), 1u) << everything(heard.messages);
+         host.composer.render(column(60));
+         host.frame();
+         EXPECT_EQ(heard.messages.size(), 2u) << everything(heard.messages);
+       }},
+  });
 }

@@ -12,14 +12,15 @@
 // writer, of either kind, marks its own property and no other, writes the
 // field its property is kept in, and moves a value the prune sees.
 //
-// THIS FILE REACHES THE LIBRARY'S OWN SOURCE DIRECTORY, for the same reason
-// the field walk beside it does: an unmarked write is invisible from
-// outside, where the two descriptions simply compare equal.
+// THIS FILE REACHES THE LIBRARY'S OWN SOURCE DIRECTORY: an unmarked write
+// is invisible from outside, where the two descriptions simply compare
+// equal.
 
 #include <type_traits>
 
 #include "style/ComputedStyle.h"
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
 
 namespace cd = sigil::compose::detail;
 
@@ -348,81 +349,93 @@ void writeThroughWriter(cd::ElementNode& node, Property property, bool moved) {
 
 }  // namespace
 
-TEST(ComposeDeclarations, EveryWriterMarksExactlyItsOwnProperty) {
-  for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
-    const auto property = (Property)i;
-    for (const bool moved : {false, true}) {
-      cd::ElementNode node;
-      writeThroughWriter(node, property, moved);
-      PropertyMask expected;
-      expected.set(property);
-      EXPECT_TRUE(node.fields.declared() == expected)
-          << propertyName(property) << "'s writer marked a different set "
-          << "of properties than its own";
-    }
-  }
+// A verb states its own property and no other: its writer marks that
+// property alone, ends a keyword written before it, writes the field the
+// property is kept in, and moves a value the prune sees.
+TEST(ComposeDeclareDoor, EveryWriterStatesItsOwnPropertyAndNoOther) {
+  sigil::compose::test::checkRows({
+      {"MarksExactlyItsOwnProperty",
+       [] {
+         for (size_t index = 0; index < (size_t)Property::kCount; ++index) {
+           const auto property = (Property)index;
+           for (const bool moved : {false, true}) {
+             cd::ElementNode node;
+             writeThroughWriter(node, property, moved);
+             PropertyMask expected;
+             expected.set(property);
+             EXPECT_TRUE(node.fields.declared() == expected)
+                 << propertyName(property)
+                 << "'s writer marked a different set "
+                 << "of properties than its own";
+           }
+         }
+       }},
+      {"MovesAValueThePruneSees",
+       [] {
+         // Both nodes state the property, so the masks agree and only the value
+         // can tell them apart.
+         for (size_t index = 0; index < (size_t)Property::kCount; ++index) {
+           const auto property = (Property)index;
+           cd::ElementNode standing, moved;
+           writeThroughWriter(standing, property, false);
+           writeThroughWriter(moved, property, true);
+           EXPECT_FALSE(cd::propertiesEqual(standing, moved))
+               << propertyName(property)
+               << " was written to a new value and the "
+               << "node compares equal to one that kept the old";
+         }
+       }},
+      {"EndsAKeywordWrittenBeforeIt",
+       [] {
+         for (size_t index = 0; index < (size_t)Property::kCount; ++index) {
+           const auto property = (Property)index;
+           if (!answersKeyword(property)) continue;
+           cd::ElementNode node;
+           node.fields.keyword(property, sigil::weave::Keyword::Inherit);
+           ASSERT_TRUE(node.fields.keywords() &&
+                       node.fields.keywords()->find(property));
+           writeThroughWriter(node, property, true);
+           EXPECT_FALSE(node.fields.keywords()->find(property))
+               << propertyName(property) << " was written as a value after a "
+               << "keyword and the keyword still stands";
+           EXPECT_TRUE(node.fields.declared().has(property));
+         }
+       }},
+      {"WritesTheFieldItsPropertyIsKeptIn",
+       [] {
+         // A writer handing back its neighbour's field marks the right bit and
+         // moves a value the prune sees, so the rows above pass it. Where
+         // the value lands is what tells them apart: the property copied alone
+         // out of the node's style must carry everything the writer moved, and
+         // a property the style does not carry must move nothing the style
+         // holds.
+         const cd::ComputedStyle initial;
+         for (size_t index = 0; index < (size_t)Property::kCount; ++index) {
+           const auto property = (Property)index;
+           cd::ElementNode node;
+           writeThroughWriter(node, property, true);
+           cd::ComputedStyle written;
+           cd::resolveStyle(nullptr, node, written);
+           cd::ComputedStyle copied;
+           cd::copyProperty(property, written, copied);
+           EXPECT_TRUE(cd::computedStyleEqual(copied, written))
+               << propertyName(property)
+               << "'s writer moved a field its property "
+               << "is not kept in";
+           const bool carried =
+               answersKeyword(property) && !inheritsByDefault(property);
+           EXPECT_EQ(!cd::computedStyleEqual(written, initial), carried)
+               << propertyName(property)
+               << (carried ? "'s writer moved nothing the "
+                             "computed style carries"
+                           : " is kept on the node, and its "
+                             "writer moved the computed style");
+         }
+       }},
+  });
 }
 
-TEST(ComposeDeclarations, EveryWrittenValueReachesThePrune) {
-  // Both nodes state the property, so the masks agree and only the value
-  // can tell them apart.
-  for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
-    const auto property = (Property)i;
-    cd::ElementNode standing, moved;
-    writeThroughWriter(standing, property, false);
-    writeThroughWriter(moved, property, true);
-    EXPECT_FALSE(cd::propertiesEqual(standing, moved))
-        << propertyName(property) << " was written to a new value and the "
-        << "node compares equal to one that kept the old";
-  }
-}
-
-TEST(ComposeDeclarations, AWriterEndsAKeywordWrittenBeforeIt) {
-  for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
-    const auto property = (Property)i;
-    if (!answersKeyword(property)) continue;
-    cd::ElementNode node;
-    node.fields.keyword(property, sigil::weave::Keyword::Inherit);
-    ASSERT_TRUE(node.fields.keywords() &&
-                node.fields.keywords()->find(property));
-    writeThroughWriter(node, property, true);
-    EXPECT_FALSE(node.fields.keywords()->find(property))
-        << propertyName(property) << " was written as a value after a "
-        << "keyword and the keyword still stands";
-    EXPECT_TRUE(node.fields.declared().has(property));
-  }
-}
-
-TEST(ComposeDeclarations, EveryWriterWritesTheFieldItsPropertyIsKeptIn) {
-  // A writer handing back its neighbour's field marks the right bit and
-  // moves a value the prune sees, so the two walks above pass it. Where the
-  // value lands is what tells them apart: the property copied alone out of
-  // the node's style must carry everything the writer moved, and a
-  // property the style does not carry must move nothing the style holds.
-  const cd::ComputedStyle initial;
-  for (size_t i = 0; i < (size_t)Property::kCount; ++i) {
-    const auto property = (Property)i;
-    cd::ElementNode node;
-    writeThroughWriter(node, property, true);
-    cd::ComputedStyle written;
-    cd::resolveStyle(nullptr, node, written);
-    cd::ComputedStyle copied;
-    cd::copyProperty(property, written, copied);
-    EXPECT_TRUE(cd::computedStyleEqual(copied, written))
-        << propertyName(property) << "'s writer moved a field its property "
-        << "is not kept in";
-    const bool carried =
-        answersKeyword(property) && !inheritsByDefault(property);
-    EXPECT_EQ(!cd::computedStyleEqual(written, initial), carried)
-        << propertyName(property)
-        << (carried ? "'s writer moved nothing the "
-                      "computed style carries"
-                    : " is kept on the node, and its "
-                      "writer moved the computed style");
-  }
-}
-
-TEST(ComposeDeclarations, TheOperatorsZIndexIsAStartingValueNotAStatement) {
+TEST(ComposeDeclareDoor, TheOperatorsZIndexIsAStartingValueNotAStatement) {
   // What an operator gives an element it adds carries no bit, so the fold
   // lets a matching rule's value through; an element that states its own,
   // even the default, keeps it, and the operator's never lands.

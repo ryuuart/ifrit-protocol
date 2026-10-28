@@ -12,6 +12,7 @@
 
 #include <numeric>
 
+#include "support/Rows.h"
 #include "support/StudioTestSupport.h"
 
 namespace {
@@ -102,82 +103,90 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
           << "an unknown key drew a meter anyway";
 }
 
-TEST(ComposeDebug, RestGhostDrawsTheSameWordUndeformedUnderTheMovingOne) {
-  // The ghost is the rest position a deviation is measured against, so it
-  // must be where the letters WOULD be — and must not be carrying the track
-  // that moved them.
-  Host host(300, 140);
-  const SkColor4f ghostInk{0, 0, 1, 1};
-  GlyphModifier shove;
-  shove.dx = 60.0f;
-  host.composer.render(box().padding(10).children(
-      {kit::restGhost(text(u8"AB", whiteStyle(40))
-                          .key("word")
-                          .textFx({.effect = fixed("shove", shove)}),
-                      ghostInk)}));
-  host.frame();
-  const auto countBlue = [&](SkIRect region) {
-    int hits = 0;
-    for (int y = region.top(); y < region.bottom(); ++y)
-      for (int x = region.left(); x < region.right(); ++x) {
-        const SkColor c = host.pixel(x, y);
-        if (SkColorGetB(c) > 180 && SkColorGetR(c) < 80) ++hits;
-      }
-    return hits;
-  };
-  const auto countWhite = [&](SkIRect region) {
-    int hits = 0;
-    for (int y = region.top(); y < region.bottom(); ++y)
-      for (int x = region.left(); x < region.right(); ++x)
-        if (host.pixel(x, y) == SK_ColorWHITE) ++hits;
-    return hits;
-  };
-  // The ghost sits at rest, near the left; the moving copy is 60 px right
-  // of it. Neither region may hold the other's ink.
-  const SkIRect atRest = SkIRect::MakeXYWH(0, 0, 60, 140);
-  const SkIRect shoved = SkIRect::MakeXYWH(66, 0, 120, 140);
-  EXPECT_GT(countBlue(atRest), 20) << "no ghost at the rest position";
-  EXPECT_EQ(countWhite(atRest), 0)
-      << "the moving copy never left its rest position";
-  EXPECT_GT(countWhite(shoved), 20) << "the moving copy did not move";
-  EXPECT_EQ(countBlue(shoved), 0) << "the ghost is carrying the track too";
-  // The ghost is addressable, and it is exactly as wide as the word.
-  const SkRect ghost = geometry::path::toSk(
-      host.composer.bounds("word-rest").value_or(geometry::path::Rect{}));
-  const SkRect moving = geometry::path::toSk(
-      host.composer.bounds("word").value_or(geometry::path::Rect{}));
-  ASSERT_FALSE(ghost.isEmpty());
-  EXPECT_NEAR(ghost.width(), moving.width(), 0.51f);
-  EXPECT_NEAR(ghost.left(), moving.left(), 0.51f);
-}
-
-TEST(ComposeDebug, RestGhostCopiesTheTypeAndNotTheMarksOnIt) {
-  // A text node's children are already on screen once. Ghosting them would
-  // draw each of them twice under one key, which the composer's key index
-  // cannot answer for — so the ghost is the type and nothing else.
-  Host host(300, 140);
-  host.composer.render(box().padding(10).children({kit::restGhost(
-      text(u8"ALPHA BETA", whiteStyle(24))
-          .key("word")
-          .textAttach(sigil::weave::selectors::word(1),
-                      box().key("caret").width(4).fill(green())),
-      {0, 0, 1, 1})}));
-  host.frame();
-  const SkRect caret = geometry::path::toSk(
-      host.composer.bounds("caret").value_or(geometry::path::Rect{}));
-  ASSERT_FALSE(caret.isEmpty()) << "the mark on the moving copy is gone";
-  int greens = 0;
-  for (int y = 0; y < 140; ++y)
-    for (int x = 0; x < 300; ++x)
-      if (host.pixel(x, y) == SK_ColorGREEN) ++greens;
-  EXPECT_GT(greens, 0);
-  // One mark, drawn once: every green pixel is inside the one rect the
-  // query answers for.
-  for (int y = 0; y < 140; ++y)
-    for (int x = 0; x < 300; ++x)
-      if (host.pixel(x, y) == SK_ColorGREEN)
-        ASSERT_TRUE(caret.contains((float)x + 0.5f, (float)y + 0.5f))
-            << "the ghost carries a second copy of the mark";
+TEST(ComposeDebug, RestGhostDrawsTheRestingWordUnderTheMovingOne) {
+  sigil::compose::test::checkRows({
+      {"RestGhostDrawsTheSameWordUndeformedUnderTheMovingOne",
+       [&] {
+         // The ghost is the rest position a deviation is measured against, so
+         // it must be where the letters WOULD be — and must not be carrying the
+         // track that moved them.
+         Host host(300, 140);
+         const SkColor4f ghostInk{0, 0, 1, 1};
+         GlyphModifier shove;
+         shove.dx = 60.0f;
+         host.composer.render(box().padding(10).children(
+             {kit::restGhost(text(u8"AB", whiteStyle(40))
+                                 .key("word")
+                                 .textFx({.effect = fixed("shove", shove)}),
+                             ghostInk)}));
+         host.frame();
+         const auto countBlue = [&](SkIRect region) {
+           int hits = 0;
+           for (int y = region.top(); y < region.bottom(); ++y)
+             for (int x = region.left(); x < region.right(); ++x) {
+               const SkColor c = host.pixel(x, y);
+               if (SkColorGetB(c) > 180 && SkColorGetR(c) < 80) ++hits;
+             }
+           return hits;
+         };
+         const auto countWhite = [&](SkIRect region) {
+           int hits = 0;
+           for (int y = region.top(); y < region.bottom(); ++y)
+             for (int x = region.left(); x < region.right(); ++x)
+               if (host.pixel(x, y) == SK_ColorWHITE) ++hits;
+           return hits;
+         };
+         // The ghost sits at rest, near the left; the moving copy is 60 px
+         // right of it. Neither region may hold the other's ink.
+         const SkIRect atRest = SkIRect::MakeXYWH(0, 0, 60, 140);
+         const SkIRect shoved = SkIRect::MakeXYWH(66, 0, 120, 140);
+         EXPECT_GT(countBlue(atRest), 20) << "no ghost at the rest position";
+         EXPECT_EQ(countWhite(atRest), 0)
+             << "the moving copy never left its rest position";
+         EXPECT_GT(countWhite(shoved), 20) << "the moving copy did not move";
+         EXPECT_EQ(countBlue(shoved), 0)
+             << "the ghost is carrying the track too";
+         // The ghost is addressable, and it is exactly as wide as the word.
+         const SkRect ghost =
+             geometry::path::toSk(host.composer.bounds("word-rest")
+                                      .value_or(geometry::path::Rect{}));
+         const SkRect moving = geometry::path::toSk(
+             host.composer.bounds("word").value_or(geometry::path::Rect{}));
+         ASSERT_FALSE(ghost.isEmpty());
+         EXPECT_NEAR(ghost.width(), moving.width(), 0.51f);
+         EXPECT_NEAR(ghost.left(), moving.left(), 0.51f);
+       }},
+      {"RestGhostCopiesTheTypeAndNotTheMarksOnIt",
+       [&] {
+         // A text node's children are already on screen once. Ghosting them
+         // would draw each of them twice under one key, which the composer's
+         // key index cannot answer for — so the ghost is the type and nothing
+         // else.
+         Host host(300, 140);
+         host.composer.render(box().padding(10).children({kit::restGhost(
+             text(u8"ALPHA BETA", whiteStyle(24))
+                 .key("word")
+                 .textAttach(sigil::weave::selectors::word(1),
+                             box().key("caret").width(4).fill(green())),
+             {0, 0, 1, 1})}));
+         host.frame();
+         const SkRect caret = geometry::path::toSk(
+             host.composer.bounds("caret").value_or(geometry::path::Rect{}));
+         ASSERT_FALSE(caret.isEmpty()) << "the mark on the moving copy is gone";
+         int greens = 0;
+         for (int y = 0; y < 140; ++y)
+           for (int x = 0; x < 300; ++x)
+             if (host.pixel(x, y) == SK_ColorGREEN) ++greens;
+         EXPECT_GT(greens, 0);
+         // One mark, drawn once: every green pixel is inside the one rect the
+         // query answers for.
+         for (int y = 0; y < 140; ++y)
+           for (int x = 0; x < 300; ++x)
+             if (host.pixel(x, y) == SK_ColorGREEN)
+               ASSERT_TRUE(caret.contains((float)x + 0.5f, (float)y + 0.5f))
+                   << "the ghost carries a second copy of the mark";
+       }},
+  });
 }
 
 // ---------------------------------------------------------------------------

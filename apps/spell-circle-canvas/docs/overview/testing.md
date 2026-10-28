@@ -10,8 +10,12 @@ ctest --test-dir build -C Release --output-on-failure
 
 Each library has one GoogleTest binary, `<library>_test`, and one benchmark
 binary, `<library>_bench`. Feature directories contribute sources and links
-through `sigil_test()` and `sigil_bench()`. CTest discovers each native case
-by name, so `ctest -R '^Suite\.'` selects a suite without another target.
+through `sigil_test()` and `sigil_bench()`. CTest discovers one entry per
+suite of each binary, named `<library>.<Suite>` (`compose.ComposeGrid` for
+`compose_test`), so `ctest -R '^compose\.'` selects a library and
+`ctest -R '^compose\.ComposeGrid$'` one suite without another target, and a
+suite's cases run in one process; one case runs through the binary itself,
+`<library>_test --gtest_filter=Suite.Case`.
 Use Release for benchmarks and run them through `sigil.py bench`.
 
 ## Choose the smallest boundary

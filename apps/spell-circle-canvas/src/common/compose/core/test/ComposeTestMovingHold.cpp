@@ -8,6 +8,7 @@
 #include <string>
 
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -91,179 +92,41 @@ Composer::CacheState stateOf(const Composer& composer,
 
 }  // namespace
 
-TEST(ComposeMovingHold, ALiveComposerTurnsAStillSubtreeFromHeldPixels) {
-  Animatable<float> turn = sigil::motion::animatable(0.0f);
-  Host host;
-  host.composer.setLive(true);
-  host.composer.setProfiling(true);
-  host.composer.render(turningWheel(turn));
-  host.frame();
-  // The first draw has nothing to compare its matrix with: painted live.
-  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
-  turn = 0.05f;
-  host.frame();
-  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
-  EXPECT_EQ(stateOf(host.composer), Composer::CacheState::Moving);
-  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
-  EXPECT_GT(redInk(host), 0);
-  // Turning on: the same pixels, composited under the new matrix.
-  turn = 0.10f;
-  host.frame();
-  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
-  EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
-  // Held still: painted live again, exactly as a composer that never held
-  // it paints the same turn.
-  host.frame();
-  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
-  EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
-  Animatable<float> settled = sigil::motion::animatable(0.10f);
-  Host reference;
-  reference.composer.render(turningWheel(settled));
-  reference.frame();
-  EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
-}
-
-TEST(ComposeMovingHold, AComposerNotLivePaintsATurningSubtreeLive) {
-  Animatable<float> turn = sigil::motion::animatable(0.0f);
-  Host host;
-  host.composer.setProfiling(true);
-  host.composer.render(turningWheel(turn));
-  for (int step = 0; step < 4; ++step) {
-    turn = 0.05f * (float)step;
-    host.frame();
-    EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
-    EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
-  }
-  Animatable<float> settled = sigil::motion::animatable(0.15f);
-  Host reference;
-  reference.composer.render(turningWheel(settled));
-  reference.frame();
-  EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
-}
-
-TEST(ComposeMovingHold, AChangeInsideTheTurningNodeFormsItsPixelsAgain) {
-  Animatable<float> turn = sigil::motion::animatable(0.0f);
-  Host host;
-  host.composer.setLive(true);
-  host.composer.render(turningWheel(turn));
-  host.frame();
-  turn = 0.05f;
-  host.frame();
-  ASSERT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
-  host.composer.render(turningWheel(turn, blue()));
-  turn = 0.10f;
-  host.frame();
-  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
-  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
-  EXPECT_EQ(redInk(host), 0);
-}
-
-TEST(ComposeMovingHold, ANodeWhoseInsideMovesIsNotHeldButItsStillPartIs) {
-  Animatable<float> turn = sigil::motion::animatable(0.0f);
-  Animatable<float> inner = sigil::motion::animatable(0.0f);
-  // A child of the wheel turning on its own clock moves the wheel's pixels
-  // in the wheel's own frame, so the wheel has nothing still to hold; the
-  // child, turning with nothing moving inside it, is held itself.
-  Host host;
-  host.composer.setLive(true);
-  host.composer.setProfiling(true);
-  host.composer.render(box().width(200).height(200).children(
-      {box()
-           .absolute()
-           .left(40)
-           .top(40)
-           .width(120)
-           .height(120)
-           .key("outer")
-           .transformOrigin(percent(50), percent(50))
-           .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
-           .children({box()
-                          .absolute()
-                          .left(10)
-                          .top(10)
-                          .width(40)
-                          .height(40)
-                          .key("inner")
-                          .fill(red())
-                          .rotate(sigil::motion::bind(
-                              inner, {.to = {0.0f, 360.0f}}))})}));
-  host.frame();
-  for (int step = 1; step < 4; ++step) {
-    turn = 0.05f * (float)step;
-    inner = 0.1f * (float)step;
-    host.frame();
-    EXPECT_NE(stateOf(host.composer, "outer"), Composer::CacheState::Moving);
-    EXPECT_EQ(stateOf(host.composer, "inner"), Composer::CacheState::Moving);
-  }
-}
-
-TEST(ComposeMovingHold, ALiveComposerFadesAStillSubtreeFromPixelsHeldInPlace) {
-  Animatable<float> fade = sigil::motion::animatable(0.5f);
-  Host host;
-  host.composer.setLive(true);
-  host.composer.setProfiling(true);
-  host.composer.render(fadingWheel(fade));
-  host.frame();
-  // The first draw has no opacity to compare with: painted live.
-  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
-  fade = 0.6f;
-  host.frame();
-  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
-  EXPECT_EQ(stateOf(host.composer), Composer::CacheState::Moving);
-  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
-  // Fading on: the same pixels, composited at the new opacity, and the
-  // pixels a layer opened for the fade composites at that opacity.
-  fade = 0.7f;
-  host.frame();
-  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
-  EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
-  Animatable<float> faded = sigil::motion::animatable(0.7f);
-  Host reference;
-  reference.composer.render(fadingWheel(faded));
-  reference.frame();
-  EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
-  // Held still: painted live again, and the held pixels go.
-  host.frame();
-  EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
-  EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
-  EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
-}
-
-TEST(ComposeMovingHold, AComposerNotLivePaintsAFadingSubtreeLive) {
-  Animatable<float> fade = sigil::motion::animatable(0.2f);
-  Host host;
-  host.composer.setProfiling(true);
-  host.composer.render(fadingWheel(fade));
-  for (int step = 0; step < 4; ++step) {
-    fade = 0.2f + 0.1f * (float)step;
-    host.frame();
-    EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
-    EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
-  }
-}
-
-TEST(ComposeMovingHold, ALoneFillFadesLiveWithNoLayerToSpare) {
-  // A lone fill carries its own opacity and opens no layer, so there is
-  // nothing for held pixels to save: it is painted live at every opacity.
-  Animatable<float> fade = sigil::motion::animatable(0.6f);
-  Host host;
-  host.composer.setLive(true);
-  host.composer.render(
-      box().width(200).height(200).children({box()
-                                                 .absolute()
-                                                 .left(40)
-                                                 .top(40)
-                                                 .width(120)
-                                                 .height(120)
-                                                 .key("wheel")
-                                                 .opacity(fade)
-                                                 .fill(red())}));
-  for (int step = 0; step < 4; ++step) {
-    fade = 0.6f + 0.1f * (float)step;
-    host.frame();
-    EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
-    EXPECT_GT(redInk(host), 0);
-  }
+// A composer not told it is live paints a turning or fading node live.
+TEST(ComposeMovingHold, AComposerNotLivePaintsAMovingNodeLive) {
+  sigil::compose::test::checkRows({
+      {"AComposerNotLivePaintsATurningSubtreeLive",
+       [] {
+         Animatable<float> turn = sigil::motion::animatable(0.0f);
+         Host host;
+         host.composer.setProfiling(true);
+         host.composer.render(turningWheel(turn));
+         for (int step = 0; step < 4; ++step) {
+           turn = 0.05f * (float)step;
+           host.frame();
+           EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+           EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
+         }
+         Animatable<float> settled = sigil::motion::animatable(0.15f);
+         Host reference;
+         reference.composer.render(turningWheel(settled));
+         reference.frame();
+         EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
+       }},
+      {"AComposerNotLivePaintsAFadingSubtreeLive",
+       [] {
+         Animatable<float> fade = sigil::motion::animatable(0.2f);
+         Host host;
+         host.composer.setProfiling(true);
+         host.composer.render(fadingWheel(fade));
+         for (int step = 0; step < 4; ++step) {
+           fade = 0.2f + 0.1f * (float)step;
+           host.frame();
+           EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+           EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
+         }
+       }},
+  });
 }
 
 namespace {
@@ -300,17 +163,174 @@ SkBitmap heldWheel(float reach) {
 
 }  // namespace
 
-TEST(ComposeMovingHold, AHeldTurningNodeBlitsTheSamePixelsWhateverItsBleed) {
-  // The held pixels are laid on the node's texel grid, so a mark's bleed
-  // that grows the node's bounds grows the pixels with transparent texels
-  // and moves none of the picture under the resampled blit.
-  const SkBitmap narrow = heldWheel(1);
-  const SkBitmap wide = heldWheel(4);
-  size_t differing = 0;
-  for (int y = 0; y < 260; ++y)
-    for (int x = 0; x < 260; ++x)
-      if (narrow.getColor(x, y) != wide.getColor(x, y)) ++differing;
-  EXPECT_EQ(differing, 0u)
-      << "the held wheel blitted other pixels at a reach of four than at "
-         "a reach of one";
+// A live composer holds a node as pixels while its own turn or fade alone
+// moves, forms them again when what it paints changes, and paints it live
+// again the draw it holds still.
+TEST(ComposeMovingHold,
+     ALiveComposerHoldsANodeWhoseOwnTransformOrOpacityAloneMoves) {
+  sigil::compose::test::checkRows({
+      {"ALiveComposerTurnsAStillSubtreeFromHeldPixels",
+       [] {
+         Animatable<float> turn = sigil::motion::animatable(0.0f);
+         Host host;
+         host.composer.setLive(true);
+         host.composer.setProfiling(true);
+         host.composer.render(turningWheel(turn));
+         host.frame();
+         // The first draw has nothing to compare its matrix with: painted live.
+         EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+         turn = 0.05f;
+         host.frame();
+         EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
+         EXPECT_EQ(stateOf(host.composer), Composer::CacheState::Moving);
+         EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+         EXPECT_GT(redInk(host), 0);
+         // Turning on: the same pixels, composited under the new matrix.
+         turn = 0.10f;
+         host.frame();
+         EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
+         EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
+         // Held still: painted live again, exactly as a composer that never
+         // held it paints the same turn.
+         host.frame();
+         EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+         EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
+         Animatable<float> settled = sigil::motion::animatable(0.10f);
+         Host reference;
+         reference.composer.render(turningWheel(settled));
+         reference.frame();
+         EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
+       }},
+      {"AChangeInsideTheTurningNodeFormsItsPixelsAgain",
+       [] {
+         Animatable<float> turn = sigil::motion::animatable(0.0f);
+         Host host;
+         host.composer.setLive(true);
+         host.composer.render(turningWheel(turn));
+         host.frame();
+         turn = 0.05f;
+         host.frame();
+         ASSERT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
+         host.composer.render(turningWheel(turn, blue()));
+         turn = 0.10f;
+         host.frame();
+         EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
+         EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+         EXPECT_EQ(redInk(host), 0);
+       }},
+      {"ANodeWhoseInsideMovesIsNotHeldButItsStillPartIs",
+       [] {
+         Animatable<float> turn = sigil::motion::animatable(0.0f);
+         Animatable<float> inner = sigil::motion::animatable(0.0f);
+         // A child of the wheel turning on its own clock moves the wheel's
+         // pixels in the wheel's own frame, so the wheel has nothing still to
+         // hold; the child, turning with nothing moving inside it, is held
+         // itself.
+         Host host;
+         host.composer.setLive(true);
+         host.composer.setProfiling(true);
+         host.composer.render(box().width(200).height(200).children(
+             {box()
+                  .absolute()
+                  .left(40)
+                  .top(40)
+                  .width(120)
+                  .height(120)
+                  .key("outer")
+                  .transformOrigin(percent(50), percent(50))
+                  .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
+                  .children({box()
+                                 .absolute()
+                                 .left(10)
+                                 .top(10)
+                                 .width(40)
+                                 .height(40)
+                                 .key("inner")
+                                 .fill(red())
+                                 .rotate(sigil::motion::bind(
+                                     inner, {.to = {0.0f, 360.0f}}))})}));
+         host.frame();
+         for (int step = 1; step < 4; ++step) {
+           turn = 0.05f * (float)step;
+           inner = 0.1f * (float)step;
+           host.frame();
+           EXPECT_NE(stateOf(host.composer, "outer"),
+                     Composer::CacheState::Moving);
+           EXPECT_EQ(stateOf(host.composer, "inner"),
+                     Composer::CacheState::Moving);
+         }
+       }},
+      {"ALiveComposerFadesAStillSubtreeFromPixelsHeldInPlace",
+       [] {
+         Animatable<float> fade = sigil::motion::animatable(0.5f);
+         Host host;
+         host.composer.setLive(true);
+         host.composer.setProfiling(true);
+         host.composer.render(fadingWheel(fade));
+         host.frame();
+         // The first draw has no opacity to compare with: painted live.
+         EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+         fade = 0.6f;
+         host.frame();
+         EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
+         EXPECT_EQ(stateOf(host.composer), Composer::CacheState::Moving);
+         EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+         // Fading on: the same pixels, composited at the new opacity, and the
+         // pixels a layer opened for the fade composites at that opacity.
+         fade = 0.7f;
+         host.frame();
+         EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 1u);
+         EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
+         Animatable<float> faded = sigil::motion::animatable(0.7f);
+         Host reference;
+         reference.composer.render(fadingWheel(faded));
+         reference.frame();
+         EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
+         // Held still: painted live again, and the held pixels go.
+         host.frame();
+         EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+         EXPECT_NE(stateOf(host.composer), Composer::CacheState::Moving);
+         EXPECT_TRUE(identicalPixels(host, reference, 200, 200));
+       }},
+      {"ALoneFillFadesLiveWithNoLayerToSpare",
+       [] {
+         // A lone fill carries its own opacity and opens no layer, so there is
+         // nothing for held pixels to save: it is painted live at every
+         // opacity.
+         Animatable<float> fade = sigil::motion::animatable(0.6f);
+         Host host;
+         host.composer.setLive(true);
+         host.composer.render(
+             box().width(200).height(200).children({box()
+                                                        .absolute()
+                                                        .left(40)
+                                                        .top(40)
+                                                        .width(120)
+                                                        .height(120)
+                                                        .key("wheel")
+                                                        .opacity(fade)
+                                                        .fill(red())}));
+         for (int step = 0; step < 4; ++step) {
+           fade = 0.6f + 0.1f * (float)step;
+           host.frame();
+           EXPECT_EQ(host.composer.stats().nodesHeldWhileMoving, 0u);
+           EXPECT_GT(redInk(host), 0);
+         }
+       }},
+      {"AHeldTurningNodeBlitsTheSamePixelsWhateverItsBleed",
+       [] {
+         // The held pixels are laid on the node's texel grid, so a mark's bleed
+         // that grows the node's bounds grows the pixels with transparent
+         // texels and moves none of the picture under the resampled blit.
+         const SkBitmap narrow = heldWheel(1);
+         const SkBitmap wide = heldWheel(4);
+         size_t differing = 0;
+         for (int y = 0; y < 260; ++y)
+           for (int x = 0; x < 260; ++x)
+             if (narrow.getColor(x, y) != wide.getColor(x, y)) ++differing;
+         EXPECT_EQ(differing, 0u) << "the held wheel blitted other pixels at a "
+                                     "reach of four than at "
+                                     "a reach of one";
+       }},
+  });
 }

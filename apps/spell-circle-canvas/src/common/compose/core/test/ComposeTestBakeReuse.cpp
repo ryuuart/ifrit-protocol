@@ -11,161 +11,7 @@
 #include <vector>
 
 #include "support/CoreTestSupport.h"
-
-TEST(ComposeCaching, TextureBakeScaleQuantized) {
-  // A continuously changing canvas scale (live window resize, pinch
-  // zoom) must not re-bake Cache::Texture nodes every frame: the bake
-  // scale quantizes up to a coarse step.
-  Host host;
-  host.composer.render(
-      box()
-          .width(60)
-          .height(60)
-          .cache(Cache::Texture)
-          .fill(red())
-          .children({box().width(20).height(20).fill(green())}));
-  auto drawAt = [&](float s) {
-    SkCanvas& canvas = *host.surface->getCanvas();
-    canvas.save();
-    canvas.scale(s, s);
-    host.composer.draw(canvas);
-    canvas.restore();
-  };
-  drawAt(1.6f);
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);  // first bake
-  drawAt(1.7f);
-  drawAt(1.9f);
-  drawAt(2.0f);  // still within the 2.0 step: the bake is reused
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-  drawAt(2.2f);  // crossed into the 3.0 step: one re-bake
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);
-}
-
-TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
-  // The same guarantee from the side the test above cannot see. A bake
-  // taken in DEVICE space is exact but pinned to one device rect, so it
-  // may only be taken while the node is holding still — and "still" has
-  // two independent measures that are easy to mistake for one:
-  //
-  //   * no transform on the node or above it is declared as animating, and
-  //   * the device rect it LANDS on has not moved.
-  //
-  // This node declares nothing of its own. It is dragged across the canvas
-  // by an ancestor, through a Cache::None parent so no recording
-  // intervenes. A device-pinned bake would re-rasterize every frame here,
-  // which is precisely the cost the quantized local bake exists to avoid.
-  //
-  // Note this cannot be a pixel assertion: every arrangement below draws
-  // the correct picture. Only the bake COUNT tells them apart.
-  Host host(300, 300);
-  motion::Animatable<float> slide = motion::animatable(0.0f);
-  host.composer.render(
-      box()
-          .cache(Cache::None)
-          .children(
-              {box()
-                   .cache(Cache::None)
-                   .absolute()
-                   .translateX(slide)
-                   .children({box()
-                                  .width(60)
-                                  .height(60)
-                                  .cache(Cache::Texture)
-                                  .fill(red())
-                                  .children({box().width(20).height(20).fill(
-                                      green())})})}));
-  host.frame();
-  EXPECT_GE(host.composer.stats().picturesRecorded, 1u);  // the first bake
-  // The ancestor's motion is declared from the first frame, so the bake
-  // taken there is already the local one: a moving node reuses ONE local
-  // bake and blits it through its transform, however far it travels.
-  for (int i = 1; i <= 5; ++i) {
-    slide = (float)i * 7.0f;  // whole-pixel slides: the rect really moves
-    host.frame();
-    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
-        << "frame " << i
-        << ": the bake was re-rasterized while the node slid, instead of "
-           "being reused and blitted through the transform";
-  }
-}
-
-TEST(ComposeCaching, ABakeUnderABoundAncestorSurvivesSubPixelMotion) {
-  // The motion a plate drifting a few pixels over many frames makes: most
-  // frames land every child on the same device rect at another sub-pixel
-  // position. The rect alone reads that as holding still, and a device
-  // bake is exact at one position only — so every child would be baked
-  // again on every frame of the drift. The ancestor's bound translation is
-  // declared, and the children's local bakes ride it the way they ride a
-  // transform of their own.
-  Host host(300, 300);
-  motion::Animatable<float> drift = motion::animatable(0.0f);
-  Element plate = box().cache(Cache::None).absolute().translateX(drift);
-  for (int i = 0; i < 6; ++i)
-    plate.children({box()
-                        .key("piece" + std::to_string(i))
-                        .absolute()
-                        .left(10.0f + 45.0f * (float)i)
-                        .top(40)
-                        .width(36)
-                        .height(36)
-                        .cache(Cache::Texture)
-                        .fill(red())
-                        .children({box().width(12).height(12).fill(green())})});
-  host.composer.render(box().cache(Cache::None).children({std::move(plate)}));
-  host.frame();
-  EXPECT_EQ(host.composer.stats().texturesBaked, 6u) << "one bake a piece";
-  for (int i = 1; i <= 12; ++i) {
-    drift = (float)i * 0.23f;  // a quarter pixel a frame: rects mostly hold
-    host.frame(1.0 / 60.0);
-    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
-        << "frame " << i
-        << ": a piece was baked again while its ancestor drifted";
-  }
-}
-
-TEST(ComposeCaching, AGroupBakeUnderABoundAncestorSurvivesSubPixelMotion) {
-  // The same drift over a Cache::Group: its subtree is settled, so it
-  // holds a bake, and the ancestor's bound translation is declared — the
-  // group's bake rides it in local space rather than being taken again in
-  // device space at every sub-pixel position the drift lands on.
-  Host host(300, 300);
-  motion::Animatable<float> drift = motion::animatable(0.0f);
-  Element assembly = box()
-                         .key("assembly")
-                         .absolute()
-                         .left(20)
-                         .top(40)
-                         .width(240)
-                         .height(60)
-                         .cache(Cache::Group);
-  for (int i = 0; i < 6; ++i)
-    assembly.children({box()
-                           .absolute()
-                           .left(4.0f + 38.0f * (float)i)
-                           .top(12)
-                           .width(30)
-                           .height(30)
-                           .rotate(12.0f * (float)i)
-                           .fill(i % 2 ? red() : green())});
-  host.composer.render(box()
-                           .cache(Cache::None)
-                           .children({box()
-                                          .cache(Cache::None)
-                                          .absolute()
-                                          .translateX(drift)
-                                          .children({std::move(assembly)})}));
-  host.frame();
-  host.frame(1.0 / 60.0);  // the group has a frame to compare with
-  host.frame(1.0 / 60.0);
-  ASSERT_GE(host.composer.stats().texturesLive, 1u) << "the group holds a bake";
-  for (int i = 1; i <= 12; ++i) {
-    drift = (float)i * 0.23f;  // a quarter pixel a frame: rects mostly hold
-    host.frame(1.0 / 60.0);
-    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
-        << "frame " << i
-        << ": the group was baked again while its ancestor drifted";
-  }
-}
+#include "support/Rows.h"
 
 TEST(ComposeCaching, BakesUnderAHiddenFadeAreTakenBeforeItShows) {
   // A fade that releases forty baked texts at once pays forty bakes on the
@@ -176,12 +22,12 @@ TEST(ComposeCaching, BakesUnderAHiddenFadeAreTakenBeforeItShows) {
   Host host(400, 400);
   motion::Animatable<float> fade = motion::animatable(0.0f);
   Element sheet = box().cache(Cache::None).inset(0).opacity(fade);
-  for (int i = 0; i < 40; ++i)
+  for (int index = 0; index < 40; ++index)
     sheet.children({text(u8"GLOW", whiteStyle(14))
-                        .key("glow" + std::to_string(i))
+                        .key("glow" + std::to_string(index))
                         .absolute()
-                        .left(8.0f + 48.0f * (float)(i % 8))
-                        .top(8.0f + 40.0f * (float)(i / 8))
+                        .left(8.0f + 48.0f * (float)(index % 8))
+                        .top(8.0f + 40.0f * (float)(index / 8))
                         .width(44)
                         .cache(Cache::Texture)});
   host.composer.render(box().cache(Cache::None).children({std::move(sheet)}));
@@ -201,10 +47,10 @@ TEST(ComposeCaching, BakesUnderAHiddenFadeAreTakenBeforeItShows) {
   EXPECT_EQ(host.composer.stats().texturesBaked, 40u)
       << "every bake is taken while the sheet is unseen";
   EXPECT_EQ(inkedPixels(), 0) << "an unseen bake reached the canvas";
-  for (int i = 0; i < 3; ++i) {
+  for (int index = 0; index < 3; ++index) {
     host.frame(1.0 / 60.0);
     EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
-        << "held frame " << i << ": an unseen bake was taken again";
+        << "held frame " << index << ": an unseen bake was taken again";
   }
   fade = 1.0f;
   host.frame(1.0 / 60.0);
@@ -216,20 +62,24 @@ TEST(ComposeCaching, BakesUnderAHiddenFadeAreTakenBeforeItShows) {
 namespace {
 
 /** The largest channel difference between two hosts' canvases. */
-int maximumChannelDifference(Host& a, Host& b, int w, int h) {
-  SkBitmap ba, bb;
-  ba.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  bb.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  a.surface->readPixels(ba.pixmap(), 0, 0);
-  b.surface->readPixels(bb.pixmap(), 0, 0);
+int maximumChannelDifference(Host& first, Host& second, int width, int height) {
+  SkBitmap firstPixels, secondPixels;
+  firstPixels.allocPixels(SkImageInfo::MakeN32Premul(width, height));
+  secondPixels.allocPixels(SkImageInfo::MakeN32Premul(width, height));
+  first.surface->readPixels(firstPixels.pixmap(), 0, 0);
+  second.surface->readPixels(secondPixels.pixmap(), 0, 0);
   int worst = 0;
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) {
-      const SkColor p = ba.getColor(x, y), q = bb.getColor(x, y);
-      worst =
-          std::max({worst, std::abs((int)SkColorGetR(p) - (int)SkColorGetR(q)),
-                    std::abs((int)SkColorGetG(p) - (int)SkColorGetG(q)),
-                    std::abs((int)SkColorGetB(p) - (int)SkColorGetB(q))});
+  for (int y = 0; y < height; ++y)
+    for (int x = 0; x < width; ++x) {
+      const SkColor firstColor = firstPixels.getColor(x, y),
+                    secondColor = secondPixels.getColor(x, y);
+      worst = std::max({worst,
+                        std::abs((int)SkColorGetR(firstColor) -
+                                 (int)SkColorGetR(secondColor)),
+                        std::abs((int)SkColorGetG(firstColor) -
+                                 (int)SkColorGetG(secondColor)),
+                        std::abs((int)SkColorGetB(firstColor) -
+                                 (int)SkColorGetB(secondColor))});
     }
   return worst;
 }
@@ -263,117 +113,78 @@ Element turnedPill(float degrees, Cache mode) {
 
 }  // namespace
 
-TEST(ComposeCaching, ADeviceBakeUnderAStaticContainerIsExactAtEveryAngle) {
-  // A texture bake held in local space is blitted through the node's
-  // rotation and resampled by it; at a quarter turn the texel grid lands
-  // half a texel off the device grid on the axis carrying the type's
-  // detail. The device-space bake has nothing to resample — and it is
-  // reachable under a static container, whose recording is then pinned
-  // to the matrix it was made under. So the cached pill must agree with
-  // the uncached draw to the same tolerance at every angle, the quarter
-  // turns included; a root-level pill would pass this at any angle and
-  // prove nothing.
-  const int w = 260, h = 260;
-  int worstOnAxis = 0, worstOffAxis = 0;
-  for (float degrees : {0.0f, 45.0f, 90.0f, 180.0f, -90.0f}) {
-    Host cached(w, h), plain(w, h);
-    cached.composer.render(turnedPill(degrees, Cache::Texture));
-    cached.frame();
-    cached.frame();  // the second frame replays the pinned recording
-    EXPECT_EQ(cached.composer.stats().picturesRecorded, 0u) << degrees;
-    plain.composer.render(turnedPill(degrees, Cache::None));
-    plain.frame();
-    const int worst = maximumChannelDifference(cached, plain, w, h);
-    if (degrees == 0.0f || degrees == 180.0f)
-      worstOnAxis = std::max(worstOnAxis, worst);
-    else
-      worstOffAxis = std::max(worstOffAxis, worst);
-    EXPECT_LE(worst, 2) << "at " << degrees << " degrees";
-  }
-  EXPECT_LE(worstOffAxis, worstOnAxis + 1)
-      << "the turned pill was resampled where the upright one was not";
-}
-
-TEST(ComposeCaching, ARecordingHoldingADeviceBakeIsRemadeWhenItsMatrixMoves) {
-  // The pin. A device blit inside a recording is exact under the matrix
-  // the recording was made under and nowhere else, so the recording is
-  // remade — and the bake with it — the frame the host's matrix changes,
-  // and replays untouched while it holds.
-  Host host(260, 260);
-  host.composer.render(turnedPill(-90.0f, Cache::Texture));
-  auto drawAt = [&](float s) {
-    SkCanvas& canvas = *host.surface->getCanvas();
-    canvas.clear(SK_ColorBLACK);
-    canvas.save();
-    canvas.scale(s, s);
-    host.composer.draw(canvas);
-    canvas.restore();
-  };
-  drawAt(1.0f);
-  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
-  drawAt(1.0f);
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-  drawAt(0.5f);  // the pinned recording is stale under any other matrix
-  EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
-  // Under CONTINUOUS motion the pill falls back to the local bake, the
-  // recording holds no device blit, and it replays under every matrix
-  // the way any recording does.
-  drawAt(0.6f);
-  drawAt(0.7f);
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-  // …and once the matrix has held still for a frame the deferred device
-  // bake is taken: one remake, then replays.
-  drawAt(0.7f);
-  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
-  drawAt(0.7f);
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-}
-
-TEST(ComposeCaching, ANodeUnderALiveTransformKeepsTheLocalBakeInItsRecording) {
-  // The restriction that stays. A recording made under a declared motion
-  // replays under that motion, so it may hold nothing pinned to a device
-  // rect: the texture node inside it takes the quantized local bake, the
-  // recording stays matrix-independent, and neither is remade while the
-  // ancestor slides — the same guarantee the moving-ancestor case gives
-  // through a Cache::None parent, here through a recording.
-  Host host(300, 300);
-  motion::Animatable<float> slide = motion::animatable(0.0f);
-  host.composer.render(
-      box()
-          .cache(Cache::None)
-          .children(
-              {box()
-                   .absolute()
-                   .translateX(slide)
-                   .children(
-                       {box().absolute().left(2).top(2).width(4).height(4).fill(
-                           Fill::color({0, 0.3f, 0, 1}))})
-                   .children({box()
-                                  .absolute()
-                                  .left(60)
-                                  .top(100)
-                                  .width(60)
-                                  .height(60)
-                                  .cache(Cache::Texture)
-                                  .rotate(-90.0f)
-                                  .transformOrigin(percent(50), percent(50))
-                                  .fill(red())
-                                  .children({box().width(20).height(20).fill(
-                                      green())})})}));
-  host.frame();
-  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
-  // The still -> moving transition costs one remake, as it does through a
-  // Cache::None parent; from there the guarantee is absolute.
-  slide = 7.0f;
-  host.frame();
-  for (int i = 2; i <= 5; ++i) {
-    slide = (float)i * 7.0f;
-    host.frame();
-    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
-        << "frame " << i
-        << ": a recording under a live transform was remade, or the bake "
-           "inside it was pinned to a device rect";
-  }
+// A device bake under a still container is exact at every angle, and the
+// recording holding it is remade when its matrix moves.
+TEST(ComposeCaching, ADeviceBakeInARecordingIsExactAndPinnedToItsMatrix) {
+  sigil::compose::test::checkRows({
+      {"ADeviceBakeUnderAStaticContainerIsExactAtEveryAngle",
+       [] {
+         // A texture bake held in local space is blitted through the node's
+         // rotation and resampled by it; at a quarter turn the texel grid lands
+         // half a texel off the device grid on the axis carrying the type's
+         // detail. The device-space bake has nothing to resample — and it is
+         // reachable under a static container, whose recording is then pinned
+         // to the matrix it was made under. So the cached pill must agree with
+         // the uncached draw to the same tolerance at every angle, the quarter
+         // turns included; a root-level pill would pass this at any angle and
+         // prove nothing.
+         const int width = 260, height = 260;
+         int worstOnAxis = 0, worstOffAxis = 0;
+         for (float degrees : {0.0f, 45.0f, 90.0f, 180.0f, -90.0f}) {
+           Host cached(width, height), plain(width, height);
+           cached.composer.render(turnedPill(degrees, Cache::Texture));
+           cached.frame();
+           cached.frame();  // the second frame replays the pinned recording
+           EXPECT_EQ(cached.composer.stats().picturesRecorded, 0u) << degrees;
+           plain.composer.render(turnedPill(degrees, Cache::None));
+           plain.frame();
+           const int worst =
+               maximumChannelDifference(cached, plain, width, height);
+           if (degrees == 0.0f || degrees == 180.0f)
+             worstOnAxis = std::max(worstOnAxis, worst);
+           else
+             worstOffAxis = std::max(worstOffAxis, worst);
+           EXPECT_LE(worst, 2) << "at " << degrees << " degrees";
+         }
+         EXPECT_LE(worstOffAxis, worstOnAxis + 1)
+             << "the turned pill was resampled where the upright one was not";
+       }},
+      {"ARecordingHoldingADeviceBakeIsRemadeWhenItsMatrixMoves",
+       [] {
+         // The pin. A device blit inside a recording is exact under the matrix
+         // the recording was made under and nowhere else, so the recording is
+         // remade — and the bake with it — the frame the host's matrix changes,
+         // and replays untouched while it holds.
+         Host host(260, 260);
+         host.composer.render(turnedPill(-90.0f, Cache::Texture));
+         auto drawAt = [&](float scale) {
+           SkCanvas& canvas = *host.surface->getCanvas();
+           canvas.clear(SK_ColorBLACK);
+           canvas.save();
+           canvas.scale(scale, scale);
+           host.composer.draw(canvas);
+           canvas.restore();
+         };
+         drawAt(1.0f);
+         EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+         drawAt(1.0f);
+         EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+         drawAt(0.5f);  // the pinned recording is stale under any other matrix
+         EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
+         // Under CONTINUOUS motion the pill falls back to the local bake, the
+         // recording holds no device blit, and it replays under every matrix
+         // the way any recording does.
+         drawAt(0.6f);
+         drawAt(0.7f);
+         EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+         // …and once the matrix has held still for a frame the deferred device
+         // bake is taken: one remake, then replays.
+         drawAt(0.7f);
+         EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+         drawAt(0.7f);
+         EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+       }},
+  });
 }
 
 TEST(ComposeCaching, AMemoShellsCacheIsCarriedOntoItsProduce) {
@@ -393,9 +204,9 @@ TEST(ComposeCaching, AMemoShellsCacheIsCarriedOntoItsProduce) {
     return box()
         .cache(Cache::None)
         .children({memo(Props{tick},
-                        [](const Props& p) {
+                        [](const Props& properties) {
                           return box().width(40).height(40).fill(
-                              p.tick % 2 ? red() : green());
+                              properties.tick % 2 ? red() : green());
                         })
                        .key("cell")
                        .cache(Cache::Picture)});
@@ -438,12 +249,12 @@ Element ringOfType(Cache mode, const motion::Animatable<float>* turn) {
   const char8_t* letters[] = {u8"ANIMA", u8"LUMEN", u8"ORDO",  u8"SIGNUM",
                               u8"VOX",   u8"NOMEN", u8"CIRCU", u8"TERRA",
                               u8"AQUA",  u8"IGNIS", u8"AER",   u8"SAL"};
-  for (int i = 0; i < 12; ++i) {
-    const float a = (float)i * (float)(2 * M_PI) / 12.0f;
-    ring.children({text(letters[i], whiteStyle(18))
+  for (int index = 0; index < 12; ++index) {
+    const float angle = (float)index * (float)(2 * M_PI) / 12.0f;
+    ring.children({text(letters[index], whiteStyle(18))
                        .absolute()
-                       .left(side * 0.5f + radius * std::cos(a) - 40.0f)
-                       .top(side * 0.5f + radius * std::sin(a) - 12.0f)
+                       .left(side * 0.5f + radius * std::cos(angle) - 40.0f)
+                       .top(side * 0.5f + radius * std::sin(angle) - 12.0f)
                        .width(80)});
   }
   if (turn) ring.rotate(motion::bind(*turn, {.to = {0.0f, 360.0f}}));
@@ -475,128 +286,370 @@ Element ringInASlidingPage(const motion::Animatable<float>& slide, Cache mode) {
 
 }  // namespace
 
-TEST(ComposeCaching, ARingUnderABoundRotationBakesOnceAndBlitsEveryFrame) {
-  // A rotation about a node's own centre moves no pixel of its content —
-  // it moves where the content lands. So the bake is taken ONCE, in the
-  // node's own space, and every frame after is a blit through the turn;
-  // the ladder the local bake is quantized on cannot be moved by a
-  // rotation, so no rung is ever crossed and nothing is re-rasterized.
-  Host host(680, 680);
-  motion::Animatable<float> turn = motion::animatable(0.0f);
-  host.composer.render(turnedRing(Cache::Texture, turn));
-  host.frame();
-  EXPECT_EQ(host.composer.stats().texturesBaked, 1u) << "the one bake";
-  for (int i = 1; i <= 12; ++i) {
-    turn = (float)i * 0.011f;  // a few degrees a frame, past every quadrant
-    host.frame(1.0 / 60.0);
-    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
-        << "frame " << i << ": the ring was re-rasterized while it turned";
-    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
-        << "frame " << i << ": the ring re-recorded while it turned";
-  }
+// A node that moves, or stands under an ancestor that moves, keeps one local
+// bake and blits it through every matrix; an undeclared scale steps a
+// coarse ladder.
+TEST(ComposeCaching, AMovingNodeKeepsOneBakeAndBlitsItThroughTheMotion) {
+  sigil::compose::test::checkRows({
+      {"AnUndeclaredScaleStepsACoarseLadder",
+       [] {
+         // A continuously changing canvas scale (live window resize, pinch
+         // zoom) must not re-bake Cache::Texture nodes every frame: the bake
+         // scale quantizes up to a coarse step.
+         Host host;
+         host.composer.render(
+             box()
+                 .width(60)
+                 .height(60)
+                 .cache(Cache::Texture)
+                 .fill(red())
+                 .children({box().width(20).height(20).fill(green())}));
+         auto drawAt = [&](float scale) {
+           SkCanvas& canvas = *host.surface->getCanvas();
+           canvas.save();
+           canvas.scale(scale, scale);
+           host.composer.draw(canvas);
+           canvas.restore();
+         };
+         drawAt(1.6f);
+         EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);  // first bake
+         drawAt(1.7f);
+         drawAt(1.9f);
+         drawAt(2.0f);  // still within the 2.0 step: the bake is reused
+         EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+         drawAt(2.2f);  // crossed into the 3.0 step: one re-bake
+         EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);
+       }},
+      {"ATextureUnderAMovingAncestor",
+       [] {
+         // The same guarantee from the side a scale cannot show. A bake
+         // taken in DEVICE space is exact but pinned to one device rect, so it
+         // may only be taken while the node is holding still — and "still" has
+         // two independent measures that are easy to mistake for one:
+         //
+         //   * no transform on the node or above it is declared as animating,
+         //   and
+         //   * the device rect it LANDS on has not moved.
+         //
+         // This node declares nothing of its own. It is dragged across the
+         // canvas by an ancestor, through a Cache::None parent so no recording
+         // intervenes. A device-pinned bake would re-rasterize every frame
+         // here, which is precisely the cost the quantized local bake exists to
+         // avoid.
+         //
+         // Note this cannot be a pixel assertion: every arrangement below draws
+         // the correct picture. Only the bake COUNT tells them apart.
+         Host host(300, 300);
+         motion::Animatable<float> slide = motion::animatable(0.0f);
+         host.composer.render(
+             box()
+                 .cache(Cache::None)
+                 .children(
+                     {box()
+                          .cache(Cache::None)
+                          .absolute()
+                          .translateX(slide)
+                          .children(
+                              {box()
+                                   .width(60)
+                                   .height(60)
+                                   .cache(Cache::Texture)
+                                   .fill(red())
+                                   .children({box().width(20).height(20).fill(
+                                       green())})})}));
+         host.frame();
+         EXPECT_GE(host.composer.stats().picturesRecorded,
+                   1u);  // the first bake
+         // The ancestor's motion is declared from the first frame, so the bake
+         // taken there is already the local one: a moving node reuses ONE local
+         // bake and blits it through its transform, however far it travels.
+         for (int index = 1; index <= 5; ++index) {
+           slide = (float)index *
+                   7.0f;  // whole-pixel slides: the rect really moves
+           host.frame();
+           EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+               << "frame " << index
+               << ": the bake was re-rasterized while the node slid, instead "
+                  "of "
+                  "being reused and blitted through the transform";
+         }
+       }},
+      {"ABakeUnderABoundAncestorSurvivesSubPixelMotion",
+       [] {
+         // The motion a plate drifting a few pixels over many frames makes:
+         // most frames land every child on the same device rect at another
+         // sub-pixel position. The rect alone reads that as holding still, and
+         // a device bake is exact at one position only — so every child would
+         // be baked again on every frame of the drift. The ancestor's bound
+         // translation is declared, and the children's local bakes ride it the
+         // way they ride a transform of their own.
+         Host host(300, 300);
+         motion::Animatable<float> drift = motion::animatable(0.0f);
+         Element plate = box().cache(Cache::None).absolute().translateX(drift);
+         for (int index = 0; index < 6; ++index)
+           plate.children(
+               {box()
+                    .key("piece" + std::to_string(index))
+                    .absolute()
+                    .left(10.0f + 45.0f * (float)index)
+                    .top(40)
+                    .width(36)
+                    .height(36)
+                    .cache(Cache::Texture)
+                    .fill(red())
+                    .children({box().width(12).height(12).fill(green())})});
+         host.composer.render(
+             box().cache(Cache::None).children({std::move(plate)}));
+         host.frame();
+         EXPECT_EQ(host.composer.stats().texturesBaked, 6u)
+             << "one bake a piece";
+         for (int index = 1; index <= 12; ++index) {
+           drift = (float)index *
+                   0.23f;  // a quarter pixel a frame: rects mostly hold
+           host.frame(1.0 / 60.0);
+           EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+               << "frame " << index
+               << ": a piece was baked again while its ancestor drifted";
+         }
+       }},
+      {"AGroupBakeUnderABoundAncestorSurvivesSubPixelMotion",
+       [] {
+         // The same drift over a Cache::Group: its subtree is settled, so it
+         // holds a bake, and the ancestor's bound translation is declared — the
+         // group's bake rides it in local space rather than being taken again
+         // in device space at every sub-pixel position the drift lands on.
+         Host host(300, 300);
+         motion::Animatable<float> drift = motion::animatable(0.0f);
+         Element assembly = box()
+                                .key("assembly")
+                                .absolute()
+                                .left(20)
+                                .top(40)
+                                .width(240)
+                                .height(60)
+                                .cache(Cache::Group);
+         for (int index = 0; index < 6; ++index)
+           assembly.children({box()
+                                  .absolute()
+                                  .left(4.0f + 38.0f * (float)index)
+                                  .top(12)
+                                  .width(30)
+                                  .height(30)
+                                  .rotate(12.0f * (float)index)
+                                  .fill(index % 2 ? red() : green())});
+         host.composer.render(
+             box()
+                 .cache(Cache::None)
+                 .children({box()
+                                .cache(Cache::None)
+                                .absolute()
+                                .translateX(drift)
+                                .children({std::move(assembly)})}));
+         host.frame();
+         host.frame(1.0 / 60.0);  // the group has a frame to compare with
+         host.frame(1.0 / 60.0);
+         ASSERT_GE(host.composer.stats().texturesLive, 1u)
+             << "the group holds a bake";
+         for (int index = 1; index <= 12; ++index) {
+           drift = (float)index *
+                   0.23f;  // a quarter pixel a frame: rects mostly hold
+           host.frame(1.0 / 60.0);
+           EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+               << "frame " << index
+               << ": the group was baked again while its ancestor drifted";
+         }
+       }},
+      {"ANodeUnderALiveTransformKeepsTheLocalBakeInItsRecording",
+       [] {
+         // The restriction that stays. A recording made under a declared motion
+         // replays under that motion, so it may hold nothing pinned to a device
+         // rect: the texture node inside it takes the quantized local bake, the
+         // recording stays matrix-independent, and neither is remade while the
+         // ancestor slides — the same guarantee the moving-ancestor case gives
+         // through a Cache::None parent, here through a recording.
+         Host host(300, 300);
+         motion::Animatable<float> slide = motion::animatable(0.0f);
+         host.composer.render(
+             box()
+                 .cache(Cache::None)
+                 .children(
+                     {box()
+                          .absolute()
+                          .translateX(slide)
+                          .children({box()
+                                         .absolute()
+                                         .left(2)
+                                         .top(2)
+                                         .width(4)
+                                         .height(4)
+                                         .fill(Fill::color({0, 0.3f, 0, 1}))})
+                          .children(
+                              {box()
+                                   .absolute()
+                                   .left(60)
+                                   .top(100)
+                                   .width(60)
+                                   .height(60)
+                                   .cache(Cache::Texture)
+                                   .rotate(-90.0f)
+                                   .transformOrigin(percent(50), percent(50))
+                                   .fill(red())
+                                   .children({box().width(20).height(20).fill(
+                                       green())})})}));
+         host.frame();
+         EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+         // The still -> moving transition costs one remake, as it does through
+         // a Cache::None parent; from there the guarantee is absolute.
+         slide = 7.0f;
+         host.frame();
+         for (int index = 2; index <= 5; ++index) {
+           slide = (float)index * 7.0f;
+           host.frame();
+           EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+               << "frame " << index
+               << ": a recording under a live transform was remade, or the "
+                  "bake "
+                  "inside it was pinned to a device rect";
+         }
+       }},
+      {"ARingUnderABoundRotationBakesOnceAndBlitsEveryFrame",
+       [] {
+         // A rotation about a node's own centre moves no pixel of its content —
+         // it moves where the content lands. So the bake is taken ONCE, in the
+         // node's own space, and every frame after is a blit through the turn;
+         // the ladder the local bake is quantized on cannot be moved by a
+         // rotation, so no rung is ever crossed and nothing is re-rasterized.
+         Host host(680, 680);
+         motion::Animatable<float> turn = motion::animatable(0.0f);
+         host.composer.render(turnedRing(Cache::Texture, turn));
+         host.frame();
+         EXPECT_EQ(host.composer.stats().texturesBaked, 1u) << "the one bake";
+         for (int index = 1; index <= 12; ++index) {
+           turn = (float)index *
+                  0.011f;  // a few degrees a frame, past every quadrant
+           host.frame(1.0 / 60.0);
+           EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+               << "frame " << index
+               << ": the ring was re-rasterized while it turned";
+           EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+               << "frame " << index << ": the ring re-recorded while it turned";
+         }
+       }},
+  });
 }
 
 namespace {
 
 /** The brightest channel in each @p block-sized block of a host's canvas. */
-std::vector<int> blockPeaks(Host& host, int w, int h, int block) {
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  host.surface->readPixels(bm.pixmap(), 0, 0);
-  std::vector<int> peaks((size_t)((w + block - 1) / block) *
-                         (size_t)((h + block - 1) / block));
-  const int cols = (w + block - 1) / block;
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) {
-      const SkColor c = bm.getColor(x, y);
+std::vector<int> blockPeaks(Host& host, int width, int height, int block) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(width, height));
+  host.surface->readPixels(bitmap.pixmap(), 0, 0);
+  std::vector<int> peaks((size_t)((width + block - 1) / block) *
+                         (size_t)((height + block - 1) / block));
+  const int cols = (width + block - 1) / block;
+  for (int y = 0; y < height; ++y)
+    for (int x = 0; x < width; ++x) {
+      const SkColor color = bitmap.getColor(x, y);
       int& peak =
           peaks[(size_t)(y / block) * (size_t)cols + (size_t)(x / block)];
-      peak = std::max({peak, (int)SkColorGetR(c), (int)SkColorGetG(c),
-                       (int)SkColorGetB(c)});
+      peak = std::max({peak, (int)SkColorGetR(color), (int)SkColorGetG(color),
+                       (int)SkColorGetB(color)});
     }
   return peaks;
 }
 
 }  // namespace
 
-TEST(ComposeCaching, ATurnedRingsBlitLosesNoneOfWhatItBaked) {
-  // Rotating a cached ring may resample its edges, but no part of the
-  // visible artwork may disappear at any angle.
-  const int w = 680, h = 680, block = 16;
-  for (float degrees : {0.0f, 7.0f, 45.0f, 90.0f, 137.0f, -60.0f}) {
-    motion::Animatable<float> turn =
-        motion::animatable<float>(degrees / 360.0f);
-    Host cached(w, h), plain(w, h);
-    cached.composer.render(turnedRing(Cache::Texture, turn));
-    cached.frame();
-    cached.frame();  // the second frame is the blit, not the bake
-    EXPECT_EQ(cached.composer.stats().texturesBaked, 0u) << degrees;
-    plain.composer.render(turnedRing(Cache::None, turn));
-    plain.frame();
-    const std::vector<int> was = blockPeaks(plain, w, h, block);
-    const std::vector<int> is = blockPeaks(cached, w, h, block);
-    ASSERT_EQ(was.size(), is.size());
-    int lit = 0, lost = 0;
-    for (size_t i = 0; i < was.size(); ++i) {
-      if (was[i] < 200) continue;  // a glyph's solid interior, not its edge
-      ++lit;
-      if (is[i] < 40) ++lost;
-    }
-    EXPECT_GT(lit, 40) << "at " << degrees << ": the ring drew nothing";
-    EXPECT_EQ(lost, 0) << "at " << degrees << " degrees, " << lost << " of "
-                       << lit << " lit blocks came back empty";
-  }
-}
-
-TEST(ComposeCaching, ARecordedBakesBlitLosesNoneOfWhatItBaked) {
-  // The same claim, for the placement that makes the blit's clip a
-  // different space: the bake sits inside a PAGE that records.
-  //
-  // The blit is admitted by a clip on whole DEVICE pixels, and a region
-  // clip ignores the matrix — that is what makes it a set of pixels rather
-  // than an outline. Inside a recording the canvas's own pixels are not the
-  // device's: the ops are replayed under a matrix of their own, and a
-  // region computed in the page's space is applied unchanged in the space
-  // the page is replayed into. Wrong units, wrong place, and blocks of the
-  // ring go missing — which is what a plate is, a page drawn at a view
-  // scale.
-  const int w = 1200, h = 1200, block = 16;
-  const float view = 1.6667f;  // the scale a plate is photographed at
-  const auto drawAt = [&](Host& host) {
-    SkCanvas* canvas = host.surface->getCanvas();
-    canvas->clear(SK_ColorBLACK);
-    canvas->save();
-    canvas->scale(view, view);
-    host.composer.draw(*canvas);
-    canvas->restore();
-  };
-  Host cached(w, h), plain(w, h);
-  motion::Animatable<float> cachedSlide = motion::animatable(0.0f),
-                            plainSlide = motion::animatable(0.0f);
-  for (Host* host : {&cached, &plain})
-    host->composer.setSize({(float)w / view, (float)h / view});
-  cached.composer.render(ringInASlidingPage(cachedSlide, Cache::Texture));
-  plain.composer.render(ringInASlidingPage(plainSlide, Cache::None));
-  drawAt(cached);
-  // The page slides, its recording holds, and the blit inside it is replayed
-  // somewhere else — which is the whole point of a recording, and the state
-  // the region has to be right in.
-  cachedSlide = 26.0f;
-  plainSlide = 26.0f;
-  drawAt(cached);
-  drawAt(plain);
-  const std::vector<int> was = blockPeaks(plain, w, h, block);
-  const std::vector<int> is = blockPeaks(cached, w, h, block);
-  ASSERT_EQ(was.size(), is.size());
-  int lit = 0, lost = 0;
-  for (size_t i = 0; i < was.size(); ++i) {
-    if (was[i] < 200) continue;  // a glyph's solid interior, not its edge
-    ++lit;
-    if (is[i] < 40) ++lost;
-  }
-  EXPECT_GT(lit, 40) << "the ring drew nothing";
-  EXPECT_EQ(lost, 0) << lost << " of " << lit
-                     << " lit blocks came back empty from inside the page";
+// A local bake blitted turned, or replayed from a recording drawn elsewhere,
+// keeps every block of ink it baked.
+TEST(ComposeCaching, ALocalBakesBlitLosesNoneOfWhatItBaked) {
+  sigil::compose::test::checkRows({
+      {"ATurnedRingsBlitLosesNoneOfWhatItBaked",
+       [] {
+         // Rotating a cached ring may resample its edges, but no part of the
+         // visible artwork may disappear at any angle.
+         const int width = 680, height = 680, block = 16;
+         for (float degrees : {0.0f, 7.0f, 45.0f, 90.0f, 137.0f, -60.0f}) {
+           motion::Animatable<float> turn =
+               motion::animatable<float>(degrees / 360.0f);
+           Host cached(width, height), plain(width, height);
+           cached.composer.render(turnedRing(Cache::Texture, turn));
+           cached.frame();
+           cached.frame();  // the second frame is the blit, not the bake
+           EXPECT_EQ(cached.composer.stats().texturesBaked, 0u) << degrees;
+           plain.composer.render(turnedRing(Cache::None, turn));
+           plain.frame();
+           const std::vector<int> was = blockPeaks(plain, width, height, block);
+           const std::vector<int> is = blockPeaks(cached, width, height, block);
+           ASSERT_EQ(was.size(), is.size());
+           int lit = 0, lost = 0;
+           for (size_t index = 0; index < was.size(); ++index) {
+             if (was[index] < 200)
+               continue;  // a glyph's solid interior, not its edge
+             ++lit;
+             if (is[index] < 40) ++lost;
+           }
+           EXPECT_GT(lit, 40) << "at " << degrees << ": the ring drew nothing";
+           EXPECT_EQ(lost, 0) << "at " << degrees << " degrees, " << lost
+                              << " of " << lit << " lit blocks came back empty";
+         }
+       }},
+      {"ARecordedBakesBlitLosesNoneOfWhatItBaked",
+       [] {
+         // The same claim, for the placement that makes the blit's clip a
+         // different space: the bake sits inside a PAGE that records.
+         //
+         // The blit is admitted by a clip on whole DEVICE pixels, and a region
+         // clip ignores the matrix — that is what makes it a set of pixels
+         // rather than an outline. Inside a recording the canvas's own pixels
+         // are not the device's: the ops are replayed under a matrix of their
+         // own, and a region computed in the page's space is applied unchanged
+         // in the space the page is replayed into. Wrong units, wrong place,
+         // and blocks of the ring go missing — which is what a plate is, a page
+         // drawn at a view scale.
+         const int width = 1200, height = 1200, block = 16;
+         const float view = 1.6667f;  // the scale a plate is photographed at
+         const auto drawAt = [&](Host& host) {
+           SkCanvas* canvas = host.surface->getCanvas();
+           canvas->clear(SK_ColorBLACK);
+           canvas->save();
+           canvas->scale(view, view);
+           host.composer.draw(*canvas);
+           canvas->restore();
+         };
+         Host cached(width, height), plain(width, height);
+         motion::Animatable<float> cachedSlide = motion::animatable(0.0f),
+                                   plainSlide = motion::animatable(0.0f);
+         for (Host* host : {&cached, &plain})
+           host->composer.setSize({(float)width / view, (float)height / view});
+         cached.composer.render(
+             ringInASlidingPage(cachedSlide, Cache::Texture));
+         plain.composer.render(ringInASlidingPage(plainSlide, Cache::None));
+         drawAt(cached);
+         // The page slides, its recording holds, and the blit inside it is
+         // replayed somewhere else — which is the whole point of a recording,
+         // and the state the region has to be right in.
+         cachedSlide = 26.0f;
+         plainSlide = 26.0f;
+         drawAt(cached);
+         drawAt(plain);
+         const std::vector<int> was = blockPeaks(plain, width, height, block);
+         const std::vector<int> is = blockPeaks(cached, width, height, block);
+         ASSERT_EQ(was.size(), is.size());
+         int lit = 0, lost = 0;
+         for (size_t index = 0; index < was.size(); ++index) {
+           if (was[index] < 200)
+             continue;  // a glyph's solid interior, not its edge
+           ++lit;
+           if (is[index] < 40) ++lost;
+         }
+         EXPECT_GT(lit, 40) << "the ring drew nothing";
+         EXPECT_EQ(lost, 0)
+             << lost << " of " << lit
+             << " lit blocks came back empty from inside the page";
+       }},
+  });
 }
 
 TEST(ComposeCaching, AHeldTextureMeasuresItsSubtreeOnlyWhenItChanges) {

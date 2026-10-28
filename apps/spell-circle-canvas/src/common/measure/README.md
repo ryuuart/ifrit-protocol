@@ -224,7 +224,7 @@ window as a sparkline is the chart's.
 
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
-`measure_test` and one `measure_bench`, ctest one entry per CASE, what
+`measure_test` and one `measure_bench`, ctest one entry per SUITE, what
 a case may pin, and what a label promises. No case here carries one.
 What is only true of SigilMeasure:
 

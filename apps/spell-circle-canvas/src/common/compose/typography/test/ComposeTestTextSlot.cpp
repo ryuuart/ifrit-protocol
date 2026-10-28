@@ -7,6 +7,7 @@
 #include <sigilcompose/core/Operator.h>
 
 #include "DressedTypeProbes.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -25,96 +26,6 @@ Element pillCaption(const std::string& childKey, float width,
 }
 
 }  // namespace
-
-TEST(TextSlot, ASlotTallerThanTheTypeOpensTheLinesItSitsIn) {
-  // The reserved box is one unbreakable word of the flow, so a box that
-  // reaches further above the baseline than the face does is a fact about
-  // the strut: the band is deep enough BEFORE a break is decided, and the
-  // pill has room rather than being drawn over the line above it.
-  const auto baselinesWithSlot = [](glm::vec2 size) {
-    Host host(300, 260);
-    host.composer.render(pillCaption("pill", 280, size));
-    host.frame();
-    std::vector<float> found;
-    for (const TextUnit& line : host.composer.units(
-             "caption", sigil::weave::selectors::each(sigil::weave::Unit::Line),
-             sigil::weave::Unit::Line))
-      found.push_back(line.axis);
-    return found;
-  };
-  const std::vector<float> small = baselinesWithSlot({34, 16});
-  ASSERT_GE(small.size(), 2u);
-  const std::vector<float> tall = baselinesWithSlot({34, 60});
-  ASSERT_EQ(tall.size(), small.size());
-  const float smallPitch = small[1] - small[0];
-  const float tallPitch = tall[1] - tall[0];
-  EXPECT_GT(tallPitch, smallPitch + 20.0f)
-      << "a 60 px box in an 18 px face left the pitch where it was";
-  // The room goes where the box needs it: the box's bottom sits 4 px below
-  // the baseline, so all of the rest is above it and the first baseline
-  // moves down by what the box asked for.
-  EXPECT_GT(tall.front(), small.front() + 20.0f);
-}
-
-TEST(TextSlot, AChildPaintsInsideTheReservedRect) {
-  Host host(300, 200);
-  host.composer.render(pillCaption("pill", 280));
-  host.frame();
-
-  const std::optional<geometry::path::Rect> rect = host.composer.bounds("pill");
-  ASSERT_TRUE(rect);
-  // The box IS the size the content reserved — nothing about the child's
-  // own description decides it.
-  EXPECT_FLOAT_EQ(rect->width(), 34.0f);
-  EXPECT_FLOAT_EQ(rect->height(), 16.0f);
-  // …and the fill lands inside it.
-  EXPECT_EQ(host.pixel((int)rect->centre().x, (int)rect->centre().y),
-            SK_ColorRED);
-  // The reserved run is blank: the caption's own words sit either side of
-  // it, never through it.
-  EXPECT_GT(countColor(host, SkIRect::MakeXYWH(0, 0, 300, 200), SK_ColorWHITE),
-            20);
-}
-
-TEST(TextSlot, ArrangingOperatorsLeaveParagraphOwnedChildrenInTheirSlots) {
-  struct MoveSlots {
-    int* calls;
-    bool operator==(const MoveSlots&) const = default;
-    void arrange(Arrangement& arrangement) const {
-      ++*calls;
-      for (Arrangement::Child& child : arrangement.children)
-        child.centreAt({1000, 1000});
-    }
-  };
-  int calls = 0;
-  const auto describe = [&](float width, bool withArrangement) {
-    auto caption = text(sigil::weave::rich(coloredStyle(18, SK_ColorWHITE))
-                            .add(u8"press the archive key ")
-                            .slot("pill", {34, 16}, 4)
-                            .add(u8" to continue the long descent"))
-                       .key("caption")
-                       .children({box().key("pill").fill(red())});
-    if (withArrangement) caption.operators({MoveSlots{&calls}});
-    return box().padding(8).width(width).children({std::move(caption)});
-  };
-  Host reference(300, 200), arranged(300, 200);
-  for (float width : {280.0f, 120.0f}) {
-    reference.composer.render(describe(width, false));
-    arranged.composer.render(describe(width, true));
-    reference.frame();
-    arranged.frame();
-    const auto expected = reference.composer.bounds("pill");
-    const auto actual = arranged.composer.bounds("pill");
-    ASSERT_TRUE(expected && actual);
-    EXPECT_EQ(*actual, *expected);
-    EXPECT_FLOAT_EQ(actual->width(), 34);
-    EXPECT_FLOAT_EQ(actual->height(), 16);
-    EXPECT_EQ(arranged.pixel(static_cast<int>(actual->centre().x),
-                             static_cast<int>(actual->centre().y)),
-              SK_ColorRED);
-    EXPECT_EQ(calls, 0);
-  }
-}
 
 TEST(TextSlot, AVerticalChildReceivesThePhysicalSlotRect) {
   Host host(260, 300);
@@ -140,83 +51,195 @@ TEST(TextSlot, AVerticalChildReceivesThePhysicalSlotRect) {
             SK_ColorRED);
 }
 
-TEST(TextSlot, TheReservedRunIsUnbreakableAndMovesOnRelayout) {
-  // The placeholder re-resolves with the paragraph: narrow the box and the
-  // pill lands on a different line, at a different place on it.
-  Host wide(300, 200), narrow(300, 200);
-  wide.composer.render(pillCaption("pill", 280));
-  wide.frame();
-  narrow.composer.render(pillCaption("pill", 120));
-  narrow.frame();
+TEST(TextSlot, AReservedSlotIsAnUnbreakableWordItsChildIsLaidInto) {
+  sigil::compose::test::checkRows({
+      {"ASlotTallerThanTheTypeOpensTheLinesItSitsIn",
+       [&] {
+         // The reserved box is one unbreakable word of the flow, so a box that
+         // reaches further above the baseline than the face does is a fact
+         // about the strut: the band is deep enough BEFORE a break is decided,
+         // and the pill has room rather than being drawn over the line above
+         // it.
+         const auto baselinesWithSlot = [](glm::vec2 size) {
+           Host host(300, 260);
+           host.composer.render(pillCaption("pill", 280, size));
+           host.frame();
+           std::vector<float> found;
+           for (const TextUnit& line : host.composer.units(
+                    "caption",
+                    sigil::weave::selectors::each(sigil::weave::Unit::Line),
+                    sigil::weave::Unit::Line))
+             found.push_back(line.axis);
+           return found;
+         };
+         const std::vector<float> small = baselinesWithSlot({34, 16});
+         ASSERT_GE(small.size(), 2u);
+         const std::vector<float> tall = baselinesWithSlot({34, 60});
+         ASSERT_EQ(tall.size(), small.size());
+         const float smallPitch = small[1] - small[0];
+         const float tallPitch = tall[1] - tall[0];
+         EXPECT_GT(tallPitch, smallPitch + 20.0f)
+             << "a 60 px box in an 18 px face left the pitch where it was";
+         // The room goes where the box needs it: the box's bottom sits 4 px
+         // below the baseline, so all of the rest is above it and the first
+         // baseline moves down by what the box asked for.
+         EXPECT_GT(tall.front(), small.front() + 20.0f);
+       }},
+      {"TheChildIsLaidInTheReservedRectAndHitTests",
+       [&] {
+         Host host(300, 200);
+         host.composer.render(pillCaption("pill", 280));
+         host.frame();
 
-  const std::optional<geometry::path::Rect> a = wide.composer.bounds("pill");
-  const std::optional<geometry::path::Rect> b = narrow.composer.bounds("pill");
-  ASSERT_TRUE(a && b);
-  EXPECT_NE(a->top(), b->top());
-  // Same reserved size wherever it lands — the box travels, it does not
-  // stretch, and no line breaks inside it.
-  EXPECT_FLOAT_EQ(a->width(), b->width());
-  EXPECT_FLOAT_EQ(a->height(), b->height());
-  EXPECT_EQ(narrow.pixel((int)b->centre().x, (int)b->centre().y), SK_ColorRED);
+         const std::optional<geometry::path::Rect> rect =
+             host.composer.bounds("pill");
+         ASSERT_TRUE(rect);
+         // The box IS the size the content reserved — nothing about the child's
+         // own description decides it.
+         EXPECT_FLOAT_EQ(rect->width(), 34.0f);
+         EXPECT_FLOAT_EQ(rect->height(), 16.0f);
+         // …and the fill lands inside it.
+         EXPECT_EQ(host.pixel((int)rect->centre().x, (int)rect->centre().y),
+                   SK_ColorRED);
+         // The reserved run is blank: the caption's own words sit either side
+         // of it, never through it.
+         EXPECT_GT(
+             countColor(host, SkIRect::MakeXYWH(0, 0, 300, 200), SK_ColorWHITE),
+             20);
+       }},
+      {"ArrangingOperatorsLeaveTheChildInItsSlot",
+       [&] {
+         struct MoveSlots {
+           int* calls;
+           bool operator==(const MoveSlots&) const = default;
+           void arrange(Arrangement& arrangement) const {
+             ++*calls;
+             for (Arrangement::Child& child : arrangement.children)
+               child.centreAt({1000, 1000});
+           }
+         };
+         int calls = 0;
+         const auto describe = [&](float width, bool withArrangement) {
+           auto caption =
+               text(sigil::weave::rich(coloredStyle(18, SK_ColorWHITE))
+                        .add(u8"press the archive key ")
+                        .slot("pill", {34, 16}, 4)
+                        .add(u8" to continue the long descent"))
+                   .key("caption")
+                   .children({box().key("pill").fill(red())});
+           if (withArrangement) caption.operators({MoveSlots{&calls}});
+           return box().padding(8).width(width).children({std::move(caption)});
+         };
+         Host reference(300, 200), arranged(300, 200);
+         for (float width : {280.0f, 120.0f}) {
+           reference.composer.render(describe(width, false));
+           arranged.composer.render(describe(width, true));
+           reference.frame();
+           arranged.frame();
+           const auto expected = reference.composer.bounds("pill");
+           const auto actual = arranged.composer.bounds("pill");
+           ASSERT_TRUE(expected && actual);
+           EXPECT_EQ(*actual, *expected);
+           EXPECT_FLOAT_EQ(actual->width(), 34);
+           EXPECT_FLOAT_EQ(actual->height(), 16);
+           EXPECT_EQ(arranged.pixel(static_cast<int>(actual->centre().x),
+                                    static_cast<int>(actual->centre().y)),
+                     SK_ColorRED);
+           EXPECT_EQ(calls, 0);
+         }
+       }},
+      {"TheReservedRunTravelsWholeOnRelayout",
+       [&] {
+         // The placeholder re-resolves with the paragraph: narrow the box and
+         // the pill lands on a different line, at a different place on it.
+         Host wide(300, 200), narrow(300, 200);
+         wide.composer.render(pillCaption("pill", 280));
+         wide.frame();
+         narrow.composer.render(pillCaption("pill", 120));
+         narrow.frame();
+
+         const std::optional<geometry::path::Rect> a =
+             wide.composer.bounds("pill");
+         const std::optional<geometry::path::Rect> b =
+             narrow.composer.bounds("pill");
+         ASSERT_TRUE(a && b);
+         EXPECT_NE(a->top(), b->top());
+         // Same reserved size wherever it lands — the box travels, it does not
+         // stretch, and no line breaks inside it.
+         EXPECT_FLOAT_EQ(a->width(), b->width());
+         EXPECT_FLOAT_EQ(a->height(), b->height());
+         EXPECT_EQ(narrow.pixel((int)b->centre().x, (int)b->centre().y),
+                   SK_ColorRED);
+       }},
+      {"ATallSlotGrowsTheLeaf",
+       [&] {
+         // The breakers treat the reserved box as a word with a height, so a
+         // slot taller than the type pushes the whole paragraph down.
+         Host shortPill(300, 240), tallPill(300, 240);
+         shortPill.composer.render(pillCaption("pill", 280, {34, 16}));
+         shortPill.frame();
+         tallPill.composer.render(pillCaption("pill", 280, {34, 60}));
+         tallPill.frame();
+         const std::optional<geometry::path::Rect> a =
+             shortPill.composer.bounds("caption");
+         const std::optional<geometry::path::Rect> b =
+             tallPill.composer.bounds("caption");
+         ASSERT_TRUE(a && b);
+         EXPECT_GT(b->height(), a->height());
+       }},
+      {"TheChildIsLaidInTheReservedRectAndHitTests",
+       [&] {
+         Host host(300, 200);
+         host.composer.render(pillCaption("pill", 280));
+         host.frame();
+         const std::optional<geometry::path::Rect> rect =
+             host.composer.bounds("pill");
+         ASSERT_TRUE(rect);
+         const std::optional<std::string> hit =
+             host.composer.hitTest({rect->centre().x, rect->centre().y});
+         ASSERT_TRUE(hit);
+         EXPECT_EQ(*hit, "pill");
+       }},
+  });
 }
 
-TEST(TextSlot, ATallSlotOpensItsLine) {
-  // The breakers treat the reserved box as a word with a height, so a slot
-  // taller than the type pushes the whole paragraph down.
-  Host shortPill(300, 240), tallPill(300, 240);
-  shortPill.composer.render(pillCaption("pill", 280, {34, 16}));
-  shortPill.frame();
-  tallPill.composer.render(pillCaption("pill", 280, {34, 60}));
-  tallPill.frame();
-  const std::optional<geometry::path::Rect> a =
-      shortPill.composer.bounds("caption");
-  const std::optional<geometry::path::Rect> b =
-      tallPill.composer.bounds("caption");
-  ASSERT_TRUE(a && b);
-  EXPECT_GT(b->height(), a->height());
-}
-
-TEST(TextSlot, AnUnknownKeyDrawsNothing) {
-  // The loud-once member of the silent-no-op family: a child keyed for a
-  // slot the content never reserved lays out at zero and paints nothing.
-  Host host(300, 200);
-  host.composer.render(pillCaption("typo", 280));
-  host.frame();
-  const std::optional<geometry::path::Rect> rect = host.composer.bounds("typo");
-  ASSERT_TRUE(rect);
-  EXPECT_TRUE(rect->empty());
-  EXPECT_EQ(countColor(host, SkIRect::MakeXYWH(0, 0, 300, 200), SK_ColorRED),
-            0);
-}
-
-TEST(TextSlot, TheHitTestReachesThePillChild) {
-  Host host(300, 200);
-  host.composer.render(pillCaption("pill", 280));
-  host.frame();
-  const std::optional<geometry::path::Rect> rect = host.composer.bounds("pill");
-  ASSERT_TRUE(rect);
-  const std::optional<std::string> hit =
-      host.composer.hitTest({rect->centre().x, rect->centre().y});
-  ASSERT_TRUE(hit);
-  EXPECT_EQ(*hit, "pill");
-}
-
-TEST(TextSlot, TheSlotNamespaceIsTheValuesOwnNotTheMountRegistry) {
-  // Two captions may both reserve "icon" without colliding, because a text
-  // slot is matched against THIS text node's children and nowhere else.
-  Host host(320, 240);
-  auto caption = [](SkColor ink, const char8_t* words) {
-    return text(sigil::weave::rich(coloredStyle(16, SK_ColorWHITE))
-                    .slot("icon", {20, 12}, 2)
-                    .add(words))
-        .children(
-            {box().key("icon").fill(Fill::color(SkColor4f::FromColor(ink)))});
-  };
-  host.composer.render(box().column().padding(6).width(300).children(
-      {caption(SK_ColorRED, u8" first line of the pair").key("a"),
-       caption(SK_ColorGREEN, u8" second line of the pair").key("b")}));
-  host.frame();
-  const SkIRect all = SkIRect::MakeXYWH(0, 0, 320, 240);
-  EXPECT_GT(countColor(host, all, SK_ColorRED), 20);
-  EXPECT_GT(countColor(host, all, SK_ColorGREEN), 20);
+TEST(TextSlot, ASlotNameBelongsToTheTextValue) {
+  sigil::compose::test::checkRows({
+      {"AChildKeyedForNoSlotDrawsNothing",
+       [&] {
+         // The loud-once member of the silent-no-op family: a child keyed for a
+         // slot the content never reserved lays out at zero and paints nothing.
+         Host host(300, 200);
+         host.composer.render(pillCaption("typo", 280));
+         host.frame();
+         const std::optional<geometry::path::Rect> rect =
+             host.composer.bounds("typo");
+         ASSERT_TRUE(rect);
+         EXPECT_TRUE(rect->empty());
+         EXPECT_EQ(
+             countColor(host, SkIRect::MakeXYWH(0, 0, 300, 200), SK_ColorRED),
+             0);
+       }},
+      {"TwoCaptionsMayReserveOneName",
+       [&] {
+         // Two captions may both reserve "icon" without colliding, because a
+         // text slot is matched against THIS text node's children and nowhere
+         // else.
+         Host host(320, 240);
+         auto caption = [](SkColor ink, const char8_t* words) {
+           return text(sigil::weave::rich(coloredStyle(16, SK_ColorWHITE))
+                           .slot("icon", {20, 12}, 2)
+                           .add(words))
+               .children({box().key("icon").fill(
+                   Fill::color(SkColor4f::FromColor(ink)))});
+         };
+         host.composer.render(box().column().padding(6).width(300).children(
+             {caption(SK_ColorRED, u8" first line of the pair").key("a"),
+              caption(SK_ColorGREEN, u8" second line of the pair").key("b")}));
+         host.frame();
+         const SkIRect all = SkIRect::MakeXYWH(0, 0, 320, 240);
+         EXPECT_GT(countColor(host, all, SK_ColorRED), 20);
+         EXPECT_GT(countColor(host, all, SK_ColorGREEN), 20);
+       }},
+  });
 }

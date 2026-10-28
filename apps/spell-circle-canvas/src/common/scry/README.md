@@ -254,7 +254,7 @@ Targets: `SigilScryPlatform`, `SigilScryGpu`, `SigilScryEngine` and the
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
 `scry_test` over every feature's `test/` and one `scry_bench`, ctest one
-entry per CASE, what a case may pin, and what a label promises. What is
+entry per SUITE, what a case may pin, and what a label promises. What is
 only true of SigilScry:
 
 - `platform/test/` exercises the handlers without a renderer — the

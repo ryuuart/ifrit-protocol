@@ -9,6 +9,7 @@
 #include <sigilgeometry/path/Contour.h>
 
 #include "support/PathDump.h"
+#include "support/Rows.h"
 #include "support/ShapeTestSupport.h"
 
 TEST(ComposeRouters, OrbitFollowsTheRing) {
@@ -30,103 +31,109 @@ TEST(ComposeRouters, OrbitFollowsTheRing) {
       100.0f, 1.5f);
 }
 
-TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
-  // A router is a VALUE: two describes that mint the same stock router
-  // state the same operator, so the wire it attaches is the same element
-  // and the node replays the recording it already made. Minted afresh
-  // each describe on purpose — that is the shape every author writes, and
-  // the shape a callable could never settle from.
-  const auto page = [] {
-    return box()
-        .width(300)
-        .height(200)
-        .children({box()
-                       .key("a")
-                       .absolute()
-                       .left(10.0f)
-                       .top(10.0f)
-                       .width(20)
-                       .height(20)
-                       .fill(red()),
-                   box()
-                       .key("b")
-                       .absolute()
-                       .left(200.0f)
-                       .top(150.0f)
-                       .width(20)
-                       .height(20)
-                       .fill(blue())})
-        .operators({connect::Between{
-            .from = "a",
-            .to = "b",
-            .router = routers::orthogonal(routers::Bend::VFirst, 6.0f),
-            .wire = PathFormat{.width = 2, .strokeFill = green()}}});
-  };
-  Host host;
-  host.composer.render(page());
-  host.frame();
-  const unsigned recorded = host.composer.stats().picturesRecorded;
-  EXPECT_GE(recorded, 1u);  // the first describe drew it
-  host.composer.render(page());
-  host.frame();
-  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
-      << "an unchanged router re-patched the wire";
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
-      << "an unchanged router re-recorded the route";
-  // …and a router with different parameters is a different description.
-  host.composer.render(
-      box()
-          .width(300)
-          .height(200)
-          .children({box()
-                         .key("a")
-                         .absolute()
-                         .left(10.0f)
-                         .top(10.0f)
-                         .width(20)
-                         .height(20)
-                         .fill(red()),
-                     box()
-                         .key("b")
-                         .absolute()
-                         .left(200.0f)
-                         .top(150.0f)
-                         .width(20)
-                         .height(20)
-                         .fill(blue())})
-          .operators({connect::Between{
-              .from = "a",
-              .to = "b",
-              .router = routers::orthogonal(routers::Bend::VFirst, 18.0f),
-              .wire = PathFormat{.width = 2, .strokeFill = green()}}}));
-  host.frame();
-  EXPECT_GE(host.composer.stats().patchedNodes, 1u)
-      << "a router with a different radius pruned";
-}
-
-TEST(ComposeRouters, ARawRouteCallableNeverSettles) {
-  // The escape hatch, stated as a test so the difference is visible: a
-  // lambda re-minted each describe compares equal to nothing.
-  Router held = [](const sigil::geometry::path::Rect& from,
-                   const sigil::geometry::path::Rect& to) {
-    SkPathBuilder b;
-    b.moveTo(sigil::geometry::path::toSk(from.centre()));
-    b.lineTo(sigil::geometry::path::toSk(to.centre()));
-    return sigil::geometry::path::fromSk(b.detach());
-  };
-  EXPECT_FALSE(held.comparable());
-  EXPECT_EQ(held, held);  // copies of ONE value share state
-  EXPECT_TRUE(routers::straight().comparable());
-  EXPECT_EQ(routers::straight(), routers::straight());
-  EXPECT_NE(routers::arc(0.2f), routers::arc(0.3f));
-  EXPECT_NE(routers::straight(), routers::arc(0.2f));
-  EXPECT_EQ(routers::octilinear(8), routers::octilinear(8));
-  EXPECT_NE(routers::octilinear(8), routers::polyline(8));
-  EXPECT_EQ(routers::fromPairwise(routers::arc(0.2f)),
-            routers::fromPairwise(routers::arc(0.2f)));
-  EXPECT_NE(routers::fromPairwise(routers::arc(0.2f)),
-            routers::fromPairwise(routers::arc(0.4f)));
-  EXPECT_EQ(RailRouter{}, RailRouter{});  // the default: the polyline
+TEST(ComposeRouters, AComparableRoutePrunesAndARawOneStaysConservative) {
+  sigil::compose::test::checkRows({
+      {"ARedescribedRouteRecordsOnce",
+       [&] {
+         // A router is a VALUE: two describes that mint the same stock router
+         // state the same operator, so the wire it attaches is the same element
+         // and the node replays the recording it already made. Minted afresh
+         // each describe on purpose — that is the shape every author writes,
+         // and the shape a callable could never settle from.
+         const auto page = [] {
+           return box()
+               .width(300)
+               .height(200)
+               .children({box()
+                              .key("a")
+                              .absolute()
+                              .left(10.0f)
+                              .top(10.0f)
+                              .width(20)
+                              .height(20)
+                              .fill(red()),
+                          box()
+                              .key("b")
+                              .absolute()
+                              .left(200.0f)
+                              .top(150.0f)
+                              .width(20)
+                              .height(20)
+                              .fill(blue())})
+               .operators({connect::Between{
+                   .from = "a",
+                   .to = "b",
+                   .router = routers::orthogonal(routers::Bend::VFirst, 6.0f),
+                   .wire = PathFormat{.width = 2, .strokeFill = green()}}});
+         };
+         Host host;
+         host.composer.render(page());
+         host.frame();
+         const unsigned recorded = host.composer.stats().picturesRecorded;
+         EXPECT_GE(recorded, 1u);  // the first describe drew it
+         host.composer.render(page());
+         host.frame();
+         EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+             << "an unchanged router re-patched the wire";
+         EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+             << "an unchanged router re-recorded the route";
+         // …and a router with different parameters is a different description.
+         host.composer.render(
+             box()
+                 .width(300)
+                 .height(200)
+                 .children({box()
+                                .key("a")
+                                .absolute()
+                                .left(10.0f)
+                                .top(10.0f)
+                                .width(20)
+                                .height(20)
+                                .fill(red()),
+                            box()
+                                .key("b")
+                                .absolute()
+                                .left(200.0f)
+                                .top(150.0f)
+                                .width(20)
+                                .height(20)
+                                .fill(blue())})
+                 .operators({connect::Between{
+                     .from = "a",
+                     .to = "b",
+                     .router =
+                         routers::orthogonal(routers::Bend::VFirst, 18.0f),
+                     .wire = PathFormat{.width = 2, .strokeFill = green()}}}));
+         host.frame();
+         EXPECT_GE(host.composer.stats().patchedNodes, 1u)
+             << "a router with a different radius pruned";
+       }},
+      {"ARawRouteCallableNeverSettles",
+       [&] {
+         // The escape hatch, stated as a test so the difference is visible: a
+         // lambda re-minted each describe compares equal to nothing.
+         Router held = [](const sigil::geometry::path::Rect& from,
+                          const sigil::geometry::path::Rect& to) {
+           SkPathBuilder b;
+           b.moveTo(sigil::geometry::path::toSk(from.centre()));
+           b.lineTo(sigil::geometry::path::toSk(to.centre()));
+           return sigil::geometry::path::fromSk(b.detach());
+         };
+         EXPECT_FALSE(held.comparable());
+         EXPECT_EQ(held, held);  // copies of ONE value share state
+         EXPECT_TRUE(routers::straight().comparable());
+         EXPECT_EQ(routers::straight(), routers::straight());
+         EXPECT_NE(routers::arc(0.2f), routers::arc(0.3f));
+         EXPECT_NE(routers::straight(), routers::arc(0.2f));
+         EXPECT_EQ(routers::octilinear(8), routers::octilinear(8));
+         EXPECT_NE(routers::octilinear(8), routers::polyline(8));
+         EXPECT_EQ(routers::fromPairwise(routers::arc(0.2f)),
+                   routers::fromPairwise(routers::arc(0.2f)));
+         EXPECT_NE(routers::fromPairwise(routers::arc(0.2f)),
+                   routers::fromPairwise(routers::arc(0.4f)));
+         EXPECT_EQ(RailRouter{}, RailRouter{});  // the default: the polyline
+       }},
+  });
 }
 
 TEST(ComposeLayouts, AbsoluteDiagonalAutoSizes) {
@@ -151,70 +158,77 @@ TEST(ComposeLayouts, AbsoluteDiagonalAutoSizes) {
   EXPECT_NEAR(b->width(), 104.7f, 2.0f);
 }
 
-TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
-  // A run of stops takes a RailRouter, and orthogonal() is a pairwise
-  // Router — so orthogonal routing would be unreachable from a run at
-  // all. This line compiling is half of what is being checked.
-  RailRouter router = routers::manhattan();
+TEST(ComposeRouters, TheOrthogonalFamilyBendsWhereItsPolicySays) {
+  sigil::compose::test::checkRows({
+      {"ManhattanIsARailRouterAndCollapsesCollinearRuns",
+       [&] {
+         // A run of stops takes a RailRouter, and orthogonal() is a pairwise
+         // Router — so orthogonal routing would be unreachable from a run at
+         // all. This line compiling is half of what is being checked.
+         RailRouter router = routers::manhattan();
 
-  // An axis-aligned pair: ONE segment, no zero-length verbs.
-  const glm::vec2 aligned[2] = {{20, 100}, {180, 100}};
-  PathDump collapsed = dumpPath(router(std::span(aligned, 2)));
-  EXPECT_EQ(collapsed.moves, 1);
-  EXPECT_EQ(collapsed.lines, 1);
-  ASSERT_EQ(collapsed.pts.size(), 2u);
-  EXPECT_EQ(collapsed.pts[0], SkPoint::Make(20, 100));
-  EXPECT_EQ(collapsed.pts[1], SkPoint::Make(180, 100));
+         // An axis-aligned pair: ONE segment, no zero-length verbs.
+         const glm::vec2 aligned[2] = {{20, 100}, {180, 100}};
+         PathDump collapsed = dumpPath(router(std::span(aligned, 2)));
+         EXPECT_EQ(collapsed.moves, 1);
+         EXPECT_EQ(collapsed.lines, 1);
+         ASSERT_EQ(collapsed.pts.size(), 2u);
+         EXPECT_EQ(collapsed.pts[0], SkPoint::Make(20, 100));
+         EXPECT_EQ(collapsed.pts[1], SkPoint::Make(180, 100));
 
-  // Three collinear anchors thread as ONE straight run.
-  const glm::vec2 three[3] = {{20, 100}, {100, 100}, {180, 100}};
-  PathDump merged = dumpPath(router(std::span(three, 3)));
-  EXPECT_EQ(merged.lines, 1);
-  ASSERT_EQ(merged.pts.size(), 2u);
-  EXPECT_EQ(merged.pts[1], SkPoint::Make(180, 100));
+         // Three collinear anchors thread as ONE straight run.
+         const glm::vec2 three[3] = {{20, 100}, {100, 100}, {180, 100}};
+         PathDump merged = dumpPath(router(std::span(three, 3)));
+         EXPECT_EQ(merged.lines, 1);
+         ASSERT_EQ(merged.pts.size(), 2u);
+         EXPECT_EQ(merged.pts[1], SkPoint::Make(180, 100));
 
-  // The contrast: collapsing collinear runs is manhattan()'s own promise,
-  // not orthogonal()'s. orthogonal() bends at the midpoint and keeps every
-  // leg it made, degenerate or not -- harmless, since Skia's stroker skips
-  // exactly-degenerate segments -- so it answers the same pair with a bend
-  // where manhattan() answers with one run.
-  Router pairwise = routers::orthogonal();
-  PathDump bent =
-      dumpPath(pairwise(sigil::geometry::path::Rect::of({10, 90}, {20, 20}),
-                        sigil::geometry::path::Rect::of({170, 90}, {20, 20})));
-  EXPECT_GT(bent.lines, collapsed.lines)
-      << "orthogonal() collapsed its legs, so manhattan()'s promise to do "
-         "so says nothing";
-  ASSERT_GE(bent.pts.size(), 2u);
-  EXPECT_EQ(bent.pts[1], SkPoint::Make(100, 100)) << "the bend is at midX";
-}
-
-TEST(ComposeRouters, BendPoliciesTakeTheNamedColumns) {
-  const glm::vec2 run[2] = {{20, 20}, {180, 160}};
-  // HFirst: horizontal out of the source, with the L bending AT the target
-  // column — the shape a circuit-style graph wants and the midpoint router
-  // cannot produce.
-  PathDump h =
-      dumpPath(routers::manhattan(routers::Bend::HFirst)(std::span(run, 2)));
-  ASSERT_EQ(h.pts.size(), 3u);
-  EXPECT_EQ(h.pts[1], SkPoint::Make(180, 20));
-  // VFirst: the other L, down the source column first.
-  PathDump v =
-      dumpPath(routers::manhattan(routers::Bend::VFirst)(std::span(run, 2)));
-  ASSERT_EQ(v.pts.size(), 3u);
-  EXPECT_EQ(v.pts[1], SkPoint::Make(20, 160));
-  // MidX stays the stock Z, bending half way over.
-  PathDump z =
-      dumpPath(routers::manhattan(routers::Bend::MidX)(std::span(run, 2)));
-  ASSERT_EQ(z.pts.size(), 4u);
-  EXPECT_EQ(z.pts[1], SkPoint::Make(100, 20));
-  EXPECT_EQ(z.pts[2], SkPoint::Make(100, 160));
-  // The pairwise spelling routes the same shape from rects.
-  PathDump hr = dumpPath(routers::orthogonal(routers::Bend::HFirst)(
-      sigil::geometry::path::Rect::of({15, 15}, {10, 10}),
-      sigil::geometry::path::Rect::of({175, 155}, {10, 10})));
-  ASSERT_EQ(hr.pts.size(), 3u);
-  EXPECT_EQ(hr.pts[1], SkPoint::Make(180, 20));
+         // The contrast: collapsing collinear runs is manhattan()'s own
+         // promise, not orthogonal()'s. orthogonal() bends at the midpoint and
+         // keeps every leg it made, degenerate or not -- harmless, since Skia's
+         // stroker skips exactly-degenerate segments -- so it answers the same
+         // pair with a bend where manhattan() answers with one run.
+         Router pairwise = routers::orthogonal();
+         PathDump bent = dumpPath(
+             pairwise(sigil::geometry::path::Rect::of({10, 90}, {20, 20}),
+                      sigil::geometry::path::Rect::of({170, 90}, {20, 20})));
+         EXPECT_GT(bent.lines, collapsed.lines)
+             << "orthogonal() collapsed its legs, so manhattan()'s promise to "
+                "do "
+                "so says nothing";
+         ASSERT_GE(bent.pts.size(), 2u);
+         EXPECT_EQ(bent.pts[1], SkPoint::Make(100, 100))
+             << "the bend is at midX";
+       }},
+      {"BendPoliciesTakeTheNamedColumns",
+       [&] {
+         const glm::vec2 run[2] = {{20, 20}, {180, 160}};
+         // HFirst: horizontal out of the source, with the L bending AT the
+         // target column — the shape a circuit-style graph wants and the
+         // midpoint router cannot produce.
+         PathDump h = dumpPath(
+             routers::manhattan(routers::Bend::HFirst)(std::span(run, 2)));
+         ASSERT_EQ(h.pts.size(), 3u);
+         EXPECT_EQ(h.pts[1], SkPoint::Make(180, 20));
+         // VFirst: the other L, down the source column first.
+         PathDump v = dumpPath(
+             routers::manhattan(routers::Bend::VFirst)(std::span(run, 2)));
+         ASSERT_EQ(v.pts.size(), 3u);
+         EXPECT_EQ(v.pts[1], SkPoint::Make(20, 160));
+         // MidX stays the stock Z, bending half way over.
+         PathDump z = dumpPath(
+             routers::manhattan(routers::Bend::MidX)(std::span(run, 2)));
+         ASSERT_EQ(z.pts.size(), 4u);
+         EXPECT_EQ(z.pts[1], SkPoint::Make(100, 20));
+         EXPECT_EQ(z.pts[2], SkPoint::Make(100, 160));
+         // The pairwise spelling routes the same shape from rects.
+         PathDump hr = dumpPath(routers::orthogonal(routers::Bend::HFirst)(
+             sigil::geometry::path::Rect::of({15, 15}, {10, 10}),
+             sigil::geometry::path::Rect::of({175, 155}, {10, 10})));
+         ASSERT_EQ(hr.pts.size(), 3u);
+         EXPECT_EQ(hr.pts[1], SkPoint::Make(180, 20));
+       }},
+  });
 }
 
 TEST(ComposeRouters, AStampedRouteCarriesAWholeCountOfTilesPerLeg) {
@@ -334,7 +348,7 @@ TEST(ComposeConnect, AWireTracksMovedEndpoints) {
   EXPECT_NE(host.pixel(95, 95), SK_ColorBLACK);   // new diagonal route
 }
 
-TEST(ComposeConnect, TheOrthogonalRouterRunsManhattan) {
+TEST(ComposeConnect, AWireTakesThePathItsRouterAnswers) {
   Host host;
   PathFormat wire;
   wire.width = 4;
@@ -367,96 +381,4 @@ TEST(ComposeConnect, TheOrthogonalRouterRunsManhattan) {
   EXPECT_EQ(host.pixel(95, 100), SK_ColorYELLOW);   // vertical run
   EXPECT_EQ(host.pixel(130, 170), SK_ColorYELLOW);  // final horizontal leg
   EXPECT_EQ(host.pixel(60, 100), SK_ColorBLACK);    // nowhere near diagonal
-}
-
-TEST(ComposeConnect, TheArcRouterBowsOffTheChord) {
-  Host host;
-  PathFormat wire;
-  wire.width = 4;
-  wire.strokeFill = Fill::color({1, 1, 0, 1});
-  host.composer.render(
-      stack()
-          .children({box()
-                         .key("a")
-                         .width(10)
-                         .height(10)
-                         .inset(95, 170, 95, 20)
-                         .absolute()
-                         .fill(red()),
-                     box()
-                         .key("b")
-                         .width(10)
-                         .height(10)
-                         .inset(95, 20, 95, 170)
-                         .absolute()
-                         .fill(green())})
-          .operators({Operator(connect::Between{.from = "a",
-                                                .to = "b",
-                                                .router = routers::arc(0.3f),
-                                                .wire = wire})
-                          .zIndex(-1)}));
-  host.frame();
-  // Horizontal chord from (25,100) to (175,100), bulge 0.3×150 = 45 px
-  // toward +normal (downward-left convention: normal of (+x,0) is
-  // (0,+y) → the bow lands at y ≈ 145).
-  EXPECT_EQ(host.pixel(100, 145), SK_ColorYELLOW);  // bowed midpoint
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);   // chord midpoint empty
-}
-
-TEST(ComposeConnect, TheGapPullsTheWireOffTheEndpoints) {
-  // A route runs to the node BOX's centre, and a box is often much larger
-  // than the shape drawn inside it — an sdf:: panel, for instance, reserves
-  // room for its glow. Without a terminal gap the wire is drawn straight
-  // through the visible terminal to a centre nobody can see. The gap is the
-  // same pull-back a stop takes, spelled on the operator.
-  const auto scene = [](float gap) {
-    PathFormat wire;
-    wire.width = 4;
-    wire.strokeFill = Fill::color({1, 1, 0, 1});
-    return stack()
-        .children({box()
-                       .key("a")
-                       .width(20)
-                       .height(20)
-                       .inset(90, 170, 90, 10)
-                       .absolute()
-                       .fill(red()),
-                   box()
-                       .key("b")
-                       .width(20)
-                       .height(20)
-                       .inset(90, 10, 90, 170)
-                       .absolute()
-                       .fill(green())})
-        .operators(
-            {Operator(connect::Between{
-                          .from = "a", .to = "b", .gap = gap, .wire = wire})
-                 .zIndex(1)});
-  };
-  // Control: with gap 0 the wire runs centre to centre, (20,100) → (180,100),
-  // and paints OVER both terminal boxes. Without this arm, "the gapped wire
-  // does not reach the terminal" would also pass on a wire that was never
-  // drawn.
-  Host flush;
-  flush.composer.render(scene(0.0f));
-  flush.frame();
-  EXPECT_EQ(flush.pixel(25, 100), SK_ColorYELLOW)
-      << "the gapless wire must still reach into its near terminal";
-  EXPECT_EQ(flush.pixel(175, 100), SK_ColorYELLOW)
-      << "…and pierce the far one (that IS the complaint)";
-  EXPECT_EQ(flush.pixel(100, 100), SK_ColorYELLOW);
-  // The gap: 30 px pulled back at EACH end — the wire now runs x ∈
-  // [50, 150], both terminals show their own fill, the middle survives.
-  Host gapped;
-  gapped.composer.render(scene(30.0f));
-  gapped.frame();
-  EXPECT_EQ(gapped.pixel(25, 100), SK_ColorRED)
-      << "the gap did not pull the wire off its near terminal";
-  EXPECT_EQ(gapped.pixel(175, 100), SK_ColorGREEN)
-      << "the gap did not pull the wire off its far terminal";
-  EXPECT_EQ(gapped.pixel(145, 100), SK_ColorYELLOW)
-      << "the wire ends before its gap says to";
-  EXPECT_EQ(gapped.pixel(160, 100), SK_ColorBLACK)
-      << "the wire overran its gap";
-  EXPECT_EQ(gapped.pixel(100, 100), SK_ColorYELLOW);  // the run survives
 }

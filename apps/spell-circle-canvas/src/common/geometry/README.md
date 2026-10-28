@@ -557,7 +557,7 @@ sprite a `media::Picture`.
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
 `geometry_test` over every feature's `test/` and one `geometry_bench`
-over every feature's `bench/`, ctest one entry per CASE, what a case may
+over every feature's `bench/`, ctest one entry per SUITE, what a case may
 pin, and what a label promises. What is only true of SigilGeometry:
 
 Targets — one static library per feature: `SigilGeometryPath`,

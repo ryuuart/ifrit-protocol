@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "support/Rows.h"
 #include "support/ShapeTestSupport.h"
 
 namespace {
@@ -70,82 +71,91 @@ Element obstacleBox(Shape silhouette) {
 
 }  // namespace
 
-TEST(ComposeDerive, FlowAroundFollowsACircleSilhouette) {
-  // A round target gives back the four corners its bounding box was
-  // eating, so the same paragraph in the same box gets measurably more
-  // room — and the corners themselves take type.
-  Host boxed(360, 460), disc(360, 460);
-  boxed.composer.render(flowScene(obstacleBox({}), 6));
-  boxed.frame();
-  disc.composer.render(flowScene(obstacleBox(geometry::shapes::circle()), 6));
-  disc.frame();
+TEST(ComposeDerive, FlowAroundExcludesCopyByTheTargetsSilhouette) {
+  sigil::compose::test::checkRows({
+      {"FlowAroundFollowsACircleSilhouette",
+       [&] {
+         // A round target gives back the four corners its bounding box was
+         // eating, so the same paragraph in the same box gets measurably more
+         // room — and the corners themselves take type.
+         Host boxed(360, 460), disc(360, 460);
+         boxed.composer.render(flowScene(obstacleBox({}), 6));
+         boxed.frame();
+         disc.composer.render(
+             flowScene(obstacleBox(geometry::shapes::circle()), 6));
+         disc.frame();
 
-  EXPECT_LT(flowedHeight(disc, "body"), flowedHeight(boxed, "body"));
-  // The corner: inside the box, outside the circle. Type reaches it only
-  // under the silhouette.
-  const SkIRect corner = SkIRect::MakeLTRB(103, 43, 127, 67);
-  EXPECT_FALSE(anyWhiteIn(boxed, corner));
-  EXPECT_TRUE(anyWhiteIn(disc, corner));
-  // The middle of the disc stays clear either way.
-  EXPECT_FALSE(anyWhiteIn(disc, SkIRect::MakeLTRB(150, 100, 210, 140)));
-}
+         EXPECT_LT(flowedHeight(disc, "body"), flowedHeight(boxed, "body"));
+         // The corner: inside the box, outside the circle. Type reaches it only
+         // under the silhouette.
+         const SkIRect corner = SkIRect::MakeLTRB(103, 43, 127, 67);
+         EXPECT_FALSE(anyWhiteIn(boxed, corner));
+         EXPECT_TRUE(anyWhiteIn(disc, corner));
+         // The middle of the disc stays clear either way.
+         EXPECT_FALSE(anyWhiteIn(disc, SkIRect::MakeLTRB(150, 100, 210, 140)));
+       }},
+      {"FlowAroundFollowsAStarSilhouette",
+       [&] {
+         // A concave silhouette is the case a bounding box cannot approximate:
+         // text runs INTO the notches between the points.
+         Host boxed(360, 460), star(360, 460);
+         boxed.composer.render(flowScene(obstacleBox({}), 6));
+         boxed.frame();
+         star.composer.render(
+             flowScene(obstacleBox(geometry::shapes::star(5)), 6));
+         star.frame();
 
-TEST(ComposeDerive, FlowAroundFollowsAStarSilhouette) {
-  // A concave silhouette is the case a bounding box cannot approximate:
-  // text runs INTO the notches between the points.
-  Host boxed(360, 460), star(360, 460);
-  boxed.composer.render(flowScene(obstacleBox({}), 6));
-  boxed.frame();
-  star.composer.render(flowScene(obstacleBox(geometry::shapes::star(5)), 6));
-  star.frame();
-
-  EXPECT_LT(flowedHeight(star, "body"), flowedHeight(boxed, "body"));
-  // The concave half: a star leaves far more of its bounding box open
-  // than a disc does, so the notches and corners take more type than the
-  // round silhouette can.
-  const SkIRect band = SkIRect::MakeLTRB(103, 43, 257, 197);
-  EXPECT_GT(inkInBand(star, band), inkInBand(boxed, band));
-  // The star's own body still refuses type at its centre.
-  EXPECT_FALSE(anyWhiteIn(star, SkIRect::MakeLTRB(165, 105, 195, 135)));
-}
-
-TEST(ComposeDerive, FlowAroundMarginHoldsOffTheSilhouette) {
-  // The margin means one thing on a silhouette and on a box alike: a
-  // standoff from whatever edge is being subtracted. A wider one buys the
-  // paragraph less room, never more.
-  Host tight(360, 460), wide(360, 460);
-  tight.composer.render(flowScene(obstacleBox(geometry::shapes::circle()), 2));
-  tight.frame();
-  wide.composer.render(flowScene(obstacleBox(geometry::shapes::circle()), 26));
-  wide.frame();
-  EXPECT_LT(flowedHeight(tight, "body"), flowedHeight(wide, "body"));
-}
-
-TEST(ComposeDerive, FlowAroundSilhouetteTracksAMovingTarget) {
-  // Moving targets already re-derive; a silhouette target must too.
-  auto scene = [](float left) {
-    return stack().children(
-        {box()
-             .key("obstacle")
-             .width(160)
-             .height(160)
-             .left(left)
-             .top(40)
-             .shape(geometry::shapes::circle())
-             .fill(Fill::color({0, 0.4f, 0, 1})),
-         box()
-             .inset(0)
-             .children({text(flowBody(), whiteStyle(15))
-                            .key("body")
-                            .contentFlowAround("obstacle", 6)})
-             .zIndex(1)});
-  };
-  Host host(360, 460);
-  host.composer.render(scene(100));
-  host.frame();
-  EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeLTRB(165, 105, 195, 135)));
-  host.composer.render(scene(20));
-  host.frame();
-  EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeLTRB(85, 105, 115, 135)));
-  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB(165, 105, 195, 135)));
+         EXPECT_LT(flowedHeight(star, "body"), flowedHeight(boxed, "body"));
+         // The concave half: a star leaves far more of its bounding box open
+         // than a disc does, so the notches and corners take more type than the
+         // round silhouette can.
+         const SkIRect band = SkIRect::MakeLTRB(103, 43, 257, 197);
+         EXPECT_GT(inkInBand(star, band), inkInBand(boxed, band));
+         // The star's own body still refuses type at its centre.
+         EXPECT_FALSE(anyWhiteIn(star, SkIRect::MakeLTRB(165, 105, 195, 135)));
+       }},
+      {"FlowAroundMarginHoldsOffTheSilhouette",
+       [&] {
+         // The margin means one thing on a silhouette and on a box alike: a
+         // standoff from whatever edge is being subtracted. A wider one buys
+         // the paragraph less room, never more.
+         Host tight(360, 460), wide(360, 460);
+         tight.composer.render(
+             flowScene(obstacleBox(geometry::shapes::circle()), 2));
+         tight.frame();
+         wide.composer.render(
+             flowScene(obstacleBox(geometry::shapes::circle()), 26));
+         wide.frame();
+         EXPECT_LT(flowedHeight(tight, "body"), flowedHeight(wide, "body"));
+       }},
+      {"FlowAroundSilhouetteTracksAMovingTarget",
+       [&] {
+         // Moving targets already re-derive; a silhouette target must too.
+         auto scene = [](float left) {
+           return stack().children(
+               {box()
+                    .key("obstacle")
+                    .width(160)
+                    .height(160)
+                    .left(left)
+                    .top(40)
+                    .shape(geometry::shapes::circle())
+                    .fill(Fill::color({0, 0.4f, 0, 1})),
+                box()
+                    .inset(0)
+                    .children({text(flowBody(), whiteStyle(15))
+                                   .key("body")
+                                   .contentFlowAround("obstacle", 6)})
+                    .zIndex(1)});
+         };
+         Host host(360, 460);
+         host.composer.render(scene(100));
+         host.frame();
+         EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeLTRB(165, 105, 195, 135)));
+         host.composer.render(scene(20));
+         host.frame();
+         EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeLTRB(85, 105, 115, 135)));
+         EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB(165, 105, 195, 135)));
+       }},
+  });
 }

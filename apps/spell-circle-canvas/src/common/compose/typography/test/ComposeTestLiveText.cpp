@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "support/ParagraphTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -186,53 +187,59 @@ TEST(ComposeLiveText, ADegradedFrameIsProvisionalAndTheSettingComesBack) {
   EXPECT_EQ(fed.degraded, 0);
 }
 
-TEST(ComposeSettling, AMeasureAlreadyCrossedCostsNoBreakDecision) {
-  // The break decisions of a live block are kept and reused, keyed on the
-  // words and on the measure taken to the whole pixel below it. A swell
-  // that has run the whole range and comes back to a measure inside it
-  // therefore decides nothing — and the report says so, at either end.
-  const TextSettling narrow = sweptSettling(true, kSweptFloor, 150.0f);
-  EXPECT_TRUE(narrow.live);
-  EXPECT_GT(narrow.reused, 0);
-  EXPECT_EQ(narrow.degraded, 0);
-  const TextSettling wide = sweptSettling(true, kSweptFloor, 230.0f);
-  EXPECT_TRUE(wide.live);
-  EXPECT_GT(wide.reused, 0);
-  EXPECT_EQ(wide.degraded, 0);
-}
-
-TEST(ComposeSettling, APassageThatNeverSaidItMovesStoresNothing) {
-  const TextSettling settled = sweptSettling(false, 0, 230.0f);
-  EXPECT_FALSE(settled.live);
-  EXPECT_EQ(settled.reused, 0);
-  EXPECT_EQ(settled.degraded, 0);
-}
-
-TEST(ComposeSettling, AFloorNothingCanMeetDegradesAndSaysSo) {
-  // The floor under a frame the optimizing breaker cannot finish: the
-  // block is filled greedily for that frame and counted. The floor is
-  // tested DURING the search, at each break position, so a block of one
-  // position is never stopped by one — and a floor of one stops every
-  // block longer than that.
-  const TextSettling starved = sweptSettling(true, 1, 230.0f);
-  EXPECT_TRUE(starved.live);
-  EXPECT_GT(starved.degraded, 0);
-}
-
-TEST(ComposeSettling, TheSameSwellRunTwiceReportsTheSameSettling) {
-  // WHAT A SWELL REPORTS IS A FACT ABOUT THE TEXT AND THE MEASURE. How
-  // many candidates a block weighs is decided by its words and the
-  // measure it is set in, so the floor is met or missed the same way on
-  // every run — and a block that meets it puts its break decisions in the
-  // store every later step of the swell is answered from, which is why
-  // one block deciding differently would change the whole report and the
-  // whole setting. Run under the floor nothing can meet, which is where a
-  // floor spent against a clock raced.
-  const TextSettling first = sweptSettling(true, 1, 230.0f);
-  const TextSettling second = sweptSettling(true, 1, 230.0f);
-  EXPECT_EQ(first.reused, second.reused);
-  EXPECT_EQ(first.degraded, second.degraded);
-  EXPECT_EQ(first.live, second.live);
+TEST(ComposeSettling, TheReportSaysWhatTheSwellsLastFrameGot) {
+  sigil::compose::test::checkRows({
+      {"AMeasureAlreadyCrossedCostsNoBreakDecision",
+       [&] {
+         // The break decisions of a live block are kept and reused, keyed on
+         // the words and on the measure taken to the whole pixel below it. A
+         // swell that has run the whole range and comes back to a measure
+         // inside it therefore decides nothing — and the report says so, at
+         // either end.
+         const TextSettling narrow = sweptSettling(true, kSweptFloor, 150.0f);
+         EXPECT_TRUE(narrow.live);
+         EXPECT_GT(narrow.reused, 0);
+         EXPECT_EQ(narrow.degraded, 0);
+         const TextSettling wide = sweptSettling(true, kSweptFloor, 230.0f);
+         EXPECT_TRUE(wide.live);
+         EXPECT_GT(wide.reused, 0);
+         EXPECT_EQ(wide.degraded, 0);
+       }},
+      {"APassageThatNeverSaidItMovesStoresNothing",
+       [&] {
+         const TextSettling settled = sweptSettling(false, 0, 230.0f);
+         EXPECT_FALSE(settled.live);
+         EXPECT_EQ(settled.reused, 0);
+         EXPECT_EQ(settled.degraded, 0);
+       }},
+      {"AFloorNothingCanMeetDegrades",
+       [&] {
+         // The floor under a frame the optimizing breaker cannot finish: the
+         // block is filled greedily for that frame and counted. The floor is
+         // tested DURING the search, at each break position, so a block of one
+         // position is never stopped by one — and a floor of one stops every
+         // block longer than that.
+         const TextSettling starved = sweptSettling(true, 1, 230.0f);
+         EXPECT_TRUE(starved.live);
+         EXPECT_GT(starved.degraded, 0);
+       }},
+      {"TheSameSwellRunTwiceReportsTheSame",
+       [&] {
+         // WHAT A SWELL REPORTS IS A FACT ABOUT THE TEXT AND THE MEASURE. How
+         // many candidates a block weighs is decided by its words and the
+         // measure it is set in, so the floor is met or missed the same way on
+         // every run — and a block that meets it puts its break decisions in
+         // the store every later step of the swell is answered from, which is
+         // why one block deciding differently would change the whole report and
+         // the whole setting. Run under the floor nothing can meet, which is
+         // where a floor spent against a clock raced.
+         const TextSettling first = sweptSettling(true, 1, 230.0f);
+         const TextSettling second = sweptSettling(true, 1, 230.0f);
+         EXPECT_EQ(first.reused, second.reused);
+         EXPECT_EQ(first.degraded, second.degraded);
+         EXPECT_EQ(first.live, second.live);
+       }},
+  });
 }
 
 // A COMPOSING PASSAGE IS NEVER PROVEN STILL. A live block that had to

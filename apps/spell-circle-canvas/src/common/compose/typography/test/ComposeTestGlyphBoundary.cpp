@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "support/ParagraphTestSupport.h"
+#include "support/Rows.h"
 
 TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {
   // A decoration that fills the outline it is handed: on the default
@@ -101,84 +102,47 @@ std::vector<glm::vec2> flowedRuns(const Element& tree) {
 
 }  // namespace
 
-TEST(ComposeBoundary, AFixedSizeLetterExcludesItsGlyphsOnItsFirstFrame) {
-  // A box of a stated size is never measured, so its glyphs are placed
-  // only when something reads them. The flow reads them before the
-  // painter does: it must see the letter, not the empty placement left
-  // before the first layout, which would exclude the box.
-  const auto fixed =
-      flowedRuns(flowRoundLetter(SkSize::Make(150, 190), Boundary::Glyphs));
-  const auto measured =
-      flowedRuns(flowRoundLetter(std::nullopt, Boundary::Glyphs));
-  const auto boxed =
-      flowedRuns(flowRoundLetter(SkSize::Make(150, 190), Boundary::Auto));
-  ASSERT_FALSE(fixed.empty());
-  EXPECT_EQ(fixed, measured)
-      << "a stated size changed where the letter's glyphs stand";
-  EXPECT_NE(fixed, boxed) << "the letter excluded its box, not its glyphs";
-}
-
-TEST(ComposeBoundary, ACentredLetterExcludesWhereItsResizedBoxPutsIt) {
-  // A centred letter stands in the middle of whatever box it is given, so
-  // a resize moves its glyphs and the exclusion with them, exactly as a
-  // first frame at the new size places them.
-  Host host(420, 300);
-  const auto centred = [](float width) {
-    return flowRoundLetter(SkSize::Make(width, 190), Boundary::Glyphs,
-                           sigil::weave::TextAlignment::kCenter);
-  };
-  host.composer.render(centred(150));
-  host.frame();
-  const auto narrow = bodyRuns(host);
-  host.composer.render(centred(260));
-  host.frame();
-  const auto resized = bodyRuns(host);
-  EXPECT_NE(resized, narrow) << "the exclusion stayed where the letter stood";
-  EXPECT_EQ(resized, flowedRuns(centred(260)));
-}
-
-TEST(ComposeBoundary, ABevelOnAnOverlaidCopyStaysOnTheGlyphs) {
-  // The ink and a stationary bevel composed apart: the word in its ink,
-  // and over it the same word in a clear ink whose material carries only
-  // the bevel. The copy's bevel stands on the letters, so nothing it adds
-  // lands off them.
-  const auto word = [](const char* key, material::Material ink) {
-    return text(u8"HO", whiteStyle(110))
-        .key(key)
-        .absolute()
-        .left(20.0f)
-        .top(20.0f)
-        .width(300.0f)
-        .height(150.0f)
-        .decorationOutline(Boundary::Glyphs)
-        .ink(std::move(ink));
-  };
-  const material::Material inked = material::from(material::Color{1, 1, 1, 1});
-  const material::Material bevelOnly =
-      material::from(material::Color{0, 0, 0, 0})
-          .effects(material::Filter::bevel({.depth = 3,
-                                            .size = 4,
-                                            .highlight = {1, 0, 0, 1},
-                                            .shadow = {0, 0, 1, 1}}));
-  Host alone(360, 200), dressed(360, 200);
-  alone.composer.render(
-      box().fill(Fill::color({0, 0, 0, 1})).children({word("word", inked)}));
-  alone.frame();
-  dressed.composer.render(
-      box()
-          .fill(Fill::color({0, 0, 0, 1}))
-          .children({word("word", inked), word("bevel", bevelOnly)}));
-  dressed.frame();
-  int offTheLetters = 0, onTheLetters = 0;
-  for (int y = 0; y < 200; ++y)
-    for (int x = 0; x < 360; ++x) {
-      const bool letter = alone.pixel(x, y) != SK_ColorBLACK;
-      const bool changed = dressed.pixel(x, y) != alone.pixel(x, y);
-      offTheLetters += changed && !letter;
-      onTheLetters += changed && letter;
-    }
-  EXPECT_GT(onTheLetters, 100) << "the copy's bevel drew nothing";
-  EXPECT_EQ(offTheLetters, 0) << "the copy's bevel left the glyphs";
+TEST(ComposeBoundary, TextFlowingRoundALetterExcludesItsPlacedGlyphs) {
+  sigil::compose::test::checkRows({
+      {"AFixedSizeLetterOnItsFirstFrame",
+       [&] {
+         // A box of a stated size is never measured, so its glyphs are placed
+         // only when something reads them. The flow reads them before the
+         // painter does: it must see the letter, not the empty placement left
+         // before the first layout, which would exclude the box.
+         const auto fixed = flowedRuns(
+             flowRoundLetter(SkSize::Make(150, 190), Boundary::Glyphs));
+         const auto measured =
+             flowedRuns(flowRoundLetter(std::nullopt, Boundary::Glyphs));
+         const auto boxed = flowedRuns(
+             flowRoundLetter(SkSize::Make(150, 190), Boundary::Auto));
+         ASSERT_FALSE(fixed.empty());
+         EXPECT_EQ(fixed, measured)
+             << "a stated size changed where the letter's glyphs stand";
+         EXPECT_NE(fixed, boxed)
+             << "the letter excluded its box, not its glyphs";
+       }},
+      {"ACentredLetterAfterAResize",
+       [&] {
+         // A centred letter stands in the middle of whatever box it is given,
+         // so a resize moves its glyphs and the exclusion with them, exactly as
+         // a first frame at the new size places them.
+         Host host(420, 300);
+         const auto centred = [](float width) {
+           return flowRoundLetter(SkSize::Make(width, 190), Boundary::Glyphs,
+                                  sigil::weave::TextAlignment::kCenter);
+         };
+         host.composer.render(centred(150));
+         host.frame();
+         const auto narrow = bodyRuns(host);
+         host.composer.render(centred(260));
+         host.frame();
+         const auto resized = bodyRuns(host);
+         EXPECT_NE(resized, narrow)
+             << "the exclusion stayed where the letter stood";
+         EXPECT_EQ(resized, flowedRuns(centred(260)));
+       }},
+  });
 }
 
 namespace {
@@ -200,8 +164,10 @@ material::Material changingInk(motion::Animatable<float> level) {
 /** The stationary edge treatment: a bevel in red and blue, so what it
  *  adds is told apart from any grey the ink paints. */
 material::Filter stationaryBevel() {
-  return material::Filter::bevel(
-      {.depth = 3, .size = 4, .highlight = {1, 0, 0, 1}, .shadow = {0, 0, 1, 1}});
+  return material::Filter::bevel({.depth = 3,
+                                  .size = 4,
+                                  .highlight = {1, 0, 0, 1},
+                                  .shadow = {0, 0, 1, 1}});
 }
 
 /** "HO" at one place on a black ground, on the glyph boundary, set in the
@@ -227,9 +193,9 @@ Element bevelledInk(material::Material ink, bool together) {
     words.push_back(boundaryWord("word", ink.effects(stationaryBevel())));
   } else {
     words.push_back(boundaryWord("word", std::move(ink)));
-    words.push_back(boundaryWord(
-        "bevel",
-        material::from(material::Color{0, 0, 0, 0}).effects(stationaryBevel())));
+    words.push_back(
+        boundaryWord("bevel", material::from(material::Color{0, 0, 0, 0})
+                                  .effects(stationaryBevel())));
   }
   return box().fill(Fill::color({0, 0, 0, 1})).children({std::move(words)});
 }
@@ -254,70 +220,80 @@ EdgeSpread edgeSpread(Host& plain, Host& dressed, int width, int height) {
 
 }  // namespace
 
-TEST(ComposeBoundary, ABevelKeepsTheGlyphBoundaryWhetherTheInkChangesOrNot) {
-  // Constant and changing ink on identical shaped text, the bevel on the
-  // ink's own material and on a clear copy over it: every edge treatment
-  // stands on the letters, and the two compositions draw one picture.
-  constexpr int kWidth = 360, kHeight = 200;
-  for (const bool changing : {false, true}) {
-    motion::Animatable<float> level = motion::animatable(0.5f);
-    const auto ink = [&] {
-      return changing ? changingInk(level)
-                      : material::from(material::Color{0.5f, 0.5f, 0.5f, 1});
-    };
-    Host plain(kWidth, kHeight), together(kWidth, kHeight),
-        apart(kWidth, kHeight);
-    plain.composer.render(box()
-                              .fill(Fill::color({0, 0, 0, 1}))
-                              .children({boundaryWord("word", ink())}));
-    together.composer.render(bevelledInk(ink(), true));
-    apart.composer.render(bevelledInk(ink(), false));
-    // A second frame after the light moves: the edge stands where it
-    // stood, and the ink under it is the new one.
-    for (Host* host : {&plain, &together, &apart}) host->frame();
-    level = 0.75f;
-    for (Host* host : {&plain, &together, &apart}) host->frame(0.016);
-    for (Host* host : {&together, &apart}) {
-      const EdgeSpread spread = edgeSpread(plain, *host, kWidth, kHeight);
-      EXPECT_GT(spread.onTheLetters, 100)
-          << (changing ? "changing" : "constant") << " ink: the bevel drew nothing";
-      EXPECT_EQ(spread.offTheLetters, 0)
-          << (changing ? "changing" : "constant") << " ink, bevel "
-          << (host == &together ? "on the ink" : "on a copy")
-          << ": the edge treatment left the glyphs";
-    }
-    EXPECT_TRUE(identicalPixels(together, apart, kWidth, kHeight))
-        << (changing ? "changing" : "constant")
-        << " ink: the bevel on a copy drew apart from the bevel on the ink";
-  }
-}
-
-TEST(ComposeBoundary, AStationaryBevelApartFromChangingInkIsNotCutAgain) {
-  // The bevel on a clear copy states nothing that moves, so a change of
-  // light in the ink beneath it paints the ink alone: the copy's edge
-  // coverage is recorded once and replayed across every light-only update.
-  motion::Animatable<float> level = motion::animatable(0.5f);
-  Host host(360, 200);
-  host.composer.setProfiling(true);
-  host.composer.render(bevelledInk(changingInk(level), false));
-  host.frame();
-  for (int frame = 0; frame < 4; ++frame) host.frame(0.016);
-  const auto stateOf = [&](std::string_view key) {
-    for (const Composer::NodeCost& row : host.composer.profile())
-      if (row.label.starts_with(key)) return row.cacheState;
-    ADD_FAILURE() << "no profile row for " << key;
-    return Composer::CacheState::Live;
-  };
-  for (const float next : {0.6f, 0.7f, 0.8f}) {
-    level = next;
-    host.frame(0.016);
-    EXPECT_EQ(stateOf("word"), Composer::CacheState::Live)
-        << "the changing ink did not paint";
-    EXPECT_EQ(stateOf("bevel"), Composer::CacheState::Picture)
-        << "a light-only update painted the stationary bevel again";
-    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
-        << "a light-only update recorded the stationary bevel again";
-  }
+TEST(ComposeBoundary, ABevelStandsOnTheLettersAndIsCutWhereTheyAreDrawn) {
+  sigil::compose::test::checkRows({
+      {"OnTheInkOrOnACopyWhetherTheInkChangesOrNot",
+       [&] {
+         // Constant and changing ink on identical shaped text, the bevel on the
+         // ink's own material and on a clear copy over it: every edge treatment
+         // stands on the letters, and the two compositions draw one picture.
+         constexpr int kWidth = 360, kHeight = 200;
+         for (const bool changing : {false, true}) {
+           motion::Animatable<float> level = motion::animatable(0.5f);
+           const auto ink = [&] {
+             return changing
+                        ? changingInk(level)
+                        : material::from(material::Color{0.5f, 0.5f, 0.5f, 1});
+           };
+           Host plain(kWidth, kHeight), together(kWidth, kHeight),
+               apart(kWidth, kHeight);
+           plain.composer.render(box()
+                                     .fill(Fill::color({0, 0, 0, 1}))
+                                     .children({boundaryWord("word", ink())}));
+           together.composer.render(bevelledInk(ink(), true));
+           apart.composer.render(bevelledInk(ink(), false));
+           // A second frame after the light moves: the edge stands where it
+           // stood, and the ink under it is the new one.
+           for (Host* host : {&plain, &together, &apart}) host->frame();
+           level = 0.75f;
+           for (Host* host : {&plain, &together, &apart}) host->frame(0.016);
+           for (Host* host : {&together, &apart}) {
+             const EdgeSpread spread =
+                 edgeSpread(plain, *host, kWidth, kHeight);
+             EXPECT_GT(spread.onTheLetters, 100)
+                 << (changing ? "changing" : "constant")
+                 << " ink: the bevel drew nothing";
+             EXPECT_EQ(spread.offTheLetters, 0)
+                 << (changing ? "changing" : "constant") << " ink, bevel "
+                 << (host == &together ? "on the ink" : "on a copy")
+                 << ": the edge treatment left the glyphs";
+           }
+           EXPECT_TRUE(identicalPixels(together, apart, kWidth, kHeight))
+               << (changing ? "changing" : "constant")
+               << " ink: the bevel on a copy drew apart from the bevel on the "
+                  "ink";
+         }
+       }},
+      {"AStationaryBevelBesideChangingInkIsNotCutAgain",
+       [&] {
+         // The bevel on a clear copy states nothing that moves, so a change of
+         // light in the ink beneath it paints the ink alone: the copy's edge
+         // coverage is recorded once and replayed across every light-only
+         // update.
+         motion::Animatable<float> level = motion::animatable(0.5f);
+         Host host(360, 200);
+         host.composer.setProfiling(true);
+         host.composer.render(bevelledInk(changingInk(level), false));
+         host.frame();
+         for (int frame = 0; frame < 4; ++frame) host.frame(0.016);
+         const auto stateOf = [&](std::string_view key) {
+           for (const Composer::NodeCost& row : host.composer.profile())
+             if (row.label.starts_with(key)) return row.cacheState;
+           ADD_FAILURE() << "no profile row for " << key;
+           return Composer::CacheState::Live;
+         };
+         for (const float next : {0.6f, 0.7f, 0.8f}) {
+           level = next;
+           host.frame(0.016);
+           EXPECT_EQ(stateOf("word"), Composer::CacheState::Live)
+               << "the changing ink did not paint";
+           EXPECT_EQ(stateOf("bevel"), Composer::CacheState::Picture)
+               << "a light-only update painted the stationary bevel again";
+           EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+               << "a light-only update recorded the stationary bevel again";
+         }
+       }},
+  });
 }
 
 namespace {
@@ -363,30 +339,34 @@ int rightmostPainted(Host& host, int width, int height) {
 
 }  // namespace
 
-TEST(ComposeBoundary, ABevelFollowsATrackThatWidensItsGlyph) {
-  // The bevel dresses the glyphs where they are drawn: the H widened to
-  // twice its width carries its bevel out to its widened edge, where the
-  // letter at rest ends half a letter sooner.
-  Host rest(400, 160), widened(400, 160);
-  rest.composer.render(bevelledWord(false, 0));
-  rest.frame();
-  widened.composer.render(bevelledWord(true, 1));
-  widened.frame();
-  const int restEdge = rightmostPainted(rest, 400, 160);
-  ASSERT_GT(restEdge, 0) << "the bevel drew nothing";
-  EXPECT_GT(rightmostPainted(widened, 400, 160), restEdge + 10)
-      << "the bevel stayed on the letter at rest";
+TEST(ComposeBoundary, AGlyphContourIsTakenWhereTheGlyphIsDrawn) {
+  sigil::compose::test::checkRows({
+      {"ATrackThatWidensAGlyphWidensItsBevel",
+       [&] {
+         // The bevel dresses the glyphs where they are drawn: the H widened to
+         // twice its width carries its bevel out to its widened edge, where the
+         // letter at rest ends half a letter sooner.
+         Host rest(400, 160), widened(400, 160);
+         rest.composer.render(bevelledWord(false, 0));
+         rest.frame();
+         widened.composer.render(bevelledWord(true, 1));
+         widened.frame();
+         const int restEdge = rightmostPainted(rest, 400, 160);
+         ASSERT_GT(restEdge, 0) << "the bevel drew nothing";
+         EXPECT_GT(rightmostPainted(widened, 400, 160), restEdge + 10)
+             << "the bevel stayed on the letter at rest";
+       }},
+      {"ATrackAtRestKeepsTheOutlineTheLayoutCut",
+       [&] {
+         // A track whose glyphs stand at rest moves nothing, so the outline is
+         // the one the layout cut and the picture is still text's, pixel for
+         // pixel.
+         Host still(400, 160), resting(400, 160);
+         still.composer.render(bevelledWord(false, 0));
+         still.frame();
+         resting.composer.render(bevelledWord(true, 0));
+         resting.frame();
+         EXPECT_TRUE(identicalPixels(still, resting, 400, 160));
+       }},
+  });
 }
-
-TEST(ComposeBoundary, ABevelUnderATrackAtRestIsTheBevelOfStillText) {
-  // A track whose glyphs stand at rest moves nothing, so the outline is
-  // the one the layout cut and the picture is still text's, pixel for
-  // pixel.
-  Host still(400, 160), resting(400, 160);
-  still.composer.render(bevelledWord(false, 0));
-  still.frame();
-  resting.composer.render(bevelledWord(true, 0));
-  resting.frame();
-  EXPECT_TRUE(identicalPixels(still, resting, 400, 160));
-}
-

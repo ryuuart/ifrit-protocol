@@ -9,6 +9,7 @@
 #include <numeric>
 
 #include "DressedTypeProbes.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -47,7 +48,11 @@ Track probeTrack(std::vector<FxSample>* into, sigil::weave::Selector where = {},
                  sigil::weave::Unit over = sigil::weave::Unit::Cluster) {
   return Track{.where = std::move(where),
                .effect = probe("probe", into),
-               .tween = {.duration = timing.duration, .delay = std::move(timing.delay), .loop = timing.loop ? -1 : 0, .loopDelay = timing.loopDelay, .alternate = timing.alternate},
+               .tween = {.duration = timing.duration,
+                         .delay = std::move(timing.delay),
+                         .loop = timing.loop ? -1 : 0,
+                         .loopDelay = timing.loopDelay,
+                         .alternate = timing.alternate},
                .within = std::move(timing.within),
                .unit = over,
                .progress = progress};
@@ -55,119 +60,139 @@ Track probeTrack(std::vector<FxSample>* into, sigil::weave::Selector where = {},
 
 }  // namespace
 
-TEST(ComposeTextFx, AWordCascadeBeatsOncePerWordAndInOrder) {
-  // The stagger runs over the track's UNITS, so a word-unit cascade gives
-  // every glyph of a word one shared local time and delays the next word by
-  // a whole beat. Per-glyph spacing inside a word would be a different
-  // effect entirely, and is what `weave::Unit::Glyph` is for.
-  Host host(300, 120);
-  std::vector<FxSample> samples;
-  host.composer.render(box().padding(10).children(
-      {text(u8"AAA BBB CCC", whiteStyle(20))
-           .key("k")
-           .textFx(probeTrack(&samples, {}, {.delay = motion::stagger(100ms), .duration = 100ms},
-                              0.5f, sigil::weave::Unit::Word))}));
-  host.frame();
-  ASSERT_EQ(samples.size(), 9u) << "the probe did not see every glyph";
+TEST(ComposeTextFx, AStaggerBeatsOncePerUnitAndAClusterNeverSplits) {
+  sigil::compose::test::checkRows({
+      {"AWordCascadeBeatsOncePerWordInOrder",
+       [&] {
+         // The stagger runs over the track's UNITS, so a word-unit cascade
+         // gives every glyph of a word one shared local time and delays the
+         // next word by a whole beat. Per-glyph spacing inside a word would be
+         // a different effect entirely, and is what `weave::Unit::Glyph` is
+         // for.
+         Host host(300, 120);
+         std::vector<FxSample> samples;
+         host.composer.render(box().padding(10).children(
+             {text(u8"AAA BBB CCC", whiteStyle(20))
+                  .key("k")
+                  .textFx(probeTrack(
+                      &samples, {},
+                      {.delay = motion::stagger(100ms), .duration = 100ms},
+                      0.5f, sigil::weave::Unit::Word))}));
+         host.frame();
+         ASSERT_EQ(samples.size(), 9u) << "the probe did not see every glyph";
 
-  // Three words, three beats: 0..2 / 3..5 / 6..8.
-  for (size_t i = 0; i < 9; ++i)
-    EXPECT_EQ(samples[i].info.unitIndex, (uint32_t)(i / 3))
-        << "glyph " << i << " landed in the wrong beat";
-  EXPECT_EQ(samples[0].info.unitCount, 3u);
-  // Within a word every glyph shares its word's time…
-  EXPECT_FLOAT_EQ(samples[0].t, samples[2].t);
-  EXPECT_FLOAT_EQ(samples[3].t, samples[5].t);
-  // …and the cascade runs head-first.
-  EXPECT_GT(samples[0].t, samples[3].t);
-  EXPECT_GT(samples[3].t, samples[6].t);
+         // Three words, three beats: 0..2 / 3..5 / 6..8.
+         for (size_t i = 0; i < 9; ++i)
+           EXPECT_EQ(samples[i].info.unitIndex, (uint32_t)(i / 3))
+               << "glyph " << i << " landed in the wrong beat";
+         EXPECT_EQ(samples[0].info.unitCount, 3u);
+         // Within a word every glyph shares its word's time…
+         EXPECT_FLOAT_EQ(samples[0].t, samples[2].t);
+         EXPECT_FLOAT_EQ(samples[3].t, samples[5].t);
+         // …and the cascade runs head-first.
+         EXPECT_GT(samples[0].t, samples[3].t);
+         EXPECT_GT(samples[3].t, samples[6].t);
+       }},
+      {"ASentenceCascadeBeatsOncePerSentence",
+       [&] {
+         Host host(400, 160);
+         std::vector<FxSample> samples;
+         host.composer.render(box().padding(10).children(
+             {text(u8"One two. Three four. Five.", whiteStyle(16))
+                  .key("k")
+                  .width(percent(100))
+                  .textFx(probeTrack(
+                      &samples, {},
+                      {.delay = motion::stagger(100ms), .duration = 100ms},
+                      0.5f, sigil::weave::Unit::Sentence))}));
+         host.frame();
+         ASSERT_FALSE(samples.empty());
+         EXPECT_EQ(samples.front().info.unitCount, 3u)
+             << "ICU sentence segmentation did not produce three beats";
+         // Every glyph of a sentence shares one time, and the sentences
+         // cascade.
+         float previous = 2.0f;
+         uint32_t previousUnit = ~0u;
+         for (const FxSample& s : samples) {
+           if (s.info.unitIndex != previousUnit) {
+             EXPECT_LT(s.t, previous) << "sentence " << s.info.unitIndex
+                                      << " did not start after its predecessor";
+             previous = s.t;
+             previousUnit = s.info.unitIndex;
+           } else {
+             EXPECT_FLOAT_EQ(s.t, previous)
+                 << "one sentence split into two beats";
+           }
+         }
+       }},
+      {"AClusterIsOneBeatSoAMarkNeverLeavesItsLetter",
+       [&] {
+         // The default unit is the CLUSTER, and that is the whole reason it is
+         // the default: a base letter and its combining mark are one thing on
+         // the page. Staggered per glyph the accent would fly on its own.
+         Host host(300, 120);
+         std::vector<FxSample> samples;
+         host.composer.render(box().padding(10).children(
+             {text(u8"x́ýz", markStyle(28))
+                  .key("k")
+                  .textFx(probeTrack(
+                      &samples, {},
+                      {.delay = motion::stagger(100ms), .duration = 100ms},
+                      0.5f))}));
+         host.frame();
+         ASSERT_FALSE(samples.empty());
+         const uint32_t beats = samples.front().info.unitCount;
+         ASSERT_LT((size_t)beats, samples.size())
+             << "the instrument composed the marks into single glyphs, so "
+                "there is "
+                "no multi-glyph cluster left to keep together";
+         // Glyphs at one text offset are one cluster and must share one time.
+         for (size_t i = 1; i < samples.size(); ++i)
+           if (samples[i].info.textIndex == samples[i - 1].info.textIndex) {
+             EXPECT_EQ(samples[i].info.unitIndex,
+                       samples[i - 1].info.unitIndex);
+             EXPECT_FLOAT_EQ(samples[i].t, samples[i - 1].t)
+                 << "a combining mark was staggered away from its base letter";
+           }
+
+         // THE CONTROL: the same text over weave::Unit::Glyph, which is the raw
+         // shaping unit and DOES separate a mark from its base. Without it the
+         // check above is satisfied by a cascade that never beat at all.
+         std::vector<FxSample> raw;
+         host.composer.render(box().padding(10).children(
+             {text(u8"x́ýz", markStyle(28))
+                  .key("k")
+                  .textFx(probeTrack(
+                      &raw, {},
+                      {.delay = motion::stagger(100ms), .duration = 400ms},
+                      0.5f, sigil::weave::Unit::Glyph))}));
+         host.frame();
+         ASSERT_EQ(raw.size(), samples.size());
+         EXPECT_EQ(raw.front().info.unitCount, (uint32_t)raw.size());
+         bool anySplit = false;
+         for (size_t i = 1; i < raw.size(); ++i)
+           if (raw[i].info.textIndex == raw[i - 1].info.textIndex &&
+               raw[i].t != raw[i - 1].t)
+             anySplit = true;
+         EXPECT_TRUE(anySplit)
+             << "weave::Unit::Glyph did not split the cluster, so "
+                "the cluster case above "
+                "proves nothing";
+       }},
+  });
 }
 
-TEST(ComposeTextFx, ASentenceCascadeBeatsOncePerSentence) {
-  Host host(400, 160);
-  std::vector<FxSample> samples;
-  host.composer.render(box().padding(10).children(
-      {text(u8"One two. Three four. Five.", whiteStyle(16))
-           .key("k")
-           .width(percent(100))
-           .textFx(probeTrack(&samples, {}, {.delay = motion::stagger(100ms), .duration = 100ms},
-                              0.5f, sigil::weave::Unit::Sentence))}));
-  host.frame();
-  ASSERT_FALSE(samples.empty());
-  EXPECT_EQ(samples.front().info.unitCount, 3u)
-      << "ICU sentence segmentation did not produce three beats";
-  // Every glyph of a sentence shares one time, and the sentences cascade.
-  float previous = 2.0f;
-  uint32_t previousUnit = ~0u;
-  for (const FxSample& s : samples) {
-    if (s.info.unitIndex != previousUnit) {
-      EXPECT_LT(s.t, previous) << "sentence " << s.info.unitIndex
-                               << " did not start after its predecessor";
-      previous = s.t;
-      previousUnit = s.info.unitIndex;
-    } else {
-      EXPECT_FLOAT_EQ(s.t, previous) << "one sentence split into two beats";
-    }
-  }
-}
-
-TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
-  // The default unit is the CLUSTER, and that is the whole reason it is
-  // the default: a base letter and its combining mark are one thing on the
-  // page. Staggered per glyph the accent would fly on its own.
-  Host host(300, 120);
-  std::vector<FxSample> samples;
-  host.composer.render(box().padding(10).children(
-      {text(u8"x́ýz", markStyle(28))
-           .key("k")
-           .textFx(probeTrack(&samples, {}, {.delay = motion::stagger(100ms), .duration = 100ms},
-                              0.5f))}));
-  host.frame();
-  ASSERT_FALSE(samples.empty());
-  const uint32_t beats = samples.front().info.unitCount;
-  ASSERT_LT((size_t)beats, samples.size())
-      << "the instrument composed the marks into single glyphs, so there is "
-         "no multi-glyph cluster left to keep together";
-  // Glyphs at one text offset are one cluster and must share one time.
-  for (size_t i = 1; i < samples.size(); ++i)
-    if (samples[i].info.textIndex == samples[i - 1].info.textIndex) {
-      EXPECT_EQ(samples[i].info.unitIndex, samples[i - 1].info.unitIndex);
-      EXPECT_FLOAT_EQ(samples[i].t, samples[i - 1].t)
-          << "a combining mark was staggered away from its base letter";
-    }
-
-  // THE CONTROL: the same text over weave::Unit::Glyph, which is the raw
-  // shaping unit and DOES separate a mark from its base. Without it the check
-  // above is satisfied by a cascade that never beat at all.
-  std::vector<FxSample> raw;
-  host.composer.render(box().padding(10).children(
-      {text(u8"x́ýz", markStyle(28))
-           .key("k")
-           .textFx(probeTrack(&raw, {}, {.delay = motion::stagger(100ms), .duration = 400ms},
-                              0.5f, sigil::weave::Unit::Glyph))}));
-  host.frame();
-  ASSERT_EQ(raw.size(), samples.size());
-  EXPECT_EQ(raw.front().info.unitCount, (uint32_t)raw.size());
-  bool anySplit = false;
-  for (size_t i = 1; i < raw.size(); ++i)
-    if (raw[i].info.textIndex == raw[i - 1].info.textIndex &&
-        raw[i].t != raw[i - 1].t)
-      anySplit = true;
-  EXPECT_TRUE(anySplit) << "weave::Unit::Glyph did not split the cluster, so "
-                           "the cluster case above "
-                           "proves nothing";
-}
-
-TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
+TEST(ComposeTextFx, ALetterInFlightIsPaintedWithTheGlyphPaintOfALetterAtRest) {
   // A letter in flight is painted with the same glyph paint a resting one
   // is: ink's material is its foreground and textStroke's outline is
   // an underlay, both carried through the batched draw. Shadowed instead,
   // a chrome wordmark loses its chrome the moment it starts moving.
   Host host(220, 140);
   const auto tree = [](bool moving) {
-    Text t = text(u8"II", whiteStyle(48))
-                 .key("k")
-                 .ink(material::skia::base(material::Paint::solid({0, 1, 0, 1})));
+    Text t =
+        text(u8"II", whiteStyle(48))
+            .key("k")
+            .ink(material::skia::base(material::Paint::solid({0, 1, 0, 1})));
     if (moving)
       t.textFx({.effect = textFx::effect("still",
                                          [](const GlyphInfo&, float,
@@ -198,175 +223,196 @@ TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
          "own foreground instead";
 }
 
-TEST(ComposeTextFx, SelectorsAddressWhatTheyName) {
-  // Absolute forms, the regular expression and the substring, all resolved
-  // against the paragraph and all comparable values.
-  Host host(300, 120);
-  const auto run = [&](sigil::weave::Selector where) {
-    std::vector<FxSample> samples;
-    host.composer.render(box().padding(10).children(
-        {text(u8"AAA BBB CCC", whiteStyle(20))
-             .key("k")
-             .textFx(probeTrack(&samples, std::move(where)))}));
-    host.frame();
-    return addressed(samples);
-  };
-  EXPECT_EQ(run(sigil::weave::selectors::word(1)),
-            (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(sigil::weave::selectors::words(1, 3)),
-            (std::vector<size_t>{3, 4, 5, 6, 7, 8}));
-  EXPECT_EQ(run(sigil::weave::selectors::text(u8"BBB")),
-            (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(sigil::weave::selectors::regex(u8"B+")),
-            (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(sigil::weave::selectors::line(0)).size(),
-            9u);                                        // one line, everything
-  EXPECT_EQ(run(sigil::weave::Selector()).size(), 9u);  // default: everything
-  EXPECT_TRUE(run(sigil::weave::selectors::regex(u8"([")).empty())
-      << "a pattern that does not compile must select NOTHING rather than "
-         "everything — silently addressing the whole paragraph is the "
-         "failure this rule exists to prevent";
+TEST(ComposeTextFx, ASelectorAddressesTheUnitsItNames) {
+  sigil::compose::test::checkRows({
+      {"EveryPositionFormAddressesWhatItNames",
+       [&] {
+         // Absolute forms, the regular expression and the substring, all
+         // resolved against the paragraph and all comparable values.
+         Host host(300, 120);
+         const auto run = [&](sigil::weave::Selector where) {
+           std::vector<FxSample> samples;
+           host.composer.render(box().padding(10).children(
+               {text(u8"AAA BBB CCC", whiteStyle(20))
+                    .key("k")
+                    .textFx(probeTrack(&samples, std::move(where)))}));
+           host.frame();
+           return addressed(samples);
+         };
+         EXPECT_EQ(run(sigil::weave::selectors::word(1)),
+                   (std::vector<size_t>{3, 4, 5}));
+         EXPECT_EQ(run(sigil::weave::selectors::words(1, 3)),
+                   (std::vector<size_t>{3, 4, 5, 6, 7, 8}));
+         EXPECT_EQ(run(sigil::weave::selectors::text(u8"BBB")),
+                   (std::vector<size_t>{3, 4, 5}));
+         EXPECT_EQ(run(sigil::weave::selectors::regex(u8"B+")),
+                   (std::vector<size_t>{3, 4, 5}));
+         EXPECT_EQ(run(sigil::weave::selectors::line(0)).size(),
+                   9u);  // one line, everything
+         EXPECT_EQ(run(sigil::weave::Selector()).size(),
+                   9u);  // default: everything
+         EXPECT_TRUE(run(sigil::weave::selectors::regex(u8"([")).empty())
+             << "a pattern that does not compile must select NOTHING rather "
+                "than "
+                "everything — silently addressing the whole paragraph is the "
+                "failure this rule exists to prevent";
+       }},
+      {"TheAlgebraUnionsIntersectsAndComplements",
+       [&] {
+         Host host(300, 120);
+         const auto run = [&](sigil::weave::Selector where) {
+           std::vector<FxSample> samples;
+           host.composer.render(box().padding(10).children(
+               {text(u8"AAA BBB CCC", whiteStyle(20))
+                    .key("k")
+                    .textFx(probeTrack(&samples, std::move(where)))}));
+           host.frame();
+           return addressed(samples);
+         };
+         EXPECT_EQ(run(sigil::weave::selectors::word(0) |
+                       sigil::weave::selectors::word(2)),
+                   (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
+         EXPECT_EQ(run(sigil::weave::selectors::words(0, 2) &
+                       sigil::weave::selectors::word(1)),
+                   (std::vector<size_t>{3, 4, 5}));
+         EXPECT_EQ(run(!sigil::weave::selectors::word(1)),
+                   (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
+         EXPECT_TRUE(run(sigil::weave::selectors::word(0) &
+                         sigil::weave::selectors::word(1))
+                         .empty());
+       }},
+      {"TakeAndDropPartitionEveryUnitExactly",
+       [&] {
+         // take(n) and drop(n) answer opposite sides of one cut inside every
+         // unit, so together they cover the text exactly once. A gap or an
+         // overlap here means a two-track composition double-counts letters it
+         // should split.
+         Host host(300, 120);
+         const auto run = [&](sigil::weave::Selector where) {
+           std::vector<FxSample> samples;
+           host.composer.render(box().padding(10).children(
+               {text(u8"AAA BBB CCC", whiteStyle(20))
+                    .key("k")
+                    .textFx(probeTrack(&samples, std::move(where)))}));
+           host.frame();
+           return addressed(samples);
+         };
+         const std::vector<size_t> firsts = run(
+             sigil::weave::selectors::each(sigil::weave::Unit::Word).take(1));
+         const std::vector<size_t> rest = run(
+             sigil::weave::selectors::each(sigil::weave::Unit::Word).drop(1));
+         EXPECT_EQ(firsts, (std::vector<size_t>{0, 3, 6}));
+         EXPECT_EQ(rest, (std::vector<size_t>{1, 2, 4, 5, 7, 8}));
+         std::vector<size_t> both = firsts;
+         both.insert(both.end(), rest.begin(), rest.end());
+         std::sort(both.begin(), both.end());
+         std::vector<size_t> all(9);
+         std::iota(all.begin(), all.end(), 0u);
+         EXPECT_EQ(both, all) << "take/drop is not a partition of the units";
+       }},
+  });
 }
 
-TEST(ComposeTextFx, SelectorAlgebraUnionsIntersectsAndComplements) {
-  Host host(300, 120);
-  const auto run = [&](sigil::weave::Selector where) {
-    std::vector<FxSample> samples;
-    host.composer.render(box().padding(10).children(
-        {text(u8"AAA BBB CCC", whiteStyle(20))
-             .key("k")
-             .textFx(probeTrack(&samples, std::move(where)))}));
-    host.frame();
-    return addressed(samples);
-  };
-  EXPECT_EQ(
-      run(sigil::weave::selectors::word(0) | sigil::weave::selectors::word(2)),
-      (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
-  EXPECT_EQ(run(sigil::weave::selectors::words(0, 2) &
-                sigil::weave::selectors::word(1)),
-            (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(!sigil::weave::selectors::word(1)),
-            (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
-  EXPECT_TRUE(
-      run(sigil::weave::selectors::word(0) & sigil::weave::selectors::word(1))
-          .empty());
+TEST(ComposeTextFx, ARandomStaggerDealsADeterministicEvenScatter) {
+  sigil::compose::test::checkRows({
+      {"TheScatterAndTheGlyphStreamAreTheSameOnEveryFrame",
+       [&] {
+         // A seeded cascade must give the SAME order every frame: a scatter
+         // that reshuffles can never settle, so it can never cache, and it
+         // flickers.
+         std::vector<FxSample> first, second;
+         const auto tree = [&](std::vector<FxSample>* into) {
+           return box().padding(10).children(
+               {text(u8"AAA BBB CCC", whiteStyle(20))
+                    .key("k")
+                    .textFx(probeTrack(
+                        into, {},
+                        {.delay = motion::stagger(
+                             100ms, {.from = motion::StaggerFrom::Random}),
+                         .duration = 100ms},
+                        0.5f))});
+         };
+         // TWO HOSTS, one paint each: re-describing the same tracks into one
+         // host prunes and replays the recording, which is the right behaviour
+         // and would leave this test measuring nothing.
+         Host hostA(300, 120), hostB(300, 120);
+         hostA.composer.render(tree(&first));
+         hostA.frame();
+         hostB.composer.render(tree(&second));
+         hostB.frame();
+         ASSERT_EQ(first.size(), second.size());
+         ASSERT_FALSE(first.empty());
+         for (size_t i = 0; i < first.size(); ++i)
+           EXPECT_FLOAT_EQ(first[i].t, second[i].t)
+               << "the seeded cascade reshuffled between frames";
+         // …and it really is a scatter, not the First ladder wearing a new
+         // name.
+         bool anyOutOfOrder = false;
+         for (size_t i = 1; i < first.size(); ++i)
+           if (first[i].t > first[i - 1].t) anyOutOfOrder = true;
+         EXPECT_TRUE(anyOutOfOrder) << "Random produced the First ordering";
+         // The stream an effect draws from is seeded per glyph and is stable
+         // too.
+         for (size_t i = 0; i < first.size(); ++i)
+           EXPECT_FLOAT_EQ(first[i].random, second[i].random);
+       }},
+      {"ASeedDealsItsOwnScatterAndZeroKeepsTheCountKeyedDeal",
+       [&] {
+         // StaggerFrom::Random ranks units by a hash keyed on the count and the
+         // seed.
+         // Three claims, each a behaviour an author leans on: seed 0 IS the
+         // count-keyed deal (pinned against the exact ranks that key hashes to,
+         // so every settled scene keeps its scatter bit for bit), a nonzero
+         // seed deals a different permutation, and two nonzero seeds deal
+         // independently.
+         const auto ranksOf = [](uint32_t seed) {
+           Host host(300, 120);
+           host.composer.render(box().padding(10).children(
+               {text(u8"AAA BBB CCC", whiteStyle(20))
+                    .key("k")
+                    .textFx({
+                        .effect = textFx::enter(textFx::rise(6)),
+                        .tween = {.duration = 100ms,
+                                  .delay = motion::stagger(
+                                      100ms,
+                                      {.from = motion::StaggerFrom::Random,
+                                       .seed = seed})},
+                    })}));
+           host.frame();
+           const std::vector<Beat> beats = host.composer.beatsOf("k", 0);
+           std::vector<int> ranks;
+           ranks.reserve(beats.size());
+           for (const Beat& beat : beats)
+             ranks.push_back((int)(inMilliseconds(beat.start) / 100.0f));
+           return ranks;
+         };
+         // The count-9 permutation the count-alone key hashes to. Recomputing
+         // it here would restate the implementation; these NUMBERS are the pin.
+         EXPECT_EQ(ranksOf(0), (std::vector<int>{8, 7, 0, 2, 5, 1, 6, 4, 3}));
+         const std::vector<int> dealt42 = ranksOf(42), dealt7 = ranksOf(7);
+         EXPECT_NE(dealt42, ranksOf(0));
+         EXPECT_NE(dealt42, dealt7);
+         // Still the scrambled even ladder: every rank 0..N-1 exactly once, so
+         // no two units ever open together however the seed shuffles them.
+         std::vector<int> sorted = dealt42;
+         std::sort(sorted.begin(), sorted.end());
+         std::vector<int> ladder(sorted.size());
+         std::iota(ladder.begin(), ladder.end(), 0);
+         EXPECT_EQ(sorted, ladder)
+             << "a seeded scatter dropped or doubled a rank";
+         // A different seed is a different cascade to the reconciler, or a
+         // re-described field would prune onto the old scatter and keep it.
+         const auto scatterSeeded = [](uint32_t seed) {
+           return motion::stagger(
+               30ms, {.from = motion::StaggerFrom::Random, .seed = seed});
+         };
+         EXPECT_FALSE(scatterSeeded(0) == scatterSeeded(42));
+         EXPECT_TRUE(scatterSeeded(42) == scatterSeeded(42));
+       }},
+  });
 }
 
-TEST(ComposeTextFx, EachTakeAndDropPartitionEveryUnitExactly) {
-  // take(n) and drop(n) answer opposite sides of one cut inside every unit,
-  // so together they cover the text exactly once. A gap or an overlap here
-  // means a two-track composition double-counts letters it should split.
-  Host host(300, 120);
-  const auto run = [&](sigil::weave::Selector where) {
-    std::vector<FxSample> samples;
-    host.composer.render(box().padding(10).children(
-        {text(u8"AAA BBB CCC", whiteStyle(20))
-             .key("k")
-             .textFx(probeTrack(&samples, std::move(where)))}));
-    host.frame();
-    return addressed(samples);
-  };
-  const std::vector<size_t> firsts =
-      run(sigil::weave::selectors::each(sigil::weave::Unit::Word).take(1));
-  const std::vector<size_t> rest =
-      run(sigil::weave::selectors::each(sigil::weave::Unit::Word).drop(1));
-  EXPECT_EQ(firsts, (std::vector<size_t>{0, 3, 6}));
-  EXPECT_EQ(rest, (std::vector<size_t>{1, 2, 4, 5, 7, 8}));
-  std::vector<size_t> both = firsts;
-  both.insert(both.end(), rest.begin(), rest.end());
-  std::sort(both.begin(), both.end());
-  std::vector<size_t> all(9);
-  std::iota(all.begin(), all.end(), 0u);
-  EXPECT_EQ(both, all) << "take/drop is not a partition of the units";
-}
-
-TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
-  // A seeded cascade must give the SAME order every frame: a scatter that
-  // reshuffles can never settle, so it can never cache, and it flickers.
-  std::vector<FxSample> first, second;
-  const auto tree = [&](std::vector<FxSample>* into) {
-    return box().padding(10).children(
-        {text(u8"AAA BBB CCC", whiteStyle(20))
-             .key("k")
-             .textFx(probeTrack(into, {},
-                                {.delay = motion::stagger(
-                                     100ms,
-                                     {.from = motion::StaggerFrom::Random}),
-                                 .duration = 100ms},
-                                0.5f))});
-  };
-  // TWO HOSTS, one paint each: re-describing the same tracks into one host
-  // prunes and replays the recording, which is the right behaviour and
-  // would leave this test measuring nothing.
-  Host hostA(300, 120), hostB(300, 120);
-  hostA.composer.render(tree(&first));
-  hostA.frame();
-  hostB.composer.render(tree(&second));
-  hostB.frame();
-  ASSERT_EQ(first.size(), second.size());
-  ASSERT_FALSE(first.empty());
-  for (size_t i = 0; i < first.size(); ++i)
-    EXPECT_FLOAT_EQ(first[i].t, second[i].t)
-        << "the seeded cascade reshuffled between frames";
-  // …and it really is a scatter, not the First ladder wearing a new name.
-  bool anyOutOfOrder = false;
-  for (size_t i = 1; i < first.size(); ++i)
-    if (first[i].t > first[i - 1].t) anyOutOfOrder = true;
-  EXPECT_TRUE(anyOutOfOrder) << "Random produced the First ordering";
-  // The stream an effect draws from is seeded per glyph and is stable too.
-  for (size_t i = 0; i < first.size(); ++i)
-    EXPECT_FLOAT_EQ(first[i].random, second[i].random);
-}
-
-TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
-  // StaggerFrom::Random ranks units by a hash keyed on the count and the
-  // seed.
-  // Three claims, each a behaviour an author leans on: seed 0 IS the
-  // count-keyed deal (pinned against the exact ranks that key hashes to, so
-  // every settled scene keeps its scatter bit for bit), a nonzero seed deals
-  // a different permutation, and two nonzero seeds deal independently.
-  const auto ranksOf = [](uint32_t seed) {
-    Host host(300, 120);
-    host.composer.render(box().padding(10).children(
-        {text(u8"AAA BBB CCC", whiteStyle(20))
-             .key("k")
-             .textFx({.effect = textFx::enter(textFx::rise(6)),
-                      .tween = {.duration = 100ms, .delay = motion::stagger(
-                          100ms, {.from = motion::StaggerFrom::Random,
-                                  .seed = seed})},
-                      })}));
-    host.frame();
-    const std::vector<Beat> beats = host.composer.beatsOf("k", 0);
-    std::vector<int> ranks;
-    ranks.reserve(beats.size());
-    for (const Beat& beat : beats)
-      ranks.push_back((int)(inMilliseconds(beat.start) / 100.0f));
-    return ranks;
-  };
-  // The count-9 permutation the count-alone key hashes to. Recomputing it
-  // here would restate the implementation; these NUMBERS are the pin.
-  EXPECT_EQ(ranksOf(0), (std::vector<int>{8, 7, 0, 2, 5, 1, 6, 4, 3}));
-  const std::vector<int> dealt42 = ranksOf(42), dealt7 = ranksOf(7);
-  EXPECT_NE(dealt42, ranksOf(0));
-  EXPECT_NE(dealt42, dealt7);
-  // Still the scrambled even ladder: every rank 0..N-1 exactly once, so no
-  // two units ever open together however the seed shuffles them.
-  std::vector<int> sorted = dealt42;
-  std::sort(sorted.begin(), sorted.end());
-  std::vector<int> ladder(sorted.size());
-  std::iota(ladder.begin(), ladder.end(), 0);
-  EXPECT_EQ(sorted, ladder) << "a seeded scatter dropped or doubled a rank";
-  // A different seed is a different cascade to the reconciler, or a
-  // re-described field would prune onto the old scatter and keep it.
-  const auto scatterSeeded = [](uint32_t seed) {
-    return motion::stagger(
-        30ms, {.from = motion::StaggerFrom::Random, .seed = seed});
-  };
-  EXPECT_FALSE(scatterSeeded(0) == scatterSeeded(42));
-  EXPECT_TRUE(scatterSeeded(42) == scatterSeeded(42));
-}
-
-TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
+TEST(ComposeTextFx, ANestedStaggerDelaysUnitsInsideTheirOuterBeat) {
   // `within` compounds: each word gets its beat, and inside that beat each
   // glyph gets its own start. Two ladders, one master progress.
   Host host(300, 120);
@@ -391,7 +437,7 @@ TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
   EXPECT_GT(samples[0].t, samples[3].t);
 }
 
-TEST(ComposeTextFx, TwoTracksComposeByAddingOffsets) {
+TEST(ComposeTextFx, StackedTracksAddTheirOffsets) {
   // The algebra: offsets add. Two tracks each pushing 30 px right put the
   // glyph 60 px right of rest, which is the only reading under which
   // stacking tracks is composition rather than replacement.
@@ -423,7 +469,7 @@ TEST(ComposeTextFx, TwoTracksComposeByAddingOffsets) {
       << "two 30 px tracks did not add to 60 px";
 }
 
-TEST(ComposeTextFx, ATrackedRunSurvivesTheBakeItIsCachedInto) {
+TEST(ComposeTextFx, ABakedTrackedRunDrawsWhatTheLiveRunDraws) {
   // A run of turned-and-placed glyphs is handed to the canvas with bounds
   // beside it, and those bounds decide whether the canvas draws the run at
   // all. Get them wrong and the failure is TOTAL and silent: the batch is
@@ -466,7 +512,7 @@ TEST(ComposeTextFx, ATrackedRunSurvivesTheBakeItIsCachedInto) {
       << "the same track drew nothing once the node was baked into a texture";
 }
 
-TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
+TEST(ComposeTextFx, ATrackReachGrowsTheCullAndUnderReportingTruncates) {
   // ownPaintBounds has no idea what an effect will do, so a track that
   // throws a glyph out of the element's box must SAY how far. Under-report
   // and the cached picture truncates it with no diagnostic — which is
@@ -503,7 +549,7 @@ TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
          "about the cull";
 }
 
-TEST(ComposeTextFx, EqualTrackListsPruneAndAKeyedLambdaComparesByKey) {
+TEST(ComposeTextFx, AnEqualTrackListPrunesAndAChangedOnePatches) {
   // Tracks are values, so a re-describe that says the same thing must not
   // mark the node dirty. Without it every text node carrying fx re-records
   // on every frame, whatever its progress is doing.
@@ -543,39 +589,7 @@ TEST(ComposeTextFx, EqualTrackListsPruneAndAKeyedLambdaComparesByKey) {
       << "a re-keyed effect pruned onto the old one";
 }
 
-TEST(ComposeTextFx, SettledMultiTrackTextStopsPaintingLive) {
-  // Two bound progresses that have held still for long enough release their
-  // volatility, exactly as one does — the settle machinery covers EVERY
-  // track's progress or a second track pins the node live forever.
-  Host host(220, 120);
-  sigil::motion::Animatable<float> a = sigil::motion::animatable(0.0f), b = sigil::motion::animatable(0.0f);
-  host.composer.render(box().padding(10).children(
-      {text(u8"AAA BBB", whiteStyle(20))
-           .key("k")
-           .textFx({.effect = textFx::enter(textFx::rise(12)), .progress = a})
-           .textFx({.effect = textFx::enter(textFx::slide(-8)), .progress = b})}));
-  host.frame();
-  a = 1.0f;
-  b = 1.0f;
-  for (int i = 0; i < 12; ++i) host.frame(0.016);  // the release warms up
-  unsigned paints = 0, records = 0;
-  for (int i = 0; i < 5; ++i) {
-    host.frame(0.016);
-    paints += host.composer.stats().nodesPainted;
-    records += host.composer.stats().picturesRecorded;
-  }
-  EXPECT_EQ(paints, 0u) << "settled multi-track text kept painting live";
-  EXPECT_EQ(records, 0u) << "settled multi-track text kept re-recording";
-
-  // …and the frame either progress moves again, the node must re-declare
-  // before a stale recording replays.
-  b = 0.2f;
-  host.frame(0.016);
-  EXPECT_GT(host.composer.stats().nodesPainted, 0u)
-      << "the second track moved and nothing re-declared";
-}
-
-TEST(ComposeTextFx, ASettledTrackThatChangesNothingPlacesItsRunAsTheBareLeaf) {
+TEST(ComposeTextFx, ATrackThatMovesNothingPlacesItsRunAsTheBareLeaf) {
   // Below the size where a shaped run snaps to whole pixels, a bare leaf
   // keeps fractional glyph origins. A track at rest that leaves every glyph
   // as the layout laid it changes nothing about the run, so adding one, or
@@ -600,60 +614,105 @@ TEST(ComposeTextFx, ASettledTrackThatChangesNothingPlacesItsRunAsTheBareLeaf) {
       << "a settled fade drew as the bare leaf";
 }
 
-TEST(ComposeTextFx, ATrackBoundToAHeldValueKeepsItsBake) {
-  // A bound progress costs what it changes. A clock the engine keeps
-  // running, stretched and clamped so the tracks read exactly 1, is the
-  // same input to the leaf as the constant 1, so the cached leaf keeps the
-  // bake its first frame took however many frames the clock advances —
-  // through the frame its volatility is released, too, which changes what
-  // the leaf declares to its ancestors and never its pixels.
-  const auto leafAfterTheFirstFrame = [](bool bound) {
-    Host host(260, 120);
-    host.composer.setProfiling(true);
-    // A there-and-back over forty seconds, at its crest for every frame
-    // below: stretched past [0, 1] and clamped, the tracks read 1.
-    motion::Animatable<float> clock = motion::animatable(20.0f);
-    host.engine.timer([&clock](motion::Duration, motion::Duration elapsed) {
-      clock = 20.0f + (float)elapsed.count();
-      return true;
-    });
-    const motion::Animatable<float> progress =
-        bound ? motion::bind(clock, {.from = {0.0f, 40.0f},
-                                     .alternate = true,
-                                     .to = {-0.5f, 1.7f},
-                                     .clamp = {0.0f, 1.0f}})
-              : motion::Animatable<float>(1.0f);
-    const TextEffect arrival = textFx::tween(
-        {.from = GlyphModifier{.alpha = 0.0f},
-         .keyframes = {{.to = GlyphModifier{}, .duration = 650ms}}});
-    host.composer.render(box().padding(10).children(
-        {text(u8"WAKE UP", whiteStyle(24))
-             .key("k")
-             .cache(Cache::Texture)
-             .filter(material::Filter::glow({0.16f, 1.0f, 0.38f, 0.85f}, 9))
-             .textFx({.effect = textFx::scramble(U"ABC", 18),
-                      .tween = {.duration = 1s},
-                      .progress = progress})
-             .textFx({.effect = arrival,
-                      .tween = {.duration = 1s},
-                      .progress = progress})}));
-    host.frame();
-    size_t bakes = 0, framesOffTheBake = 0;
-    for (int frame = 0; frame < 16; ++frame) {
-      host.frame(0.05);
-      bakes += host.composer.stats().texturesBaked;
-      for (const Composer::NodeCost& row : host.composer.profile())
-        if (row.label.starts_with("k ") &&
-            row.cacheState != Composer::CacheState::Texture)
-          ++framesOffTheBake;
-    }
-    return std::pair{bakes, framesOffTheBake};
-  };
-  const auto [constantBakes, constantOff] = leafAfterTheFirstFrame(false);
-  EXPECT_EQ(constantBakes, 0u) << "the constant progress re-baked";
-  EXPECT_EQ(constantOff, 0u) << "the constant progress left its bake";
-  const auto [boundBakes, boundOff] = leafAfterTheFirstFrame(true);
-  EXPECT_EQ(boundBakes, 0u) << "a progress held at 1 by its clamp re-baked";
-  EXPECT_EQ(boundOff, 0u)
-      << "a progress held at 1 by its clamp painted without its bake";
+TEST(ComposeTextFx, ATrackPaintsLiveOnlyWhileItsProgressMoves) {
+  sigil::compose::test::checkRows({
+      {"SettledTracksStopPaintingAndAMovingOneRedeclares",
+       [&] {
+         // Two bound progresses that have held still for long enough release
+         // their volatility, exactly as one does — the settle machinery covers
+         // EVERY track's progress or a second track pins the node live forever.
+         Host host(220, 120);
+         sigil::motion::Animatable<float> a = sigil::motion::animatable(0.0f),
+                                          b = sigil::motion::animatable(0.0f);
+         host.composer.render(box().padding(10).children(
+             {text(u8"AAA BBB", whiteStyle(20))
+                  .key("k")
+                  .textFx({.effect = textFx::enter(textFx::rise(12)),
+                           .progress = a})
+                  .textFx({.effect = textFx::enter(textFx::slide(-8)),
+                           .progress = b})}));
+         host.frame();
+         a = 1.0f;
+         b = 1.0f;
+         for (int i = 0; i < 12; ++i)
+           host.frame(0.016);  // the release warms up
+         unsigned paints = 0, records = 0;
+         for (int i = 0; i < 5; ++i) {
+           host.frame(0.016);
+           paints += host.composer.stats().nodesPainted;
+           records += host.composer.stats().picturesRecorded;
+         }
+         EXPECT_EQ(paints, 0u) << "settled multi-track text kept painting live";
+         EXPECT_EQ(records, 0u) << "settled multi-track text kept re-recording";
+
+         // …and the frame either progress moves again, the node must re-declare
+         // before a stale recording replays.
+         b = 0.2f;
+         host.frame(0.016);
+         EXPECT_GT(host.composer.stats().nodesPainted, 0u)
+             << "the second track moved and nothing re-declared";
+       }},
+      {"AProgressHeldByItsClampKeepsTheBake",
+       [&] {
+         // A bound progress costs what it changes. A clock the engine keeps
+         // running, stretched and clamped so the tracks read exactly 1, is the
+         // same input to the leaf as the constant 1, so the cached leaf keeps
+         // the bake its first frame took however many frames the clock advances
+         // — through the frame its volatility is released, too, which changes
+         // what the leaf declares to its ancestors and never its pixels.
+         const auto leafAfterTheFirstFrame = [](bool bound) {
+           Host host(260, 120);
+           host.composer.setProfiling(true);
+           // A there-and-back over forty seconds, at its crest for every frame
+           // below: stretched past [0, 1] and clamped, the tracks read 1.
+           motion::Animatable<float> clock = motion::animatable(20.0f);
+           host.engine.timer(
+               [&clock](motion::Duration, motion::Duration elapsed) {
+                 clock = 20.0f + (float)elapsed.count();
+                 return true;
+               });
+           const motion::Animatable<float> progress =
+               bound ? motion::bind(clock, {.from = {0.0f, 40.0f},
+                                            .alternate = true,
+                                            .to = {-0.5f, 1.7f},
+                                            .clamp = {0.0f, 1.0f}})
+                     : motion::Animatable<float>(1.0f);
+           const TextEffect arrival = textFx::tween(
+               {.from = GlyphModifier{.alpha = 0.0f},
+                .keyframes = {{.to = GlyphModifier{}, .duration = 650ms}}});
+           host.composer.render(box().padding(10).children(
+               {text(u8"WAKE UP", whiteStyle(24))
+                    .key("k")
+                    .cache(Cache::Texture)
+                    .filter(
+                        material::Filter::glow({0.16f, 1.0f, 0.38f, 0.85f}, 9))
+                    .textFx({.effect = textFx::scramble(U"ABC", 18),
+                             .tween = {.duration = 1s},
+                             .progress = progress})
+                    .textFx({.effect = arrival,
+                             .tween = {.duration = 1s},
+                             .progress = progress})}));
+           host.frame();
+           size_t bakes = 0, framesOffTheBake = 0;
+           for (int frame = 0; frame < 16; ++frame) {
+             host.frame(0.05);
+             bakes += host.composer.stats().texturesBaked;
+             for (const Composer::NodeCost& row : host.composer.profile())
+               if (row.label.starts_with("k ") &&
+                   row.cacheState != Composer::CacheState::Texture)
+                 ++framesOffTheBake;
+           }
+           return std::pair{bakes, framesOffTheBake};
+         };
+         const auto [constantBakes, constantOff] =
+             leafAfterTheFirstFrame(false);
+         EXPECT_EQ(constantBakes, 0u) << "the constant progress re-baked";
+         EXPECT_EQ(constantOff, 0u) << "the constant progress left its bake";
+         const auto [boundBakes, boundOff] = leafAfterTheFirstFrame(true);
+         EXPECT_EQ(boundBakes, 0u)
+             << "a progress held at 1 by its clamp re-baked";
+         EXPECT_EQ(boundOff, 0u)
+             << "a progress held at 1 by its clamp painted without its bake";
+       }},
+  });
 }

@@ -16,316 +16,313 @@
 #include "paint/MaterialEffects.h"
 #include "paint/PenOnCanvas.h"
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
 
-TEST(ComposeCaching, StaticSubtreeRecordsOnce) {
-  static int programRuns;
-  programRuns = 0;
-  Host host;
-  host.composer.render(box().children(
-      {custom([](sigil::draw::Pen& pen, const PaintContext& ctx) {
-         SkCanvas& c = *pen.canvas();
-         ++programRuns;
-         SkPaint p;
-         p.setColor(SK_ColorCYAN);
-         c.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), p);
-       })
-           .width(80)
-           .height(80)}));
+// A still subtree records once and replays; a relayout or a re-describe that
+// changes what it paints records it again, and a program under Cache::None
+// runs every frame.
+TEST(ComposeCaching, ANodeIsPaintedAgainOnlyWhenSomethingItPaintsChanges) {
+  sigil::compose::test::checkRows({
+      {"StaticSubtreeRecordsOnce",
+       [] {
+         static int programRuns;
+         programRuns = 0;
+         Host host;
+         host.composer.render(box().children(
+             {custom([](sigil::draw::Pen& pen, const PaintContext& ctx) {
+                SkCanvas& canvas = *pen.canvas();
+                ++programRuns;
+                SkPaint paint;
+                paint.setColor(SK_ColorCYAN);
+                canvas.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), paint);
+              })
+                  .width(80)
+                  .height(80)}));
 
-  host.frame();
-  host.frame();
-  host.frame();
-  EXPECT_EQ(programRuns, 1);  // recorded once, replayed thereafter
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorCYAN);
-  EXPECT_GE(host.composer.stats().picturesLive, 1u);
+         host.frame();
+         host.frame();
+         host.frame();
+         EXPECT_EQ(programRuns, 1);  // recorded once, replayed thereafter
+         EXPECT_EQ(host.pixel(40, 40), SK_ColorCYAN);
+         EXPECT_GE(host.composer.stats().picturesLive, 1u);
+       }},
+      {"ARelayoutDropsTheRecordingsItMoves",
+       [] {
+         // setSize alone — no prop change, no re-render — resizes a
+         // percent-width child whose geometry is already baked into cached
+         // recordings. Invalidation driven only by patching never sees this, so
+         // relayout has to compare the new rects against the baked ones and
+         // drop what moved.
+         Host host;
+         host.composer.render(
+             box().children({box().width(percent(50)).height(40).fill(red())}));
+         host.frame();  // child spans x∈[0,100) at 200-wide viewport; recorded
+         EXPECT_EQ(host.pixel(80, 20), SK_ColorRED);
+         host.composer.setSize({120, 200});  // child now spans x∈[0,60)
+         host.frame();
+         EXPECT_EQ(host.pixel(80, 20),
+                   SK_ColorBLACK);  // red = stale bake replayed
+         EXPECT_EQ(host.pixel(30, 20), SK_ColorRED);  // new geometry painted
+       }},
+      {"AChangedDescriptionRecordsAgain",
+       [] {
+         Host host;
+         auto tree = [](Fill fill) {
+           return box().children(
+               {box().key("x").width(60).height(60).fill(std::move(fill))});
+         };
+         host.composer.render(tree(red()));
+         host.frame();
+         EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
+         host.composer.render(tree(green()));
+         EXPECT_TRUE(host.composer.dirty());
+         host.frame();
+         EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
+       }},
+      {"ATextureRasterizesOnceAndAgainWhenItChanges",
+       [] {
+         static int programRuns;
+         programRuns = 0;
+         Host host;
+         auto tree = [](SkColor color) {
+           return box().children(
+               {custom([color](sigil::draw::Pen& pen, const PaintContext& ctx) {
+                  SkCanvas& canvas = *pen.canvas();
+                  ++programRuns;
+                  SkPaint paint;
+                  paint.setColor(color);
+                  canvas.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y),
+                                  paint);
+                })
+                    .key("tex")
+                    .width(80)
+                    .height(80)
+                    .cache(Cache::Texture)});
+         };
+         host.composer.render(tree(SK_ColorMAGENTA));
+         host.frame();
+         host.frame();
+         host.frame();
+         EXPECT_EQ(programRuns, 1);  // rasterized once, blitted thereafter
+         EXPECT_EQ(host.pixel(40, 40), SK_ColorMAGENTA);
+         EXPECT_GE(host.composer.stats().texturesLive, 1u);
+
+         host.composer.render(tree(SK_ColorYELLOW));  // invalidate
+         host.frame();
+         EXPECT_EQ(programRuns, 2);
+         EXPECT_EQ(host.pixel(40, 40), SK_ColorYELLOW);
+       }},
+      {"CacheNoneRunsEveryFrame",
+       [] {
+         static int programRuns;
+         programRuns = 0;
+         Host host;
+         host.composer.render(box().children({custom([] { ++programRuns; })
+                                                  .width(10)
+                                                  .height(10)
+                                                  .cache(Cache::None)}));
+         host.frame();
+         host.frame();
+         EXPECT_EQ(programRuns, 2);
+       }},
+  });
 }
 
-TEST(ComposeCaching, RelayoutInvalidatesStaleRecordings) {
-  // setSize alone — no prop change, no re-render — resizes a percent-width child
-  // whose geometry is already baked into cached recordings. Invalidation
-  // driven only by patching never sees this, so relayout has to compare the
-  // new rects against the baked ones and drop what moved.
-  Host host;
-  host.composer.render(
-      box().children({box().width(percent(50)).height(40).fill(red())}));
-  host.frame();  // child spans x∈[0,100) at 200-wide viewport; recorded
-  EXPECT_EQ(host.pixel(80, 20), SK_ColorRED);
-  host.composer.setSize({120, 200});  // child now spans x∈[0,60)
-  host.frame();
-  EXPECT_EQ(host.pixel(80, 20), SK_ColorBLACK);  // red = stale bake replayed
-  EXPECT_EQ(host.pixel(30, 20), SK_ColorRED);    // new geometry painted
+// A lone fill takes a bound opacity on its paint and opens no layer; a leaf
+// asked to record keeps the opacity out of the recording.
+TEST(ComposeCache, ABoundOpacityRidesTheFillPaintUnlessTheLeafRecords) {
+  sigil::compose::test::checkRows({
+      {"ABlendedLeafWithABoundOpacityPaintsWithoutALayer",
+       [] {
+         // A leaf that composites — a plus-blended glow, a fading overlay —
+         // takes a BOUND opacity on its fill paint rather than in a layer the
+         // size of what it paints: a lone fill drawn into a transparent layer
+         // and composited at alpha is the same pixels as that fill drawn at
+         // alpha, since there is nothing inside the layer for it to composite
+         // against first. Asserted against the PLAIN opacity of the same
+         // value.
+         const auto plate = [](const motion::Animatable<float>* bound,
+                               float plain) {
+           auto host = std::make_unique<Host>();
+           Element leaf = box()
+                              .key("glow")
+                              .width(120)
+                              .height(120)
+                              .absolute()
+                              .left(30)
+                              .top(30)
+                              .borderRadius({28.0f})
+                              .hitTestable(false)
+                              .fill(green())
+                              .blendMode(material::BlendMode::PlusLighter);
+           if (bound)
+             leaf.opacity(*bound);
+           else
+             leaf.opacity(plain);
+           host->composer.render(profiledUnder(stack().children(
+               {box().inset(0).fill(red()), std::move(leaf)})));
+           host->frame();
+           return host;
+         };
+         motion::Animatable<float> gain = motion::animatable(0.5f);
+         const std::unique_ptr<Host> live = plate(&gain, 0.0f);
+         const std::unique_ptr<Host> plain = plate(nullptr, 0.5f);
+         EXPECT_TRUE(identicalPixels(*live, *plain, 200, 200))
+             << "the alpha on the fill paint is not the alpha through a layer";
+         // …and it still tracks the binding, which a frozen fill paint would
+         // not.
+         gain = 0.0f;
+         live->frame();
+         EXPECT_EQ(SkColorGetG(live->pixel(90, 90)), 0u);
+       }},
+      {"ARecordedLeafKeepsItsBoundOpacityOutOfTheRecording",
+       [] {
+         // …and the exclusion that survives. A leaf asked for `Cache::Picture`
+         // records, and a recording that baked the fill paint would freeze this
+         // frame's alpha and replay a fade that has moved on. Such a leaf keeps
+         // the layer, so the opacity is applied over the replay.
+         Host host;
+         motion::Animatable<float> gain = motion::animatable(1.0f);
+         host.composer.render(profiledUnder(stack().children(
+             {box().inset(0).fill(red()), box()
+                                              .key("fading")
+                                              .width(80)
+                                              .height(80)
+                                              .absolute()
+                                              .left(10)
+                                              .top(10)
+                                              .fill(green())
+                                              .cache(Cache::Picture)
+                                              .opacity(gain)})));
+         host.frame();
+         EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 200u) << "opaque at gain 1";
+         gain = 0.0f;
+         host.frame();
+         EXPECT_LT(SkColorGetG(host.pixel(50, 50)), 20u)
+             << "the recording froze the alpha it was taken at";
+       }},
+  });
 }
 
-TEST(ComposeCaching, CacheNoneRunsEveryFrame) {
-  static int programRuns;
-  programRuns = 0;
-  Host host;
-  host.composer.render(box().children(
-      {custom([] { ++programRuns; }).width(10).height(10).cache(Cache::None)}));
-  host.frame();
-  host.frame();
-  EXPECT_EQ(programRuns, 2);
-}
+// A declared density bakes once and blits through every view scale, and a
+// change of content is still baked again.
+TEST(ComposeCache, ADeclaredBakeDensityTakesABakeOnceWhateverTheViewScale) {
+  sigil::compose::test::checkRows({
+      {"ADeclaredBakeDensityHoldsOneBakeAcrossViewScales",
+       [] {
+         // A DECLARED DENSITY MAKES A BAKE A PICTURE OF THE CANVAS. Without one
+         // a bake is a picture of the VIEW: a reader who zooms walks the coarse
+         // ladder, and every rung re-rasterizes the node at the new resolution
+         // while they wait. With one the node is baked at the density the host
+         // named and blitted through whatever the view does afterwards, exactly
+         // as an image node's pixels are — which is why three view scales cost
+         // one bake and two blits.
+         const auto drawAt = [](Host& host, float viewScale) {
+           SkCanvas* canvas = host.surface->getCanvas();
+           canvas->clear(SK_ColorBLACK);
+           canvas->save();
+           canvas->scale(viewScale, viewScale);
+           host.composer.draw(*canvas);
+           canvas->restore();
+         };
+         const auto panel = [] {
+           return box().key("panel").width(60).height(60).fill(green()).cache(
+               Cache::Texture);
+         };
+         // Three scales a wheel would pass through, none of them a rung apart
+         // from the last by less than the ladder's own step.
+         const float viewScales[] = {1.0f, 1.4f, 2.744f};
 
-TEST(ComposeCaching, ReconcileInvalidatesRecording) {
-  Host host;
-  auto tree = [](Fill f) {
-    return box().children(
-        {box().key("x").width(60).height(60).fill(std::move(f))});
-  };
-  host.composer.render(tree(red()));
-  host.frame();
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
-  host.composer.render(tree(green()));
-  EXPECT_TRUE(host.composer.dirty());
-  host.frame();
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
-}
+         Host pinned;
+         pinned.composer.setBakeDensity(2.0f);
+         pinned.composer.render(profiledUnder(panel()));
+         drawAt(pinned, viewScales[0]);
+         EXPECT_EQ(pinned.composer.stats().texturesBaked, 1u) << "the one bake";
+         for (int step = 1; step < 3; ++step) {
+           drawAt(pinned, viewScales[step]);
+           EXPECT_EQ(pinned.composer.stats().texturesBaked, 0u)
+               << "re-baked at view scale " << viewScales[step];
+           EXPECT_EQ(pinned.composer.stats().texturesLive, 1u)
+               << "still one image";
+         }
+         // …and it is still the panel that is on screen, blitted up.
+         EXPECT_EQ(pinned.pixel(60, 60), SK_ColorGREEN);
 
-TEST(ComposeCaching, APhosphorBloomOnATextureNodeIsBakedWithIt) {
-  // A layer effect is captured by the node's bake, so a bloom over a
-  // bounded glow-source layer under Cache::Texture is paid once: the
-  // second frame blits the baked image and records nothing, and the
-  // halo is in the blit.
-  Host host;
-  host.composer.render(
-      box()
-          .cache(Cache::None)
-          .children(
-              {box()
-                   .key("glow")
-                   .width(80)
-                   .height(80)
-                   .cache(Cache::Texture)
-                   .filter(material::Filter::phosphorBloom(9, 0.5f, 1.0f, 0.8f,
-                                                           -30.0f, 0.5f))
-                   .children({box()
-                                  .absolute()
-                                  .left(28)
-                                  .top(28)
-                                  .width(24)
-                                  .height(24)
-                                  .fill(Fill::color({1, 0.7f, 0.1f, 1}))})}));
-  host.frame();
-  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
-  host.frame();
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-  EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
-  EXPECT_GT(SkColorGetR(host.pixel(57, 40)), 0u);  // the halo, 5 px out
-  EXPECT_EQ(host.pixel(4, 4), SK_ColorBLACK);      // and no further
-}
+         // The control: the ladder is exactly what the density opts out of.
+         Host laddered;
+         size_t ladderBakes = 0;
+         laddered.composer.render(profiledUnder(panel()));
+         for (float viewScale : viewScales) {
+           drawAt(laddered, viewScale);
+           ladderBakes += laddered.composer.stats().texturesBaked;
+         }
+         EXPECT_GT(ladderBakes, 1u);
+       }},
+      {"ADeclaredGroupBakeDensityHoldsAcrossViewScales",
+       [] {
+         Host host;
+         host.composer.setBakeDensity(2.0f);
+         host.composer.render(box()
+                                  .cache(Cache::None)
+                                  .children({box()
+                                                 .absolute()
+                                                 .left(20)
+                                                 .top(20)
+                                                 .width(60)
+                                                 .height(60)
+                                                 .fill(green())
+                                                 .cache(Cache::Group)}));
+         const auto drawAt = [&](float viewScale) {
+           SkCanvas* canvas = host.surface->getCanvas();
+           canvas->clear(SK_ColorBLACK);
+           canvas->save();
+           canvas->scale(viewScale, viewScale);
+           host.composer.draw(*canvas);
+           canvas->restore();
+         };
 
-TEST(ComposeCaching, TextureCacheRasterizesOnceAndInvalidates) {
-  static int programRuns;
-  programRuns = 0;
-  Host host;
-  auto tree = [](SkColor color) {
-    return box().children(
-        {custom([color](sigil::draw::Pen& pen, const PaintContext& ctx) {
-           SkCanvas& c = *pen.canvas();
-           ++programRuns;
-           SkPaint p;
-           p.setColor(color);
-           c.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), p);
-         })
-             .key("tex")
-             .width(80)
-             .height(80)
-             .cache(Cache::Texture)});
-  };
-  host.composer.render(tree(SK_ColorMAGENTA));
-  host.frame();
-  host.frame();
-  host.frame();
-  EXPECT_EQ(programRuns, 1);  // rasterized once, blitted thereafter
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorMAGENTA);
-  EXPECT_GE(host.composer.stats().texturesLive, 1u);
-
-  host.composer.render(tree(SK_ColorYELLOW));  // invalidate
-  host.frame();
-  EXPECT_EQ(programRuns, 2);
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorYELLOW);
-}
-
-TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
-  // A leaf that composites — a plus-blended glow, a fading overlay — used
-  // to be handed a saveLayer whenever its opacity was BOUND rather than
-  // plain, and that layer is the size of what the node PAINTS, so a
-  // full-bleed one cost a canvas-sized intermediate every frame for one
-  // fill. The alpha rides the fill paint instead, and this is the claim
-  // that makes that legal: a lone fill drawn into a transparent layer and
-  // composited at alpha is the same pixels as that fill drawn at alpha,
-  // since there is nothing inside the layer for it to composite against
-  // first. Asserted against the PLAIN opacity of the same value, which
-  // took the direct route all along.
-  const auto plate = [](const motion::Animatable<float>* bound, float plain) {
-    auto host = std::make_unique<Host>();
-    Element leaf = box()
-                       .key("glow")
-                       .width(120)
-                       .height(120)
-                       .absolute()
-                       .left(30)
-                       .top(30)
-                       .borderRadius({28.0f})
-                       .hitTestable(false)
-                       .fill(green())
-                       .blendMode(material::BlendMode::PlusLighter);
-    if (bound)
-      leaf.opacity(*bound);
-    else
-      leaf.opacity(plain);
-    host->composer.render(profiledUnder(
-        stack().children({box().inset(0).fill(red()), std::move(leaf)})));
-    host->frame();
-    return host;
-  };
-  motion::Animatable<float> gain = motion::animatable(0.5f);
-  const std::unique_ptr<Host> live = plate(&gain, 0.0f);
-  const std::unique_ptr<Host> plain = plate(nullptr, 0.5f);
-  EXPECT_TRUE(identicalPixels(*live, *plain, 200, 200))
-      << "the alpha on the fill paint is not the alpha through a layer";
-  // …and it still tracks the binding, which a frozen fill paint would not.
-  gain = 0.0f;
-  live->frame();
-  EXPECT_EQ(SkColorGetG(live->pixel(90, 90)), 0u);
-}
-
-TEST(ComposeCache, ARecordedLeafKeepsItsBoundOpacityOutOfTheRecording) {
-  // …and the exclusion that survives. A leaf asked for `Cache::Picture`
-  // records, and a recording that baked the fill paint would freeze this
-  // frame's alpha and replay a fade that has moved on. Such a leaf keeps
-  // the layer, so the opacity is applied over the replay.
-  Host host;
-  motion::Animatable<float> gain = motion::animatable(1.0f);
-  host.composer.render(profiledUnder(
-      stack().children({box().inset(0).fill(red()), box()
-                                                        .key("fading")
-                                                        .width(80)
-                                                        .height(80)
-                                                        .absolute()
-                                                        .left(10)
-                                                        .top(10)
-                                                        .fill(green())
-                                                        .cache(Cache::Picture)
-                                                        .opacity(gain)})));
-  host.frame();
-  EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 200u) << "opaque at gain 1";
-  gain = 0.0f;
-  host.frame();
-  EXPECT_LT(SkColorGetG(host.pixel(50, 50)), 20u)
-      << "the recording froze the alpha it was taken at";
-}
-
-TEST(ComposeCache, ADeclaredBakeDensityHoldsOneBakeAcrossViewScales) {
-  // A DECLARED DENSITY MAKES A BAKE A PICTURE OF THE CANVAS. Without one
-  // a bake is a picture of the VIEW: a reader who zooms walks the coarse
-  // ladder, and every rung re-rasterizes the node at the new resolution
-  // while they wait. With one the node is baked at the density the host
-  // named and blitted through whatever the view does afterwards, exactly
-  // as an image node's pixels are — which is why three view scales cost
-  // one bake and two blits.
-  const auto drawAt = [](Host& host, float viewScale) {
-    SkCanvas* canvas = host.surface->getCanvas();
-    canvas->clear(SK_ColorBLACK);
-    canvas->save();
-    canvas->scale(viewScale, viewScale);
-    host.composer.draw(*canvas);
-    canvas->restore();
-  };
-  const auto panel = [] {
-    return box().key("panel").width(60).height(60).fill(green()).cache(
-        Cache::Texture);
-  };
-  // Three scales a wheel would pass through, none of them a rung apart
-  // from the last by less than the ladder's own step.
-  const float viewScales[] = {1.0f, 1.4f, 2.744f};
-
-  Host pinned;
-  pinned.composer.setBakeDensity(2.0f);
-  pinned.composer.render(profiledUnder(panel()));
-  drawAt(pinned, viewScales[0]);
-  EXPECT_EQ(pinned.composer.stats().texturesBaked, 1u) << "the one bake";
-  for (int step = 1; step < 3; ++step) {
-    drawAt(pinned, viewScales[step]);
-    EXPECT_EQ(pinned.composer.stats().texturesBaked, 0u)
-        << "re-baked at view scale " << viewScales[step];
-    EXPECT_EQ(pinned.composer.stats().texturesLive, 1u) << "still one image";
-  }
-  // …and it is still the panel that is on screen, blitted up.
-  EXPECT_EQ(pinned.pixel(60, 60), SK_ColorGREEN);
-
-  // The control: the ladder is exactly what the density opts out of.
-  Host laddered;
-  size_t ladderBakes = 0;
-  laddered.composer.render(profiledUnder(panel()));
-  for (float viewScale : viewScales) {
-    drawAt(laddered, viewScale);
-    ladderBakes += laddered.composer.stats().texturesBaked;
-  }
-  EXPECT_GT(ladderBakes, 1u);
-}
-
-TEST(ComposeCache, ADeclaredGroupBakeDensityHoldsAcrossViewScales) {
-  Host host;
-  host.composer.setBakeDensity(2.0f);
-  host.composer.render(box()
-                           .cache(Cache::None)
-                           .children({box()
-                                          .absolute()
-                                          .left(20)
-                                          .top(20)
-                                          .width(60)
-                                          .height(60)
-                                          .fill(green())
-                                          .cache(Cache::Group)}));
-  const auto drawAt = [&](float viewScale) {
-    SkCanvas* canvas = host.surface->getCanvas();
-    canvas->clear(SK_ColorBLACK);
-    canvas->save();
-    canvas->scale(viewScale, viewScale);
-    host.composer.draw(*canvas);
-    canvas->restore();
-  };
-
-  // A group must observe the same scalar values twice before it bakes.
-  drawAt(1.0f);
-  drawAt(1.0f);
-  ASSERT_EQ(host.composer.stats().texturesBaked, 1u);
-  for (float viewScale : {1.0f, 1.4f, 2.744f}) {
-    // The changed rect and the following stable rect must both reuse the
-    // local image. A device bake would replace it on the stable frame.
-    for (int frame = 0; frame < 2; ++frame) {
-      drawAt(viewScale);
-      EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
-          << "view scale " << viewScale << ", frame " << frame;
-      EXPECT_EQ(host.composer.stats().texturesLive, 1u);
-      EXPECT_EQ(host.pixel(60, 60), SK_ColorGREEN);
-      EXPECT_EQ(host.pixel(10, 10), SK_ColorBLACK);
-    }
-  }
-}
-
-TEST(ComposeCache, ADeclaredBakeDensityStillReBakesChangedContent) {
-  // The density answers "at what resolution", never "is this still the
-  // same picture". A node whose content changed is a different picture
-  // and is taken again.
-  Host host;
-  host.composer.setBakeDensity(2.0f);
-  const auto panel = [](Fill fill) {
-    return profiledUnder(
-        box().key("panel").width(60).height(60).fill(fill).cache(
-            Cache::Texture));
-  };
-  host.composer.render(panel(green()));
-  host.frame();
-  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
-  host.frame();
-  EXPECT_EQ(host.composer.stats().texturesBaked, 0u) << "nothing changed";
-  host.composer.render(panel(red()));
-  host.frame();
-  EXPECT_EQ(host.composer.stats().texturesBaked, 1u) << "the fill changed";
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
+         // A group must observe the same scalar values twice before it bakes.
+         drawAt(1.0f);
+         drawAt(1.0f);
+         ASSERT_EQ(host.composer.stats().texturesBaked, 1u);
+         for (float viewScale : {1.0f, 1.4f, 2.744f}) {
+           // The changed rect and the following stable rect must both reuse the
+           // local image. A device bake would replace it on the stable frame.
+           for (int frame = 0; frame < 2; ++frame) {
+             drawAt(viewScale);
+             EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+                 << "view scale " << viewScale << ", frame " << frame;
+             EXPECT_EQ(host.composer.stats().texturesLive, 1u);
+             EXPECT_EQ(host.pixel(60, 60), SK_ColorGREEN);
+             EXPECT_EQ(host.pixel(10, 10), SK_ColorBLACK);
+           }
+         }
+       }},
+      {"ADeclaredBakeDensityStillReBakesChangedContent",
+       [] {
+         // The density answers "at what resolution", never "is this still the
+         // same picture". A node whose content changed is a different picture
+         // and is taken again.
+         Host host;
+         host.composer.setBakeDensity(2.0f);
+         const auto panel = [](Fill fill) {
+           return profiledUnder(
+               box().key("panel").width(60).height(60).fill(fill).cache(
+                   Cache::Texture));
+         };
+         host.composer.render(panel(green()));
+         host.frame();
+         EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+         host.frame();
+         EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+             << "nothing changed";
+         host.composer.render(panel(red()));
+         host.frame();
+         EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
+             << "the fill changed";
+         EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
+       }},
+  });
 }
 
 TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
@@ -356,64 +353,6 @@ TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
     EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
         << "step " << step << ": the entrance passed a rung and re-baked";
   }
-}
-
-// ---------------------------------------------------------------------------
-// A texture-cached node's blend rides its blit, not a saveLayer.
-
-TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
-  // Cache::Texture plus a non-srcOver blend must not allocate a
-  // device-clip-sized saveLayer just to composite ONE blit — the blend
-  // belongs on the blit's own paint.
-  //
-  // That is safe because compositing an image through a layer and drawing
-  // it with the same paint directly are one operation minus an
-  // intermediate, so the deferred plate must match a hand-built layer
-  // composite to within the 8-bit rounding residual. And kPlus over the
-  // red base must actually ACCUMULATE, or the blend was dropped rather
-  // than moved.
-  auto plate = [](bool texture) {
-    Host host;
-    host.composer.render(box().fill(red()).children(
-        {box()
-             .width(80)
-             .height(80)
-             .inset(20, 100, 100, 20)
-             .absolute()
-             .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
-             .blendMode(material::BlendMode::PlusLighter)
-             .cache(texture ? Cache::Texture : Cache::Picture)}));
-    for (int i = 0; i < 3; ++i)
-      host.frame();  // settle: bake once, then replay/blit
-    std::vector<SkColor> px;
-    for (int y = 10; y < 110; y += 2)
-      for (int x = 10; x < 110; x += 2) px.push_back(host.pixel(x, y));
-    return px;
-  };
-  const auto deferred = plate(true), layered = plate(false);
-  ASSERT_EQ(deferred.size(), layered.size());
-  int peak = 0;
-  for (size_t i = 0; i < deferred.size(); ++i)
-    for (unsigned shift : {0u, 8u, 16u, 24u})
-      peak = std::max(peak, std::abs((int)((deferred[i] >> shift) & 0xFFu) -
-                                     (int)((layered[i] >> shift) & 0xFFu)));
-  EXPECT_LE(peak, 2) << "deferred blit and layer composite disagree "
-                        "beyond the 8-bit residual";
-  // …and the blend is really live: plus over red saturates the red
-  // channel where the child overlaps.
-  Host host;
-  host.composer.render(box().fill(red()).children(
-      {box()
-           .width(80)
-           .height(80)
-           .inset(20, 100, 100, 20)
-           .absolute()
-           .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
-           .blendMode(material::BlendMode::PlusLighter)
-           .cache(Cache::Texture)}));
-  for (int i = 0; i < 3; ++i) host.frame();
-  EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 250u);  // 1.0 + 0.2 clamps
-  EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 90u);   // the child's green
 }
 
 // ---------------------------------------------------------------------------
@@ -449,66 +388,166 @@ Element haloedNode(Boundary boundary, const motion::Animatable<float>& turn) {
 
 }  // namespace
 
-TEST(ComposeCaching, AStaticEffectOverSettledContentIsRunOverItsBake) {
-  // The picture is the whole claim: a node whose content is rasterized
-  // WITHOUT its effect, with the effect run over that image, must paint
-  // what the same node painted with the effect inside the raster. What
-  // moves is only what a re-bake costs — the filter's own band-sized layer
-  // is gone from it.
-  //
-  // THE BLEED RULE is what makes the two the same. The lifted filter reads
-  // the bake and nothing else, so the bake must carry the effect's reach as
-  // transparent margin — here the halo's sigma against the 20 px the inner
-  // box is inset by — exactly as it had to before, when that same margin
-  // was what the filter's own layer spread into.
-  motion::Animatable<float> still =
-      motion::animatable(0.0f);  // held at rest: no pixel moves
-  const auto plate = [&still](Boundary boundary) {
-    Host host;
-    host.composer.setProfiling(true);
-    host.composer.render(
-        box().children({profiledUnder(haloedNode(boundary, still))}));
-    for (int i = 0; i < 3; ++i) host.frame();  // bake once, then blit
-    const Composer::NodeCost* row = requireRow(host.composer, "halo");
-    return std::pair{grab(host), row && row->effectDeferred};
-  };
-  const auto [blitFiltered, rides] = plate(Boundary::Auto);
-  const auto [bakeFiltered, sits] = plate(Boundary::Coverage);
-  EXPECT_TRUE(rides) << "the effect stayed inside the bake — nothing below "
-                        "this line compares the two tiers";
-  EXPECT_FALSE(sits) << "the reference arm deferred too, so both plates are "
-                        "the same path and the comparison proves nothing";
-  ASSERT_EQ(blitFiltered.size(), bakeFiltered.size());
-  int peak = 0;
-  size_t lit = 0;
-  for (size_t i = 0; i < blitFiltered.size(); ++i) {
-    for (unsigned shift : {0u, 8u, 16u, 24u})
-      peak =
-          std::max(peak, std::abs((int)((blitFiltered[i] >> shift) & 0xFFu) -
-                                  (int)((bakeFiltered[i] >> shift) & 0xFFu)));
-    if (blitFiltered[i] != SK_ColorBLACK) ++lit;
-  }
-  EXPECT_LE(peak, 1) << "the filter at the blit and the filter inside the "
-                        "bake paint different pixels";
-  // …and there was a halo to compare: the content alone is 40x40, so a
-  // plate agreeing on 1600 pixels agreed about the content and nothing the
-  // effect made.
-  EXPECT_GT(lit, 2600u) << "no halo outside the content in either plate";
-}
-
-TEST(ComposeCaching, ADeferredEffectSpreadsInsideTheBakeAndStopsAtIt) {
-  // The bleed rule, read off the pixels. The halo stands in the margin the
-  // node's paint bounds carry around its ink, and the node's own bake rect
-  // ends it: the lifted filter has no pixels to read past the bake, and the
-  // surface it draws into cuts the halo where the filter's own layer was
-  // cut before.
-  motion::Animatable<float> still = motion::animatable(0.0f);
-  Host host;
-  host.composer.render(
-      box().children({profiledUnder(haloedNode(Boundary::Auto, still))}));
-  for (int i = 0; i < 3; ++i) host.frame();
-  EXPECT_GT(SkColorGetB(host.pixel(56, 100)), 20u);  // 4 px out: the halo
-  EXPECT_EQ(host.pixel(38, 100), SK_ColorBLACK);     // 2 px past the box
+// An effect or a blend on a texture-cached node is applied over the baked
+// image, and paints what the same node paints with it inside the raster.
+TEST(ComposeCaching, AnEffectOrBlendOnABakedNodeIsAppliedOverItsImage) {
+  sigil::compose::test::checkRows({
+      {"APhosphorBloomOnATextureNodeIsBakedWithIt",
+       [] {
+         // A layer effect is captured by the node's bake, so a bloom over a
+         // bounded glow-source layer under Cache::Texture is paid once: the
+         // second frame blits the baked image and records nothing, and the
+         // halo is in the blit.
+         Host host;
+         host.composer.render(
+             box()
+                 .cache(Cache::None)
+                 .children({box()
+                                .key("glow")
+                                .width(80)
+                                .height(80)
+                                .cache(Cache::Texture)
+                                .filter(material::Filter::phosphorBloom(
+                                    9, 0.5f, 1.0f, 0.8f, -30.0f, 0.5f))
+                                .children({box()
+                                               .absolute()
+                                               .left(28)
+                                               .top(28)
+                                               .width(24)
+                                               .height(24)
+                                               .fill(Fill::color(
+                                                   {1, 0.7f, 0.1f, 1}))})}));
+         host.frame();
+         EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+         host.frame();
+         EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+         EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
+         EXPECT_GT(SkColorGetR(host.pixel(57, 40)), 0u);  // the halo, 5 px out
+         EXPECT_EQ(host.pixel(4, 4), SK_ColorBLACK);      // and no further
+       }},
+      {"ATextureBlendCompositesOnTheBlitNotALayer",
+       [] {
+         // Cache::Texture plus a non-srcOver blend must not allocate a
+         // device-clip-sized saveLayer just to composite ONE blit — the blend
+         // belongs on the blit's own paint.
+         //
+         // That is safe because compositing an image through a layer and
+         // drawing it with the same paint directly are one operation minus an
+         // intermediate, so the deferred plate must match a hand-built layer
+         // composite to within the 8-bit rounding residual. And kPlus over the
+         // red base must actually ACCUMULATE, or the blend was dropped rather
+         // than moved.
+         auto plate = [](bool texture) {
+           Host host;
+           host.composer.render(box().fill(red()).children(
+               {box()
+                    .width(80)
+                    .height(80)
+                    .inset(20, 100, 100, 20)
+                    .absolute()
+                    .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
+                    .blendMode(material::BlendMode::PlusLighter)
+                    .cache(texture ? Cache::Texture : Cache::Picture)}));
+           for (int index = 0; index < 3; ++index)
+             host.frame();  // settle: bake once, then replay/blit
+           std::vector<SkColor> samples;
+           for (int y = 10; y < 110; y += 2)
+             for (int x = 10; x < 110; x += 2)
+               samples.push_back(host.pixel(x, y));
+           return samples;
+         };
+         const auto deferred = plate(true), layered = plate(false);
+         ASSERT_EQ(deferred.size(), layered.size());
+         int peak = 0;
+         for (size_t index = 0; index < deferred.size(); ++index)
+           for (unsigned shift : {0u, 8u, 16u, 24u})
+             peak = std::max(
+                 peak, std::abs((int)((deferred[index] >> shift) & 0xFFu) -
+                                (int)((layered[index] >> shift) & 0xFFu)));
+         EXPECT_LE(peak, 2) << "deferred blit and layer composite disagree "
+                               "beyond the 8-bit residual";
+         // …and the blend is really live: plus over red saturates the red
+         // channel where the child overlaps.
+         Host host;
+         host.composer.render(box().fill(red()).children(
+             {box()
+                  .width(80)
+                  .height(80)
+                  .inset(20, 100, 100, 20)
+                  .absolute()
+                  .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
+                  .blendMode(material::BlendMode::PlusLighter)
+                  .cache(Cache::Texture)}));
+         for (int index = 0; index < 3; ++index) host.frame();
+         EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 250u);  // 1.0 + 0.2 clamps
+         EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 90u);   // the child's green
+       }},
+      {"AStaticEffectOverSettledContentIsRunOverItsBake",
+       [] {
+         // The picture is the whole claim: a node whose content is rasterized
+         // WITHOUT its effect, with the effect run over that image, must paint
+         // what the same node painted with the effect inside the raster. What
+         // moves is only what a re-bake costs — the filter's own band-sized
+         // layer is gone from it.
+         //
+         // THE BLEED RULE is what makes the two the same. The lifted filter
+         // reads the bake and nothing else, so the bake must carry the effect's
+         // reach as transparent margin — here the halo's sigma against the 20
+         // px the inner box is inset by.
+         motion::Animatable<float> still =
+             motion::animatable(0.0f);  // held at rest: no pixel moves
+         const auto plate = [&still](Boundary boundary) {
+           Host host;
+           host.composer.setProfiling(true);
+           host.composer.render(
+               box().children({profiledUnder(haloedNode(boundary, still))}));
+           for (int index = 0; index < 3; ++index)
+             host.frame();  // bake once, then blit
+           const Composer::NodeCost* row = requireRow(host.composer, "halo");
+           return std::pair{grab(host), row && row->effectDeferred};
+         };
+         const auto [blitFiltered, rides] = plate(Boundary::Auto);
+         const auto [bakeFiltered, sits] = plate(Boundary::Coverage);
+         EXPECT_TRUE(rides)
+             << "the effect stayed inside the bake — nothing below "
+                "this line compares the two tiers";
+         EXPECT_FALSE(sits)
+             << "the reference arm deferred too, so both plates are "
+                "the same path and the comparison proves nothing";
+         ASSERT_EQ(blitFiltered.size(), bakeFiltered.size());
+         int peak = 0;
+         size_t lit = 0;
+         for (size_t index = 0; index < blitFiltered.size(); ++index) {
+           for (unsigned shift : {0u, 8u, 16u, 24u})
+             peak = std::max(
+                 peak, std::abs((int)((blitFiltered[index] >> shift) & 0xFFu) -
+                                (int)((bakeFiltered[index] >> shift) & 0xFFu)));
+           if (blitFiltered[index] != SK_ColorBLACK) ++lit;
+         }
+         EXPECT_LE(peak, 1)
+             << "the filter at the blit and the filter inside the "
+                "bake paint different pixels";
+         // …and there was a halo to compare: the content alone is 40x40, so a
+         // plate agreeing on 1600 pixels agreed about the content and nothing
+         // the effect made.
+         EXPECT_GT(lit, 2600u) << "no halo outside the content in either plate";
+       }},
+      {"ADeferredEffectSpreadsInsideTheBakeAndStopsAtIt",
+       [] {
+         // The bleed rule, read off the pixels. The halo stands in the margin
+         // the node's paint bounds carry around its ink, and the node's own
+         // bake rect ends it: the lifted filter has no pixels to read past the
+         // bake, and the surface it draws into cuts the halo there.
+         motion::Animatable<float> still = motion::animatable(0.0f);
+         Host host;
+         host.composer.render(box().children(
+             {profiledUnder(haloedNode(Boundary::Auto, still))}));
+         for (int index = 0; index < 3; ++index) host.frame();
+         EXPECT_GT(SkColorGetB(host.pixel(56, 100)),
+                   20u);                                 // 4 px out: the halo
+         EXPECT_EQ(host.pixel(38, 100), SK_ColorBLACK);  // 2 px past the box
+       }},
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -529,12 +568,12 @@ struct TracedRule {
   float bleed() const { return width * 0.5f; }
   void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
     SkCanvas& canvas = *pen.canvas();
-    SkPaint p;
-    p.setStyle(SkPaint::kStroke_Style);
-    p.setStrokeWidth(width);
-    p.setColor(SkColorSetRGB(255, 80, 25));
-    p.setAntiAlias(true);
-    canvas.drawPath(geometry::path::toSk(ctx.outline), p);
+    SkPaint paint;
+    paint.setStyle(SkPaint::kStroke_Style);
+    paint.setStrokeWidth(width);
+    paint.setColor(SkColorSetRGB(255, 80, 25));
+    paint.setAntiAlias(true);
+    canvas.drawPath(geometry::path::toSk(ctx.outline), paint);
   }
 };
 
@@ -567,19 +606,19 @@ std::vector<SkColor> stillAtTwice(bool warmFirst) {
   Host host(200, 200);
   host.composer.render(tracedDisc());
   if (warmFirst)
-    for (int i = 0; i < 6; ++i) host.frame();
+    for (int index = 0; index < 6; ++index) host.frame();
   sk_sp<SkSurface> still =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 400));
   still->getCanvas()->clear(SK_ColorBLACK);
   still->getCanvas()->scale(2, 2);
   host.composer.draw(*still->getCanvas());
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(400, 400));
-  still->readPixels(bm.pixmap(), 0, 0);
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(400, 400));
+  still->readPixels(bitmap.pixmap(), 0, 0);
   std::vector<SkColor> out;
   out.reserve(400u * 400u);
   for (int y = 0; y < 400; ++y)
-    for (int x = 0; x < 400; ++x) out.push_back(bm.getColor(x, y));
+    for (int x = 0; x < 400; ++x) out.push_back(bitmap.getColor(x, y));
   return out;
 }
 
@@ -608,10 +647,10 @@ Element stripedBake(const motion::Animatable<float>& drift) {
                           .fill(Fill::color({0, 0, 0, 1}))
                           .cache(Cache::Texture)
                           .key("striped");
-  for (int i = 0; i < 40; ++i)
+  for (int index = 0; index < 40; ++index)
     bakedNode.children({box()
                             .absolute()
-                            .left((float)(i * 4))
+                            .left((float)(index * 4))
                             .top(0)
                             .width(1)
                             .height(160)
@@ -629,160 +668,118 @@ std::vector<SkColor> stripesAtTwice(bool warmFirst) {
   motion::Animatable<float> drift = motion::animatable(0.0f);
   host.composer.render(stripedBake(drift));
   if (warmFirst)
-    for (int i = 0; i < 6; ++i) host.frame();
+    for (int index = 0; index < 6; ++index) host.frame();
   sk_sp<SkSurface> still =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 400));
   still->getCanvas()->clear(SK_ColorBLACK);
   still->getCanvas()->scale(2, 2);
   host.composer.draw(*still->getCanvas());
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(400, 400));
-  still->readPixels(bm.pixmap(), 0, 0);
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(400, 400));
+  still->readPixels(bitmap.pixmap(), 0, 0);
   std::vector<SkColor> out;
   out.reserve(400u * 400u);
   for (int y = 0; y < 400; ++y)
-    for (int x = 0; x < 400; ++x) out.push_back(bm.getColor(x, y));
+    for (int x = 0; x < 400; ++x) out.push_back(bitmap.getColor(x, y));
   return out;
 }
 
 }  // namespace
 
-TEST(ComposeCache, ALocalBakeInsideARecordingFollowsTheScaleUnderIt) {
-  // A local texture bake is rasterized at a rung of the scale ladder and
-  // the blit stretches those texels across the node's own units, so the
-  // node re-bakes at the rung the host's scale reaches. A node inside a
-  // held recording is never asked again — it is painted only when the
-  // recording is taken — so a plate photographed at its oversample would
-  // blit an upscale of the raster the warm frames took at the smaller
-  // scale. The recording carries the pin instead, exactly as it carries
-  // the one a traced boundary needs.
-  const std::vector<SkColor> warmed = stripesAtTwice(true);
-  const std::vector<SkColor> fresh = stripesAtTwice(false);
-  ASSERT_EQ(warmed.size(), fresh.size());
-  size_t differing = 0;
-  int worst = 0;
-  for (size_t i = 0; i < warmed.size(); ++i) {
-    if (warmed[i] == fresh[i]) continue;
-    ++differing;
-    for (int shift : {0, 8, 16, 24})
-      worst = std::max(worst, std::abs((int)((warmed[i] >> shift) & 0xffu) -
-                                       (int)((fresh[i] >> shift) & 0xffu)));
-  }
-  EXPECT_LE(worst, 1) << differing << " pixels moved, worst " << worst
-                      << " code values, when a node baked at the host's "
-                         "scale inside a moving recording was drawn at "
-                         "another scale";
-}
-
-TEST(ComposeCache, ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves) {
-  // A recording replays under whatever matrix it meets, which is sound for
-  // every op in it EXCEPT a coverage boundary: that path is the silhouette
-  // of a raster taken at the device scale, one step of the staircase per
-  // device pixel, so a recording made at one scale carries a boundary that
-  // belongs to another. Nothing else the picture tier compares moves with
-  // it — the node's content is the same content at any scale — so the
-  // recording is pinned to the scale its traces were taken at, exactly as a
-  // recording holding a device blit is pinned to its matrix.
-  const std::vector<SkColor> warmed = stillAtTwice(true);
-  const std::vector<SkColor> fresh = stillAtTwice(false);
-  ASSERT_EQ(warmed.size(), fresh.size());
-  size_t differing = 0;
-  int worst = 0;
-  for (size_t i = 0; i < warmed.size(); ++i) {
-    if (warmed[i] == fresh[i]) continue;
-    ++differing;
-    for (int shift : {0, 8, 16, 24})
-      worst = std::max(worst, std::abs((int)((warmed[i] >> shift) & 0xffu) -
-                                       (int)((fresh[i] >> shift) & 0xffu)));
-  }
-  EXPECT_LE(worst, 1) << differing << " pixels moved, worst " << worst
-                      << " code values, when a node whose decorations walk a "
-                         "traced silhouette was drawn at another scale";
-}
-
-TEST(ComposeCaching, DecorationOverflowFollowsResizeAndCachedReplay) {
-  struct RelativeMark {
-    bool operator==(const RelativeMark&) const = default;
-    float bleed(glm::vec2 size) const { return size.y / 2; }
-    void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
-      SkCanvas& canvas = *pen.canvas();
-      SkPaint paint;
-      paint.setColor(SK_ColorRED);
-      const float extra = bleed(ctx.size);
-      canvas.drawRect(
-          SkRect::MakeWH(ctx.size.x, ctx.size.y).makeOutset(extra, extra),
-          paint);
-    }
-  };
-  for (Cache cache : {Cache::Picture, Cache::Texture}) {
-    Host host(300, 300);
-    for (float height : {20.0f, 80.0f, 30.0f}) {
-      host.composer.render(box().children({box()
-                                               .key("relative")
-                                               .absolute()
-                                               .left(100)
-                                               .top(100)
-                                               .width(40)
-                                               .height(height)
-                                               .background(RelativeMark{})
-                                               .cache(cache)}));
-      host.frame();
-      host.frame();
-      EXPECT_EQ(host.pixel(110, 100 - (int)(height / 2) + 2), SK_ColorRED);
-      EXPECT_NE(host.pixel(110, 100 - (int)(height / 2) - 2), SK_ColorRED);
-    }
-  }
-}
-
-// -------------------------------------------------------------------------
-// A child overflowing its parent's box, under each of the three things
-// that record or bake one.
-
-TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
-  // A child translated beyond its parent's box must not be quick-rejected
-  // by the parent's recording cull (the recordBounds fix).
-  Host host(300, 200);
-  host.composer.render(
-      box().children({box().width(100).height(100).fill(blue()).children(
-          {box().width(40).height(40).fill(red()).translateX(150.0f)})}));
-  host.frame();
-  EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
-  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);  // fully outside parent's box
-  host.frame();                                 // cached replay path
-  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
-}
-
-TEST(ComposeCache, OverflowingChildSurvivesGroupOpacityLayer) {
-  // The clip that actually bites: a group opacity opens a saveLayer
-  // BOUNDED by recordBounds, and saveLayer bounds are a real clip. Drop
-  // the child union from recordBounds and the overflowing child is gone.
-  Host host(300, 200);
-  host.composer.render(box().children(
-      {box().width(100).height(100).fill(blue()).opacity(0.5f).children(
-          {box().width(40).height(40).fill(red()).translateX(150.0f)})}));
-  host.frame();
-  EXPECT_GT(SkColorGetB(host.pixel(50, 20)), 100u);   // sanity: the parent
-  EXPECT_GT(SkColorGetR(host.pixel(170, 20)), 100u);  // the escaped child
-}
-
-TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
-  // The second real clip: Cache::Texture bakes into a surface sized from
-  // recordBounds mapped to device, so anything the rect misses is
-  // truncated by the surface itself — no picture cull involved.
-  Host host(300, 200);
-  host.composer.render(box().children(
-      {box()
-           .width(100)
-           .height(100)
-           .fill(blue())
-           .cache(Cache::Texture)
-           .children(
-               {box().width(40).height(40).fill(red()).translateX(150.0f)})}));
-  host.frame();
-  EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
-  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
-  host.frame();  // cached blit path
-  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+// A decoration's bleed and a child standing outside its parent are kept by
+// the recording, the layer and the bake that hold the parent.
+TEST(ComposeCache, InkOutsideTheBoxSurvivesEveryRecordingAndBake) {
+  sigil::compose::test::checkRows({
+      {"DecorationOverflowFollowsResizeAndCachedReplay",
+       [] {
+         struct RelativeMark {
+           bool operator==(const RelativeMark&) const = default;
+           float bleed(glm::vec2 size) const { return size.y / 2; }
+           void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+             SkCanvas& canvas = *pen.canvas();
+             SkPaint paint;
+             paint.setColor(SK_ColorRED);
+             const float extra = bleed(ctx.size);
+             canvas.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y)
+                                 .makeOutset(extra, extra),
+                             paint);
+           }
+         };
+         for (Cache cache : {Cache::Picture, Cache::Texture}) {
+           Host host(300, 300);
+           for (float height : {20.0f, 80.0f, 30.0f}) {
+             host.composer.render(
+                 box().children({box()
+                                     .key("relative")
+                                     .absolute()
+                                     .left(100)
+                                     .top(100)
+                                     .width(40)
+                                     .height(height)
+                                     .background(RelativeMark{})
+                                     .cache(cache)}));
+             host.frame();
+             host.frame();
+             EXPECT_EQ(host.pixel(110, 100 - (int)(height / 2) + 2),
+                       SK_ColorRED);
+             EXPECT_NE(host.pixel(110, 100 - (int)(height / 2) - 2),
+                       SK_ColorRED);
+           }
+         }
+       }},
+      {"OverflowingChildSurvivesPictureCaching",
+       [] {
+         // A child translated beyond its parent's box is not
+         // quick-rejected by the parent's recording cull.
+         Host host(300, 200);
+         host.composer.render(
+             box().children({box().width(100).height(100).fill(blue()).children(
+                 {box().width(40).height(40).fill(red()).translateX(
+                     150.0f)})}));
+         host.frame();
+         EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
+         EXPECT_EQ(host.pixel(170, 20),
+                   SK_ColorRED);  // fully outside parent's box
+         host.frame();            // cached replay path
+         EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+       }},
+      {"OverflowingChildSurvivesGroupOpacityLayer",
+       [] {
+         // The clip that actually bites: a group opacity opens a saveLayer
+         // BOUNDED by the node's paint bounds, and saveLayer bounds are a real
+         // clip, so those bounds hold the children's union.
+         Host host(300, 200);
+         host.composer.render(box().children(
+             {box().width(100).height(100).fill(blue()).opacity(0.5f).children(
+                 {box().width(40).height(40).fill(red()).translateX(
+                     150.0f)})}));
+         host.frame();
+         EXPECT_GT(SkColorGetB(host.pixel(50, 20)),
+                   100u);  // sanity: the parent
+         EXPECT_GT(SkColorGetR(host.pixel(170, 20)),
+                   100u);  // the escaped child
+       }},
+      {"OverflowingChildSurvivesTextureBake",
+       [] {
+         // The second real clip: Cache::Texture bakes into a surface sized from
+         // the paint bounds mapped to device, so anything the rect misses is
+         // truncated by the surface itself — no picture cull involved.
+         Host host(300, 200);
+         host.composer.render(box().children(
+             {box()
+                  .width(100)
+                  .height(100)
+                  .fill(blue())
+                  .cache(Cache::Texture)
+                  .children({box().width(40).height(40).fill(red()).translateX(
+                      150.0f)})}));
+         host.frame();
+         EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
+         EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+         host.frame();  // cached blit path
+         EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+       }},
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -851,34 +848,28 @@ std::pair<int, double> turnedAgainstStill() {
   Host still(240, 240);
   still.composer.render(dressedSheet(held));
   still.frame(0, kGround);
-  const std::vector<SkColor> a = grab(turning), b = grab(still);
-  EXPECT_EQ(a.size(), b.size());
+  const std::vector<SkColor> turnedPixels = grab(turning),
+                             stillPixels = grab(still);
+  EXPECT_EQ(turnedPixels.size(), stillPixels.size());
   int far = 0;
   long total = 0;
-  for (size_t i = 0; i < std::min(a.size(), b.size()); ++i) {
-    const int d =
-        std::max({std::abs((int)SkColorGetR(a[i]) - (int)SkColorGetR(b[i])),
-                  std::abs((int)SkColorGetG(a[i]) - (int)SkColorGetG(b[i])),
-                  std::abs((int)SkColorGetB(a[i]) - (int)SkColorGetB(b[i]))});
-    total += d;
-    if (d > 96) ++far;
+  for (size_t index = 0;
+       index < std::min(turnedPixels.size(), stillPixels.size()); ++index) {
+    const int difference =
+        std::max({std::abs((int)SkColorGetR(turnedPixels[index]) -
+                           (int)SkColorGetR(stillPixels[index])),
+                  std::abs((int)SkColorGetG(turnedPixels[index]) -
+                           (int)SkColorGetG(stillPixels[index])),
+                  std::abs((int)SkColorGetB(turnedPixels[index]) -
+                           (int)SkColorGetB(stillPixels[index]))});
+    total += difference;
+    if (difference > 96) ++far;
   }
-  return {far, (double)total / (double)std::max<size_t>(a.size(), 1)};
+  return {far,
+          (double)total / (double)std::max<size_t>(turnedPixels.size(), 1)};
 }
 
 }  // namespace
-
-TEST(ComposeCaching, ACoverageDressedSheetOverATurningChildPaintsItsTurn) {
-  // The held child silhouette is traced square in the child's own space
-  // and turned with it, and so are the masks its shadow and its bevel are
-  // cast from, so its edges are straight where a trace of the whole
-  // subtree steps along them a device pixel at a time, and a turned mask
-  // is sampled between its pixels: the two agree everywhere but along
-  // that edge, and nowhere by much.
-  const auto [far, mean] = turnedAgainstStill();
-  EXPECT_EQ(far, 0);
-  EXPECT_LT(mean, 3.0);
-}
 
 // ---------------------------------------------------------------------------
 // A BEVEL BESIDE AN INK THAT CHANGES: the leaf repaints on every frame its
@@ -899,120 +890,208 @@ half4 main(float2 point) {
 
 }  // namespace
 
-TEST(ComposeCaching, ABevelBesideAChangingInkBlursItsBandOnce) {
-  motion::Animatable<float> shade = motion::animatable(0.0f);
-  material::Material ink = material::shader(kShade, ShadeParameters{0.0f});
-  ink.bind("shade", shade);
-  ink.effects(material::Filter::bevel({.depth = 2,
-                                       .size = 3,
-                                       .angleDegrees = 125,
-                                       .highlight = {1, 1, 1, 0.6f},
-                                       .shadow = {0, 0, 0, 0.6f}}));
-  Host host(220, 160);
-  host.composer.render(
-      box().children({box().width(180).height(110).fill(std::move(ink))}));
-  const size_t before = detail::coverageCastsDrawn().processor;
-  host.frame();
-  const size_t afterFirst = detail::coverageCastsDrawn().processor;
-  EXPECT_GT(afterFirst, before) << "the first frame cut the band";
-  std::vector<SkColor> firstFrame = grab(host);
-  for (int frame = 1; frame <= 6; ++frame) {
-    shade = (float)frame / 6.0f;
-    host.frame();
-  }
-  EXPECT_NE(grab(host), firstFrame) << "the ink changed on every frame";
-  EXPECT_EQ(detail::coverageCastsDrawn().processor, afterFirst)
-      << "and the bevel's band was blurred only on the first";
+// Shadows and bevels cast from held parts or a held band paint what the
+// same marks cast live paint, and the band is blurred once.
+TEST(ComposeCaching, AMarkCastFromHeldPartsPaintsWhatTheWholeCastPaints) {
+  sigil::compose::test::checkRows({
+      {"ACoverageDressedSheetOverATurningChildPaintsItsTurn",
+       [] {
+         // The held child silhouette is traced square in the child's own space
+         // and turned with it, and so are the masks its shadow and its bevel
+         // are cast from, so its edges are straight where a trace of the whole
+         // subtree steps along them a device pixel at a time, and a turned mask
+         // is sampled between its pixels: the two agree everywhere but along
+         // that edge, and nowhere by much.
+         const auto [far, mean] = turnedAgainstStill();
+         EXPECT_EQ(far, 0);
+         EXPECT_LT(mean, 3.0);
+       }},
+      {"ABevelBesideAChangingInkBlursItsBandOnce",
+       [] {
+         motion::Animatable<float> shade = motion::animatable(0.0f);
+         material::Material ink =
+             material::shader(kShade, ShadeParameters{0.0f});
+         ink.bind("shade", shade);
+         ink.effects(material::Filter::bevel({.depth = 2,
+                                              .size = 3,
+                                              .angleDegrees = 125,
+                                              .highlight = {1, 1, 1, 0.6f},
+                                              .shadow = {0, 0, 0, 0.6f}}));
+         Host host(220, 160);
+         host.composer.render(box().children(
+             {box().width(180).height(110).fill(std::move(ink))}));
+         const size_t before = detail::coverageCastsDrawn().processor;
+         host.frame();
+         const size_t afterFirst = detail::coverageCastsDrawn().processor;
+         EXPECT_GT(afterFirst, before) << "the first frame cut the band";
+         std::vector<SkColor> firstFrame = grab(host);
+         for (int frame = 1; frame <= 6; ++frame) {
+           shade = (float)frame / 6.0f;
+           host.frame();
+         }
+         EXPECT_NE(grab(host), firstFrame) << "the ink changed on every frame";
+         EXPECT_EQ(detail::coverageCastsDrawn().processor, afterFirst)
+             << "and the bevel's band was blurred only on the first";
+       }},
+      {"AHeldBevelPaintsTheBevelCastLive",
+       [] {
+         // The same bevel on a rounded plate, cast live through its outline and
+         // held as a blurred band cut by that outline, over the same ground:
+         // the two agree to a code value or two.
+         detail::CoverageMark bevel;
+         bevel.effect.kind = material::CoverageEffect::Kind::Bevel;
+         bevel.effect.bevel = {.depth = 1.6f,
+                               .size = 2.4f,
+                               .angleDegrees = 120,
+                               .highlight = {1, 1, 1, 0.35f},
+                               .shadow = {0, 0, 0, 0.65f}};
+         const auto painted = [&](bool held) {
+           SkBitmap pixels;
+           pixels.allocN32Pixels(80, 60);
+           pixels.eraseColor(0xFF806040);
+           SkCanvas canvas(pixels);
+           // Between pixels, where the held band is sampled off its own grid.
+           canvas.translate(10.4f, 10.3f);
+           PaintContext context;
+           context.size = {56, 40};
+           context.outline = geometry::path::fromSk(
+               SkPath::RRect(SkRRect::MakeRectXY({0, 0, 56, 40}, 3, 3)));
+           detail::MarkState state;
+           context.markState = held ? &state : nullptr;
+           detail::PenOnCanvas pen(canvas, context);
+           bevel.paint(pen.pen(), context);
+           return pixels;
+         };
+         const SkBitmap live = painted(false), held = painted(true);
+         int farthest = 0;
+         for (int y = 0; y < live.height(); ++y)
+           for (int x = 0; x < live.width(); ++x) {
+             const SkColor liveColor = live.getColor(x, y),
+                           heldColor = held.getColor(x, y);
+             farthest = std::max({farthest,
+                                  std::abs((int)SkColorGetR(liveColor) -
+                                           (int)SkColorGetR(heldColor)),
+                                  std::abs((int)SkColorGetG(liveColor) -
+                                           (int)SkColorGetG(heldColor)),
+                                  std::abs((int)SkColorGetB(liveColor) -
+                                           (int)SkColorGetB(heldColor))});
+           }
+         EXPECT_LE(farthest, 2);
+       }},
+  });
 }
 
-TEST(ComposeCaching, AHeldBevelPaintsTheBevelCastLive) {
-  // The same bevel on a rounded plate, cast live through its outline and
-  // held as a blurred band cut by that outline, over the same ground: the
-  // two agree to a code value or two.
-  detail::CoverageMark bevel;
-  bevel.effect.kind = material::CoverageEffect::Kind::Bevel;
-  bevel.effect.bevel = {.depth = 1.6f,
-                        .size = 2.4f,
-                        .angleDegrees = 120,
-                        .highlight = {1, 1, 1, 0.35f},
-                        .shadow = {0, 0, 0, 0.65f}};
-  const auto painted = [&](bool held) {
-    SkBitmap pixels;
-    pixels.allocN32Pixels(80, 60);
-    pixels.eraseColor(0xFF806040);
-    SkCanvas canvas(pixels);
-    // Between pixels, where the held band is sampled off its own grid.
-    canvas.translate(10.4f, 10.3f);
-    PaintContext context;
-    context.size = {56, 40};
-    context.outline = geometry::path::fromSk(
-        SkPath::RRect(SkRRect::MakeRectXY({0, 0, 56, 40}, 3, 3)));
-    detail::MarkState state;
-    context.markState = held ? &state : nullptr;
-    detail::PenOnCanvas pen(canvas, context);
-    bevel.paint(pen.pen(), context);
-    return pixels;
-  };
-  const SkBitmap live = painted(false), held = painted(true);
-  int farthest = 0;
-  for (int y = 0; y < live.height(); ++y)
-    for (int x = 0; x < live.width(); ++x) {
-      const SkColor a = live.getColor(x, y), b = held.getColor(x, y);
-      farthest = std::max(
-          {farthest, std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)),
-           std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)),
-           std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b))});
-    }
-  EXPECT_LE(farthest, 2);
-}
-
-// ---------------------------------------------------------------------------
-// A CHANGE OF BAKE DENSITY: every bake goes, and the coverage trace, taken at
-// the host's scale, stays.
-
-TEST(ComposeCaching, AChangeOfBakeDensityLeavesTheCoverageTraceAlone) {
-  // The traced disc, with a shadow cast from its silhouette.
-  const auto dressed = [] {
-    return box().width(200).height(200).fill(Fill::color({0, 0, 0, 1}))
-        .children({box()
-                       .absolute()
-                       .left(20)
-                       .top(20)
-                       .width(160)
-                       .height(160)
-                       .decorationOutline(Boundary::Coverage)
-                       .stroke(TracedRule{})
-                       .background(shadow(material::Color{1, 1, 1, 0.6f},
-                                          {6, 8}, 6))
-                       .children({box()
-                                      .absolute()
-                                      .left(18)
-                                      .top(30)
-                                      .width(120)
-                                      .height(104)
-                                      .shape(geometry::shapes::circle())
-                                      .fill(Fill::color(
-                                          {0.9f, 0.8f, 0.3f, 1}))})});
-  };
-  const size_t before = detail::coverageTracesTaken();
-  Host host(200, 200);
-  host.composer.render(dressed());
-  host.frame();
-  host.frame();
-  const size_t traced = detail::coverageTracesTaken();
-  EXPECT_GT(traced, before) << "the first frame traced the silhouette";
-  for (int step = 0; step < 4; ++step) {
-    host.composer.setBakeDensity(step % 2 == 0 ? 2.0f : 1.0f);
-    host.frame();
-  }
-  EXPECT_EQ(detail::coverageTracesTaken(), traced)
-      << "a density change traced a silhouette again";
-  // …and what depends on the density was cut again: the picture is the one
-  // a host standing at that density from its first frame paints.
-  Host fresh(200, 200);
-  fresh.composer.setBakeDensity(1.0f);
-  fresh.composer.render(dressed());
-  fresh.frame();
-  fresh.frame();
-  EXPECT_EQ(grab(host), grab(fresh));
+// A trace and a local bake held in a recording are taken again at the scale
+// the recording is drawn at, and a change of bake density remakes the bakes
+// and leaves the trace.
+TEST(ComposeCache, WhatAScaleDecidesIsTakenAgainAtTheScaleItIsDrawnAt) {
+  sigil::compose::test::checkRows({
+      {"ALocalBakeInsideARecordingFollowsTheScaleUnderIt",
+       [] {
+         // A local texture bake is rasterized at a rung of the scale ladder and
+         // the blit stretches those texels across the node's own units, so the
+         // node re-bakes at the rung the host's scale reaches. A node inside a
+         // held recording is never asked again — it is painted only when the
+         // recording is taken — so a plate photographed at its oversample would
+         // blit an upscale of the raster the warm frames took at the smaller
+         // scale. The recording carries the pin instead, exactly as it carries
+         // the one a traced boundary needs.
+         const std::vector<SkColor> warmed = stripesAtTwice(true);
+         const std::vector<SkColor> fresh = stripesAtTwice(false);
+         ASSERT_EQ(warmed.size(), fresh.size());
+         size_t differing = 0;
+         int worst = 0;
+         for (size_t index = 0; index < warmed.size(); ++index) {
+           if (warmed[index] == fresh[index]) continue;
+           ++differing;
+           for (int shift : {0, 8, 16, 24})
+             worst = std::max(worst,
+                              std::abs((int)((warmed[index] >> shift) & 0xffu) -
+                                       (int)((fresh[index] >> shift) & 0xffu)));
+         }
+         EXPECT_LE(worst, 1) << differing << " pixels moved, worst " << worst
+                             << " code values, when a node baked at the host's "
+                                "scale inside a moving recording was drawn at "
+                                "another scale";
+       }},
+      {"ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves",
+       [] {
+         // A recording replays under whatever matrix it meets, which is sound
+         // for every op in it EXCEPT a coverage boundary: that path is the
+         // silhouette of a raster taken at the device scale, one step of the
+         // staircase per device pixel, so a recording made at one scale carries
+         // a boundary that belongs to another. Nothing else the picture tier
+         // compares moves with it — the node's content is the same content at
+         // any scale — so the recording is pinned to the scale its traces were
+         // taken at, exactly as a recording holding a device blit is pinned to
+         // its matrix.
+         const std::vector<SkColor> warmed = stillAtTwice(true);
+         const std::vector<SkColor> fresh = stillAtTwice(false);
+         ASSERT_EQ(warmed.size(), fresh.size());
+         size_t differing = 0;
+         int worst = 0;
+         for (size_t index = 0; index < warmed.size(); ++index) {
+           if (warmed[index] == fresh[index]) continue;
+           ++differing;
+           for (int shift : {0, 8, 16, 24})
+             worst = std::max(worst,
+                              std::abs((int)((warmed[index] >> shift) & 0xffu) -
+                                       (int)((fresh[index] >> shift) & 0xffu)));
+         }
+         EXPECT_LE(worst, 1)
+             << differing << " pixels moved, worst " << worst
+             << " code values, when a node whose decorations walk a "
+                "traced silhouette was drawn at another scale";
+       }},
+      {"AChangeOfBakeDensityLeavesTheCoverageTraceAlone",
+       [] {
+         // The traced disc, with a shadow cast from its silhouette.
+         const auto dressed = [] {
+           return box()
+               .width(200)
+               .height(200)
+               .fill(Fill::color({0, 0, 0, 1}))
+               .children({box()
+                              .absolute()
+                              .left(20)
+                              .top(20)
+                              .width(160)
+                              .height(160)
+                              .decorationOutline(Boundary::Coverage)
+                              .stroke(TracedRule{})
+                              .background(shadow(material::Color{1, 1, 1, 0.6f},
+                                                 {6, 8}, 6))
+                              .children({box()
+                                             .absolute()
+                                             .left(18)
+                                             .top(30)
+                                             .width(120)
+                                             .height(104)
+                                             .shape(geometry::shapes::circle())
+                                             .fill(Fill::color(
+                                                 {0.9f, 0.8f, 0.3f, 1}))})});
+         };
+         const size_t before = detail::coverageTracesTaken();
+         Host host(200, 200);
+         host.composer.render(dressed());
+         host.frame();
+         host.frame();
+         const size_t traced = detail::coverageTracesTaken();
+         EXPECT_GT(traced, before) << "the first frame traced the silhouette";
+         for (int step = 0; step < 4; ++step) {
+           host.composer.setBakeDensity(step % 2 == 0 ? 2.0f : 1.0f);
+           host.frame();
+         }
+         EXPECT_EQ(detail::coverageTracesTaken(), traced)
+             << "a density change traced a silhouette again";
+         // …and what depends on the density was cut again: the picture is the
+         // one a host standing at that density from its first frame paints.
+         Host fresh(200, 200);
+         fresh.composer.setBakeDensity(1.0f);
+         fresh.composer.render(dressed());
+         fresh.frame();
+         fresh.frame();
+         EXPECT_EQ(grab(host), grab(fresh));
+       }},
+  });
 }

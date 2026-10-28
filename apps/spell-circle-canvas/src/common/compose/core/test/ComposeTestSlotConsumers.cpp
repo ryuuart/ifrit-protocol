@@ -1,17 +1,14 @@
 // THE FOUR CONSUMERS OF THE SLOT TABLE, ONE LANE AT A TIME.
 //
-// ComposeTestFieldPins pins the table's SHAPE: one row per slot, each row
-// aiming at its own field of the computed style, each standing at that
-// field's default. None of that says the four functions that READ the table
-// move the property. A row aimed perfectly and dropped from
-// `applyTransitions` ramps nothing, and the four absences SlotSpecs.h names
-// are each silent — no error, and a still frame of the affected node looks
-// exactly right.
+// The slot table has one row per animatable lane, each aimed at its own
+// field of the computed style. Four functions read it, and a row dropped
+// from any of them is silent: no error, and a still frame of the affected
+// node looks exactly right.
 //
 // So: one scene per slot, spelling that lane as the only thing in the tree
 // that moves, under an ancestor that would hold a bake across it. Three of
 // the four consumers answer in ONE PAIR OF FRAMES, because all three
-// failures freeze the same pixels —
+// failures freeze the same pixels:
 //
 //   `applyMountTransitions`  the entrance never plays, so the node stands
 //                            at its settled value from the first frame
@@ -19,7 +16,7 @@
 //                            ancestor caches across it and replays
 //   `collectGroupScalars`    the group holds its bake while the lane moves
 //
-// — and the fourth, `applyTransitions`, is a second pair: a re-described
+// and the fourth, `applyTransitions`, is a second pair: a re-described
 // endpoint on a node already mounted must EASE to its new value rather than
 // arrive at it.
 //
@@ -27,9 +24,9 @@
 // carries a written reason, and a slot that is neither fails the last case
 // in this file rather than passing unnoticed.
 //
-// This file reaches the library's own source directory, as the field walk
-// does and for the same reason: the accounting is against `kSlotSpecs`
-// itself, so a slot appended to the enum is a case that fails here.
+// This file reaches the library's own source directory: the accounting is
+// against `kSlotSpecs` itself, so a slot appended to the enum is a case
+// that fails here.
 
 #include <sigilmotion/ease/Ease.h>
 
@@ -37,6 +34,7 @@
 
 #include "runtime/ComposeRuntime.h"
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
 
 namespace cd = sigil::compose::detail;
 
@@ -192,10 +190,10 @@ Element grouped(Element inner) {
 
 /** Every pixel of the host's surface — the comparison a frozen frame
  *  fails. */
-std::vector<uint32_t> pixels(Host& host, int w = 200, int h = 200) {
-  std::vector<uint32_t> out((size_t)w * (size_t)h);
-  host.surface->readPixels(SkImageInfo::MakeN32Premul(w, h), out.data(),
-                           (size_t)w * 4, 0, 0);
+std::vector<uint32_t> pixels(Host& host, int width = 200, int height = 200) {
+  std::vector<uint32_t> out((size_t)width * (size_t)height);
+  host.surface->readPixels(SkImageInfo::MakeN32Premul(width, height),
+                           out.data(), (size_t)width * 4, 0, 0);
   return out;
 }
 
@@ -204,56 +202,54 @@ const sigil::motion::Tween<float> kSecondFlat{
 
 }  // namespace
 
-TEST(ComposeSlotConsumers, EveryLanePlaysItsEntranceThroughACachingAncestor) {
-  for (const SlotScene& scene : kSlotScenes) {
-    Host host(200, 200);
-    host.composer.render(
-        grouped(scene.build(motion::animate({.from = scene.rest,
-                                             .to = scene.moved,
-                                             .duration = kSecondFlat.duration,
-                                             .delay = kSecondFlat.delay,
-                                             .ease = kSecondFlat.ease}))));
-    host.frame();  // the entrance stands at `rest`
-    const std::vector<uint32_t> entering = pixels(host);
-    host.frame(1.0);  // …and has arrived at `moved`
-    const std::vector<uint32_t> arrived = pixels(host);
-    EXPECT_NE(entering, arrived)
-        << scene.name
-        << ": nothing moved between the entrance and its destination. "
-           "Either the lane is absent from applyMountTransitions and the "
-           "node simply appeared settled, or it is absent from "
-           "computeVolatile / collectGroupScalars and the group above it "
-           "replayed one bake across the whole motion.";
-  }
-}
+// Every animatable lane plays its entrance and eases to a re-described
+// endpoint, under an ancestor that would hold a bake across it.
+TEST(ComposeSlotConsumers, EveryLaneEntersAndEasesThroughACachingAncestor) {
+  sigil::compose::test::forEachRow(kSlotScenes, [](const SlotScene& scene) {
+    {
+      Host host(200, 200);
+      host.composer.render(
+          grouped(scene.build(motion::animate({.from = scene.rest,
+                                               .to = scene.moved,
+                                               .duration = kSecondFlat.duration,
+                                               .delay = kSecondFlat.delay,
+                                               .ease = kSecondFlat.ease}))));
+      host.frame();  // the entrance stands at `rest`
+      const std::vector<uint32_t> entering = pixels(host);
+      host.frame(1.0);  // ...and has arrived at `moved`
+      const std::vector<uint32_t> arrived = pixels(host);
+      EXPECT_NE(entering, arrived)
+          << "nothing moved between the entrance and its destination. "
+             "Either the lane is absent from applyMountTransitions and the "
+             "node simply appeared settled, or it is absent from "
+             "computeVolatile / collectGroupScalars and the group above it "
+             "replayed one bake across the whole motion.";
+    }
+    {
+      Host host(200, 200);
+      host.composer.render(grouped(scene.build(Lane{scene.rest})));
+      host.frame();
+      host.frame(1.0);  // settled at `rest`, with no motion running
+      const std::vector<uint32_t> atRest = pixels(host);
 
-TEST(ComposeSlotConsumers, EveryLaneEasesToARedescribedEndpoint) {
-  for (const SlotScene& scene : kSlotScenes) {
-    Host host(200, 200);
-    host.composer.render(grouped(scene.build(Lane{scene.rest})));
-    host.frame();
-    host.frame(1.0);  // settled at `rest`, with no motion running
-    const std::vector<uint32_t> atRest = pixels(host);
+      host.composer.render(
+          grouped(scene.build(motion::animate({.to = scene.moved,
+                                               .duration = kSecondFlat.duration,
+                                               .delay = kSecondFlat.delay,
+                                               .ease = kSecondFlat.ease}))));
+      host.frame(0.02);  // a fiftieth of the way: still beside `rest`
+      const std::vector<uint32_t> justAfter = pixels(host);
+      host.frame(2.0);  // settled at `moved`
+      const std::vector<uint32_t> atMoved = pixels(host);
 
-    host.composer.render(
-        grouped(scene.build(motion::animate({.to = scene.moved,
-                                             .duration = kSecondFlat.duration,
-                                             .delay = kSecondFlat.delay,
-                                             .ease = kSecondFlat.ease}))));
-    host.frame(0.02);  // a fiftieth of the way: still beside `rest`
-    const std::vector<uint32_t> justAfter = pixels(host);
-    host.frame(2.0);  // settled at `moved`
-    const std::vector<uint32_t> atMoved = pixels(host);
-
-    EXPECT_NE(atRest, atMoved) << scene.name
-                               << ": the two ends of this scene draw the "
-                                  "same pixels, so the case proves nothing";
-    EXPECT_NE(justAfter, atMoved)
-        << scene.name
-        << ": the property was already at its new value one frame after the "
-           "describe. It SNAPPED — the lane is absent from applyTransitions, "
-           "which looks exactly like a missing transition spec.";
-  }
+      EXPECT_NE(atRest, atMoved) << "the two ends of this scene draw the "
+                                    "same pixels, so the row proves nothing";
+      EXPECT_NE(justAfter, atMoved)
+          << "the property was already at its new value one frame after the "
+             "describe. It SNAPPED: the lane is absent from applyTransitions, "
+             "which looks exactly like a missing transition spec.";
+    }
+  });
 }
 
 TEST(ComposeSlotConsumers, EverySlotIsDrivenHereOrCarriesAWrittenReason) {
@@ -266,7 +262,7 @@ TEST(ComposeSlotConsumers, EverySlotIsDrivenHereOrCarriesAWrittenReason) {
       "ramp it drives is what the fill transition cases watch";
   excused[cd::Instance::kInkLerp] =
       "the same shape over a declared ink, whose one reader is the cascade "
-      "pass; ComposeTestCascade watches the colour it produces";
+      "pass, and the cascade's colour cases watch the colour it produces";
   excused[cd::Instance::kTextPathAt] =
       "textOnPath() is compiled into the typography target and this binary "
       "links the kernel alone, so the lane cannot be SPELLED here; the "
@@ -274,9 +270,9 @@ TEST(ComposeSlotConsumers, EverySlotIsDrivenHereOrCarriesAWrittenReason) {
 
   bool driven[cd::Instance::kSlots] = {};
   for (const SlotScene& scene : kSlotScenes) driven[(int)scene.slot] = true;
-  for (int i = 0; i < (int)cd::Instance::kSlots; ++i)
-    EXPECT_TRUE(driven[i] || excused[i] != nullptr)
-        << "slot " << i
+  for (int slot = 0; slot < (int)cd::Instance::kSlots; ++slot)
+    EXPECT_TRUE(driven[slot] || excused[slot] != nullptr)
+        << "slot " << slot
         << " is neither driven by a scene in this file nor excused with a "
            "reason. Add a scene that spells the lane, or say here why no "
            "scene in this binary can — an unaccounted slot is exactly the "

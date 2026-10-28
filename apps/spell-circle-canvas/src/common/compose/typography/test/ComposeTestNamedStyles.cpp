@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "DressedTypeProbes.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -40,65 +41,72 @@ Element logLine(std::string_view key, std::string_view classes) {
 
 }  // namespace
 
-TEST(ComposeNamedStyles, AnAncestorCompoundNarrowsWhichRunsARuleReaches) {
-  Host host(300, 200);
-  host.composer.render(
-      box()
-          .applyStyleSheet(
-              StyleSheet{rule(".log .ts").ink(SkColor4f{1, 0, 0, 1})})
-          .children({logLine("inLog", "log"), logLine("outside", "other")}));
-  host.frame();
-  EXPECT_EQ(runColour(host, "inLog", "ts"), SK_ColorRED);
-  EXPECT_EQ(runColour(host, "outside", "ts"), SK_ColorWHITE)
-      << "a run under no .log is not spoken about";
-}
-
-TEST(ComposeNamedStyles, ASheetThatChangesWhatANameMeansReshapesTheLeaf) {
-  Host host(300, 200);
-  const auto page = [](SkColor4f ink) {
-    return box()
-        .applyStyleSheet(StyleSheet{rule(".ts").ink(ink)})
-        .children({logLine("line", "log")});
-  };
-  host.composer.render(page({1, 0, 0, 1}));
-  host.frame();
-  EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorRED);
-  host.composer.render(page({0, 1, 0, 1}));
-  host.frame();
-  EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorGREEN);
-}
-
-TEST(ComposeNamedStyles, ARunIsCountedAmongNoSiblings) {
-  // Structural pseudo-classes are the element tree's; a run is not a
-  // sibling of anything, so none of them reaches it.
-  Host host(300, 200);
-  host.composer.render(
-      box()
-          .applyStyleSheet(
-              StyleSheet{rule(".ts:first-child").ink(SkColor4f{1, 0, 0, 1}),
-                         rule(".ts:only-child").ink(SkColor4f{1, 0, 0, 1})})
-          .children({logLine("line", "log")}));
-  host.frame();
-  EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorWHITE);
-}
-
-TEST(ComposeNamedStyles, ARunIsNeverEmpty) {
-  // A run stands for words, so :empty never matches the virtual child a
-  // named run is matched as, and :not(:empty) always does.
-  Host host(300, 200);
-  host.composer.render(box()
-                           .applyStyleSheet(StyleSheet{
-                               rule(".ts:empty").ink(SkColor4f{1, 0, 0, 1})})
-                           .children({logLine("line", "log")}));
-  host.frame();
-  EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorWHITE);
-  host.composer.render(
-      box()
-          .applyStyleSheet(
-              StyleSheet{rule(".ts:not(:empty)").ink(SkColor4f{1, 0, 0, 1})})
-          .children({logLine("line", "log")}));
-  host.frame();
-  EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorRED);
+TEST(ComposeNamedStyles, ANamedRunIsMatchedAsAVirtualChildWhoseClassIsTheName) {
+  sigil::compose::test::checkRows({
+      {"AnAncestorCompoundNarrowsWhichRunsARuleReaches",
+       [&] {
+         Host host(300, 200);
+         host.composer.render(
+             box()
+                 .applyStyleSheet(
+                     StyleSheet{rule(".log .ts").ink(SkColor4f{1, 0, 0, 1})})
+                 .children(
+                     {logLine("inLog", "log"), logLine("outside", "other")}));
+         host.frame();
+         EXPECT_EQ(runColour(host, "inLog", "ts"), SK_ColorRED);
+         EXPECT_EQ(runColour(host, "outside", "ts"), SK_ColorWHITE)
+             << "a run under no .log is not spoken about";
+       }},
+      {"ASheetThatChangesWhatANameMeansRestylesTheLeaf",
+       [&] {
+         Host host(300, 200);
+         const auto page = [](SkColor4f ink) {
+           return box()
+               .applyStyleSheet(StyleSheet{rule(".ts").ink(ink)})
+               .children({logLine("line", "log")});
+         };
+         host.composer.render(page({1, 0, 0, 1}));
+         host.frame();
+         EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorRED);
+         host.composer.render(page({0, 1, 0, 1}));
+         host.frame();
+         EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorGREEN);
+       }},
+      {"ARunIsCountedAmongNoSiblings",
+       [&] {
+         // Structural pseudo-classes are the element tree's; a run is not a
+         // sibling of anything, so none of them reaches it.
+         Host host(300, 200);
+         host.composer.render(
+             box()
+                 .applyStyleSheet(StyleSheet{
+                     rule(".ts:first-child").ink(SkColor4f{1, 0, 0, 1}),
+                     rule(".ts:only-child").ink(SkColor4f{1, 0, 0, 1})})
+                 .children({logLine("line", "log")}));
+         host.frame();
+         EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorWHITE);
+       }},
+      {"ARunIsNeverEmpty",
+       [&] {
+         // A run stands for words, so :empty never matches the virtual child a
+         // named run is matched as, and :not(:empty) always does.
+         Host host(300, 200);
+         host.composer.render(
+             box()
+                 .applyStyleSheet(
+                     StyleSheet{rule(".ts:empty").ink(SkColor4f{1, 0, 0, 1})})
+                 .children({logLine("line", "log")}));
+         host.frame();
+         EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorWHITE);
+         host.composer.render(
+             box()
+                 .applyStyleSheet(StyleSheet{
+                     rule(".ts:not(:empty)").ink(SkColor4f{1, 0, 0, 1})})
+                 .children({logLine("line", "log")}));
+         host.frame();
+         EXPECT_EQ(runColour(host, "line", "ts"), SK_ColorRED);
+       }},
+  });
 }
 
 TEST(ComposeNamedStyles, ARoleDefaultStandsUnderEveryMatchingRule) {

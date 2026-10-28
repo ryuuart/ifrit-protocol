@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "DressedTypeProbes.h"
+#include "support/Rows.h"
 
 TEST(TextRich, MixedRunsPaintTheirOwnStyles) {
   Host host(400, 120);
@@ -23,55 +24,61 @@ TEST(TextRich, MixedRunsPaintTheirOwnStyles) {
   EXPECT_GT(countColor(host, band, SK_ColorRED), 20) << "the accented run";
 }
 
-TEST(TextRich, AnIdenticalValuePrunesWhereAFreshPointerCannot) {
-  // The whole reason weave::rich() is a value: a component that rebuilds its
-  // spans every describe must prune like a static leaf. The shared_ptr overload
-  // cannot answer the question — a fresh make_shared is a fresh identity —
-  // which is exactly the difference this pins.
-  Host host(400, 120);
-  const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
-  const sigil::weave::TextStyle accent = coloredStyle(20, SK_ColorRED);
-  auto describe = [&](std::u8string_view tail) {
-    return box().children(
-        {text(sigil::weave::rich(base).add(u8"Signal ").add(tail, accent))
-             .key("t")});
-  };
-  host.composer.render(describe(u8"woven"));
-  host.frame();
-  host.composer.render(describe(u8"woven"));
-  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
-      << "an identical rich text did not prune";
-  host.composer.render(describe(u8"noise"));
-  EXPECT_GE(host.composer.stats().patchedNodes, 1u)
-      << "a changed run pruned — equality is lying";
+TEST(TextRich, AnEqualRichTextPrunesAndAChangedOnePatches) {
+  sigil::compose::test::checkRows({
+      {"AnIdenticalValuePrunesWhereAFreshPointerCannot",
+       [&] {
+         // The whole reason weave::rich() is a value: a component that rebuilds
+         // its spans every describe must prune like a static leaf. The
+         // shared_ptr overload cannot answer the question — a fresh make_shared
+         // is a fresh identity — which is exactly the difference this pins.
+         Host host(400, 120);
+         const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
+         const sigil::weave::TextStyle accent = coloredStyle(20, SK_ColorRED);
+         auto describe = [&](std::u8string_view tail) {
+           return box().children(
+               {text(
+                    sigil::weave::rich(base).add(u8"Signal ").add(tail, accent))
+                    .key("t")});
+         };
+         host.composer.render(describe(u8"woven"));
+         host.frame();
+         host.composer.render(describe(u8"woven"));
+         EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+             << "an identical rich text did not prune";
+         host.composer.render(describe(u8"noise"));
+         EXPECT_GE(host.composer.stats().patchedNodes, 1u)
+             << "a changed run pruned — equality is lying";
 
-  auto byPointer = [&] {
-    auto para = std::make_shared<sigil::weave::Paragraph>();
-    para->appendText(u8"Signal woven", base);
-    return box().children({text(para).key("p")});
-  };
-  host.composer.render(byPointer());
-  host.frame();
-  host.composer.render(byPointer());
-  EXPECT_GE(host.composer.stats().patchedNodes, 1u)
-      << "the pointer overload claimed a prune it cannot prove";
-}
-
-TEST(TextRich, AChangedRunStylePatchesToo) {
-  Host host(400, 120);
-  auto describe = [&](SkColor accentColor) {
-    return box().children(
-        {text(sigil::weave::rich(coloredStyle(20, SK_ColorWHITE))
-                  .add(u8"Signal ")
-                  .add(u8"woven", coloredStyle(20, accentColor)))
-             .key("t")});
-  };
-  host.composer.render(describe(SK_ColorRED));
-  host.frame();
-  host.composer.render(describe(SK_ColorRED));
-  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
-  host.composer.render(describe(SK_ColorGREEN));
-  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+         auto byPointer = [&] {
+           auto para = std::make_shared<sigil::weave::Paragraph>();
+           para->appendText(u8"Signal woven", base);
+           return box().children({text(para).key("p")});
+         };
+         host.composer.render(byPointer());
+         host.frame();
+         host.composer.render(byPointer());
+         EXPECT_GE(host.composer.stats().patchedNodes, 1u)
+             << "the pointer overload claimed a prune it cannot prove";
+       }},
+      {"AChangedRunStylePatches",
+       [&] {
+         Host host(400, 120);
+         auto describe = [&](SkColor accentColor) {
+           return box().children(
+               {text(sigil::weave::rich(coloredStyle(20, SK_ColorWHITE))
+                         .add(u8"Signal ")
+                         .add(u8"woven", coloredStyle(20, accentColor)))
+                    .key("t")});
+         };
+         host.composer.render(describe(SK_ColorRED));
+         host.frame();
+         host.composer.render(describe(SK_ColorRED));
+         EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+         host.composer.render(describe(SK_ColorGREEN));
+         EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+       }},
+  });
 }
 
 TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
@@ -112,121 +119,137 @@ TEST(TextRich, NamedRunsResolveThroughTheSheetInForce) {
             SK_ColorWHITE);
 }
 
-TEST(TextSpans, APaintSpanRecolorsWithoutReshaping) {
-  // Paint-only means paint-only: the glyphs are the glyphs the unrestyled
-  // text shaped, at the positions it shaped them, drawn in another colour.
-  Host host(400, 120);
-  const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
-  const std::u8string body = u8"Count 1234 now";
-  host.composer.render(box().padding(10).children({text(body, base).key("t")}));
-  host.frame();
-  const std::vector<const void*> shapesBefore = runShapes(host, "t");
-  const std::vector<glm::vec2> originsBefore = runOrigins(host, "t");
-  ASSERT_FALSE(shapesBefore.empty());
-
-  host.composer.render(box().padding(10).children(
-      {text(body, base)
-           .span(sigil::weave::selectors::regex(u8"[0-9]+"), inked(SK_ColorRED))
-           .key("t")}));
-  host.frame();
-  EXPECT_EQ(runShapes(host, "t"), shapesBefore)
-      << "a paint-only restyle re-shaped a word";
-  EXPECT_EQ(runOrigins(host, "t"), originsBefore)
-      << "a paint-only restyle moved a glyph";
-  const SkIRect band = SkIRect::MakeXYWH(0, 0, 400, 80);
-  EXPECT_GT(countColor(host, band, SK_ColorRED), 10) << "the digits";
-  EXPECT_GT(countColor(host, band, SK_ColorWHITE), 10) << "everything else";
+TEST(TextSpans, ASpanInkIsAStaticPaintOrLeftOut) {
+  sigil::compose::test::checkRows({
+      {"AnInkPaintIsNotFadedByTheColourItReplaces",
+       [&] {
+         // A passage set in a translucent colour, restyled whole with a static
+         // red paint: the paint is the ink, so the range draws at the paint's
+         // own alpha rather than at the colour's.
+         const sigil::weave::TextStyle faint =
+             coloredStyle(28, SkColorSetARGB(64, 255, 255, 255));
+         Host host(400, 120);
+         host.composer.render(box().padding(10).children(
+             {text(u8"Count 1234 now", faint)
+                  .span(sigil::weave::Selector{},
+                        SpanStyle().ink(material::linearGradient(
+                            {0, 0}, {400, 0},
+                            {{0.0f, {1, 0, 0, 1}}, {1.0f, {1, 0, 0, 1}}},
+                            {.units = material::GradientUnits::Pixels})))}));
+         host.frame();
+         EXPECT_GT(countColor(host, SkIRect::MakeWH(400, 120), SK_ColorRED),
+                   20);
+       }},
+      {"AnInkPaintResolvedAgainstABoxIsLeftOut",
+       [&] {
+         // A range has no box of its own to lay a unit ramp on, so the span
+         // states nothing and the range keeps the ink it is set in.
+         const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
+         const std::u8string body = u8"Count 1234 now";
+         Host plain(400, 120);
+         plain.composer.render(box().padding(10).children({text(body, base)}));
+         plain.frame();
+         Host spanned(400, 120);
+         spanned.composer.render(box().padding(10).children(
+             {text(body, base)
+                  .span(sigil::weave::selectors::regex(u8"[0-9]+"),
+                        SpanStyle().ink(material::linearGradient(
+                            {0, 0}, {1, 0},
+                            {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))}));
+         spanned.frame();
+         EXPECT_TRUE(identicalPixels(plain, spanned, 400, 120));
+       }},
+  });
 }
 
-TEST(TextSpans, ABaselineShiftSpanMovesItsRangeWithoutReshaping) {
-  // Placement, not shaping: the glyphs are the ones the text shaped, and
-  // the digits alone stand higher on their line.
-  const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
-  const std::u8string body = u8"Count 1234 now";
-  Host plain(400, 120);
-  plain.composer.render(
-      box().padding(10).children({text(body, base).key("t")}));
-  plain.frame();
-  Host raised(400, 120);
-  raised.composer.render(box().padding(10).children(
-      {text(body, base)
-           .span(sigil::weave::selectors::regex(u8"[0-9]+"),
-                 SpanStyle().font({.baselineShift = 8.0f}))
-           .key("t")}));
-  raised.frame();
-  EXPECT_EQ(runShapes(raised, "t"), runShapes(plain, "t"))
-      << "a baseline shift re-shaped a word";
-  // The digits and the capital stand equally tall at rest, so the highest
-  // inked row is where the digits' tops are once they rise.
-  const auto highestInk = [](Host& host) {
-    for (int row = 0; row < 120; ++row)
-      if (countColor(host, SkIRect::MakeXYWH(0, row, 400, 1), SK_ColorWHITE) >
-          0)
-        return row;
-    return 120;
-  };
-  EXPECT_LE(highestInk(raised), highestInk(plain) - 6)
-      << "the digits rose by the shift";
-}
+TEST(TextSpans, ASpanReshapesOnlyWhereItStatesAShapingField) {
+  sigil::compose::test::checkRows({
+      {"APaintSpanRecoloursWithoutReshaping",
+       [&] {
+         // Paint-only means paint-only: the glyphs are the glyphs the
+         // unrestyled text shaped, at the positions it shaped them, drawn in
+         // another colour.
+         Host host(400, 120);
+         const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
+         const std::u8string body = u8"Count 1234 now";
+         host.composer.render(
+             box().padding(10).children({text(body, base).key("t")}));
+         host.frame();
+         const std::vector<const void*> shapesBefore = runShapes(host, "t");
+         const std::vector<glm::vec2> originsBefore = runOrigins(host, "t");
+         ASSERT_FALSE(shapesBefore.empty());
 
-TEST(TextSpans, AnInkPaintIsNotFadedByTheColourItReplaces) {
-  // A passage set in a translucent colour, restyled whole with a static
-  // red paint: the paint is the ink, so the range draws at the paint's
-  // own alpha rather than at the colour's.
-  const sigil::weave::TextStyle faint =
-      coloredStyle(28, SkColorSetARGB(64, 255, 255, 255));
-  Host host(400, 120);
-  host.composer.render(box().padding(10).children(
-      {text(u8"Count 1234 now", faint)
-           .span(sigil::weave::Selector{},
-                 SpanStyle().ink(material::linearGradient(
-                     {0, 0}, {400, 0},
-                     {{0.0f, {1, 0, 0, 1}}, {1.0f, {1, 0, 0, 1}}},
-                     {.units = material::GradientUnits::Pixels})))}));
-  host.frame();
-  EXPECT_GT(countColor(host, SkIRect::MakeWH(400, 120), SK_ColorRED), 20);
-}
+         host.composer.render(box().padding(10).children(
+             {text(body, base)
+                  .span(sigil::weave::selectors::regex(u8"[0-9]+"),
+                        inked(SK_ColorRED))
+                  .key("t")}));
+         host.frame();
+         EXPECT_EQ(runShapes(host, "t"), shapesBefore)
+             << "a paint-only restyle re-shaped a word";
+         EXPECT_EQ(runOrigins(host, "t"), originsBefore)
+             << "a paint-only restyle moved a glyph";
+         const SkIRect band = SkIRect::MakeXYWH(0, 0, 400, 80);
+         EXPECT_GT(countColor(host, band, SK_ColorRED), 10) << "the digits";
+         EXPECT_GT(countColor(host, band, SK_ColorWHITE), 10)
+             << "everything else";
+       }},
+      {"ABaselineShiftMovesItsRangeWithoutReshaping",
+       [&] {
+         // Placement, not shaping: the glyphs are the ones the text shaped, and
+         // the digits alone stand higher on their line.
+         const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
+         const std::u8string body = u8"Count 1234 now";
+         Host plain(400, 120);
+         plain.composer.render(
+             box().padding(10).children({text(body, base).key("t")}));
+         plain.frame();
+         Host raised(400, 120);
+         raised.composer.render(box().padding(10).children(
+             {text(body, base)
+                  .span(sigil::weave::selectors::regex(u8"[0-9]+"),
+                        SpanStyle().font({.baselineShift = 8.0f}))
+                  .key("t")}));
+         raised.frame();
+         EXPECT_EQ(runShapes(raised, "t"), runShapes(plain, "t"))
+             << "a baseline shift re-shaped a word";
+         // The digits and the capital stand equally tall at rest, so the
+         // highest inked row is where the digits' tops are once they rise.
+         const auto highestInk = [](Host& host) {
+           for (int row = 0; row < 120; ++row)
+             if (countColor(host, SkIRect::MakeXYWH(0, row, 400, 1),
+                            SK_ColorWHITE) > 0)
+               return row;
+           return 120;
+         };
+         EXPECT_LE(highestInk(raised), highestInk(plain) - 6)
+             << "the digits rose by the shift";
+       }},
+      {"ASizeSpanReshapesOnlyTheWordsItCovers",
+       [&] {
+         Host host(400, 160);
+         const sigil::weave::TextStyle base = coloredStyle(24, SK_ColorWHITE);
+         const std::u8string body = u8"alpha beta gamma";
+         host.composer.render(
+             box().padding(10).children({text(body, base).key("t")}));
+         host.frame();
+         const std::vector<const void*> before = runShapes(host, "t");
+         ASSERT_EQ(before.size(), 3u);
 
-TEST(TextSpans, AnInkPaintResolvedAgainstABoxIsLeftOut) {
-  // A range has no box of its own to lay a unit ramp on, so the span
-  // states nothing and the range keeps the ink it is set in.
-  const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
-  const std::u8string body = u8"Count 1234 now";
-  Host plain(400, 120);
-  plain.composer.render(box().padding(10).children({text(body, base)}));
-  plain.frame();
-  Host spanned(400, 120);
-  spanned.composer.render(box().padding(10).children(
-      {text(body, base)
-           .span(sigil::weave::selectors::regex(u8"[0-9]+"),
-                 SpanStyle().ink(material::linearGradient(
-                     {0, 0}, {1, 0},
-                     {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))}));
-  spanned.frame();
-  EXPECT_TRUE(identicalPixels(plain, spanned, 400, 120));
-}
-
-TEST(TextSpans, ASizeSpanReshapesOnlyTheWordsItCovers) {
-  Host host(400, 160);
-  const sigil::weave::TextStyle base = coloredStyle(24, SK_ColorWHITE);
-  const std::u8string body = u8"alpha beta gamma";
-  host.composer.render(box().padding(10).children({text(body, base).key("t")}));
-  host.frame();
-  const std::vector<const void*> before = runShapes(host, "t");
-  ASSERT_EQ(before.size(), 3u);
-
-  // The LAST word, so the two ahead of it keep their pen positions too.
-  host.composer.render(box().padding(10).children(
-      {text(body, base)
-           .span(sigil::weave::selectors::text(u8"gamma"),
-                 sizedAndInked(40, SK_ColorRED))
-           .key("t")}));
-  host.frame();
-  const std::vector<const void*> after = runShapes(host, "t");
-  ASSERT_EQ(after.size(), 3u);
-  EXPECT_EQ(after[0], before[0]) << "an uncovered word re-shaped";
-  EXPECT_EQ(after[1], before[1]) << "an uncovered word re-shaped";
-  EXPECT_NE(after[2], before[2]) << "the covered word did not re-shape";
+         // The LAST word, so the two ahead of it keep their pen positions too.
+         host.composer.render(box().padding(10).children(
+             {text(body, base)
+                  .span(sigil::weave::selectors::text(u8"gamma"),
+                        sizedAndInked(40, SK_ColorRED))
+                  .key("t")}));
+         host.frame();
+         const std::vector<const void*> after = runShapes(host, "t");
+         ASSERT_EQ(after.size(), 3u);
+         EXPECT_EQ(after[0], before[0]) << "an uncovered word re-shaped";
+         EXPECT_EQ(after[1], before[1]) << "an uncovered word re-shaped";
+         EXPECT_NE(after[2], before[2]) << "the covered word did not re-shape";
+       }},
+  });
 }
 
 TEST(TextSpans, ALaterRestyleWinsOnOverlap) {
@@ -302,190 +325,214 @@ sigil::weave::RichText glossaryCopy(const sigil::weave::TypeSheet& set) {
 
 }  // namespace
 
-TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
-  Host host(760, 140);
-  const sigil::weave::RichText copy =
-      glossaryCopy(glossarySet(SK_ColorRED, 24));
-  // Beats at WORD granularity number the units the track's own selection
-  // resolved, so the beat list IS the addressed word list — and each beat's
-  // rect says which word it is.
-  const auto wordsAddressed = [&](sigil::weave::Selector where) {
-    host.composer.render(box().padding(10).children({text(copy).key("t").textFx(
-        {.where = std::move(where),
-         .effect = textFx::enter(textFx::rise(0)),
-         .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)},
-         .unit = sigil::weave::Unit::Word})}));
-    host.frame();
-    return host.composer.beatsOf("t", 0);
-  };
-
-  const std::vector<Beat> byName = wordsAddressed(selectors::style("term"));
-  const std::vector<Beat> byWords =
-      wordsAddressed(sigil::weave::selectors::text(u8"beta"));
-  ASSERT_EQ(byWords.size(), 3u) << "the three literal betas";
-  ASSERT_EQ(byName.size(), 2u) << "the name caught a run nobody wrote it on — "
-                                  "selectors::style is matching "
-                                  "text rather than the runs the content named";
-  // …and they are the FIRST and THIRD of them, in place: the middle beta is
-  // the one the name skips.
-  EXPECT_EQ(byName[0].rect, byWords[0].rect);
-  EXPECT_EQ(byName[1].rect, byWords[2].rect);
-}
-
-TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
-  Host host(760, 140);
-  const sigil::weave::RichText copy =
-      glossaryCopy(glossarySet(SK_ColorRED, 24));
-  // Beats at GLYPH granularity: one per addressed glyph, so the count is the
-  // selection's size and the algebra can be checked as arithmetic.
-  const auto glyphsAddressed = [&](sigil::weave::Selector where) {
-    host.composer.render(box().padding(10).children({text(copy).key("t").textFx(
-        {.where = std::move(where),
-         .effect = textFx::enter(textFx::rise(0)),
-         .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)},
-         .unit = sigil::weave::Unit::Glyph})}));
-    host.frame();
-    return host.composer.beatsOf("t", 0).size();
-  };
-
-  const size_t whole = glyphsAddressed(sigil::weave::Selector{});
-  const size_t named = glyphsAddressed(selectors::style("term"));
-  ASSERT_EQ(named, 8u) << "two four-letter runs";
-  EXPECT_EQ(glyphsAddressed(sigil::weave::selectors::text(u8"beta")), 12u)
-      << "three of them";
-
-  // The three operators, against the same two runs.
-  EXPECT_EQ(glyphsAddressed(selectors::style("term") |
-                            sigil::weave::selectors::word(0)),
-            named + 5u)
-      << "alpha joined the union";
-  EXPECT_EQ(glyphsAddressed(selectors::style("term") &
-                            sigil::weave::selectors::word(1)),
-            4u)
-      << "the intersection is the first named run alone";
-  EXPECT_EQ(glyphsAddressed(!selectors::style("term")), whole - named);
-}
-
-TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
-  // Only a named weave::rich() run carries a name. Plain text has none, so the
-  // selector addresses nothing — the silent-no-op rule, made audible.
-  Host host(400, 120);
-  ::testing::internal::CaptureStderr();
-  const auto describe = [] {
-    return box().padding(10).children(
-        {text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
-             .key("t")
-             .textFx({.where = selectors::style("unregistered-register"),
-                      .effect = textFx::enter(textFx::rise(0)),
-                      .tween = {.duration = 1ms,
-                                .delay = sigil::motion::stagger(30ms)},
-                      .unit = sigil::weave::Unit::Glyph})});
-  };
-  host.composer.render(describe());
-  host.frame();
-  EXPECT_TRUE(host.composer.beatsOf("t", 0).empty())
-      << "a name no run was written with addressed glyphs anyway";
-
-  // A selector is re-resolved on every reflow, so a name that is wrong is
-  // wrong every time — and must not report itself every time.
-  host.composer.render(box().padding(11).children(
-      {text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
-           .key("t")
-           .textFx({.where = selectors::style("unregistered-register"),
+TEST(TextStyleSelector, AStyleNameAddressesTheRunsWrittenUnderIt) {
+  sigil::compose::test::checkRows({
+      {"ItAddressesTheNamedRunsAndNotTheirWords",
+       [&] {
+         Host host(760, 140);
+         const sigil::weave::RichText copy =
+             glossaryCopy(glossarySet(SK_ColorRED, 24));
+         // Beats at WORD granularity number the units the track's own selection
+         // resolved, so the beat list IS the addressed word list — and each
+         // beat's rect says which word it is.
+         const auto wordsAddressed = [&](sigil::weave::Selector where) {
+           host.composer.render(
+               box().padding(10).children({text(copy).key("t").textFx(
+                   {.where = std::move(where),
                     .effect = textFx::enter(textFx::rise(0)),
                     .tween = {.duration = 1ms,
-                              .delay = sigil::motion::stagger(30ms)},
+                              .delay = sigil::motion::stagger(1ms)},
+                    .unit = sigil::weave::Unit::Word})}));
+           host.frame();
+           return host.composer.beatsOf("t", 0);
+         };
+
+         const std::vector<Beat> byName =
+             wordsAddressed(selectors::style("term"));
+         const std::vector<Beat> byWords =
+             wordsAddressed(sigil::weave::selectors::text(u8"beta"));
+         ASSERT_EQ(byWords.size(), 3u) << "the three literal betas";
+         ASSERT_EQ(byName.size(), 2u)
+             << "the name caught a run nobody wrote it on — "
+                "selectors::style is matching "
+                "text rather than the runs the content named";
+         // …and they are the FIRST and THIRD of them, in place: the middle beta
+         // is the one the name skips.
+         EXPECT_EQ(byName[0].rect, byWords[0].rect);
+         EXPECT_EQ(byName[1].rect, byWords[2].rect);
+       }},
+      {"ItComposesUnderTheSelectorAlgebra",
+       [&] {
+         Host host(760, 140);
+         const sigil::weave::RichText copy =
+             glossaryCopy(glossarySet(SK_ColorRED, 24));
+         // Beats at GLYPH granularity: one per addressed glyph, so the count is
+         // the selection's size and the algebra can be checked as arithmetic.
+         const auto glyphsAddressed = [&](sigil::weave::Selector where) {
+           host.composer.render(
+               box().padding(10).children({text(copy).key("t").textFx(
+                   {.where = std::move(where),
+                    .effect = textFx::enter(textFx::rise(0)),
+                    .tween = {.duration = 1ms,
+                              .delay = sigil::motion::stagger(1ms)},
                     .unit = sigil::weave::Unit::Glyph})}));
-  host.frame();
-  const std::string log = ::testing::internal::GetCapturedStderr();
-  size_t seen = 0;
-  for (size_t at = log.find("unregistered-register"); at != std::string::npos;
-       at = log.find("unregistered-register", at + 1))
-    ++seen;
-  EXPECT_EQ(seen, 1u) << log;
-}
+           host.frame();
+           return host.composer.beatsOf("t", 0).size();
+         };
 
-TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
-  // The span verbs resolve their selection as TEXT RANGES through a second
-  // resolver. One vocabulary means one answer: the name must address the
-  // same two runs there.
-  Host host(760, 140);
-  const sigil::weave::RichText copy =
-      glossaryCopy(glossarySet(SK_ColorWHITE, 24));
+         const size_t whole = glyphsAddressed(sigil::weave::Selector{});
+         const size_t named = glyphsAddressed(selectors::style("term"));
+         ASSERT_EQ(named, 8u) << "two four-letter runs";
+         EXPECT_EQ(glyphsAddressed(sigil::weave::selectors::text(u8"beta")),
+                   12u)
+             << "three of them";
 
-  // Where the three betas actually sit, read off the layout rather than
-  // guessed, so the assertions below can name one of them.
-  host.composer.render(box().padding(10).children({text(copy).key("t").textFx(
-      {.where = sigil::weave::selectors::text(u8"beta"),
-       .effect = textFx::enter(textFx::rise(0)),
-       .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)},
-       .unit = sigil::weave::Unit::Word})}));
-  host.frame();
-  const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
-  ASSERT_EQ(betas.size(), 3u);
-  const auto bandOf = [](const Beat& b) {
-    return SkIRect::MakeLTRB((int)std::floor(b.rect.left()), 0,
-                             (int)std::ceil(b.rect.right()), 140);
-  };
+         // The three operators, against the same two runs.
+         EXPECT_EQ(glyphsAddressed(selectors::style("term") |
+                                   sigil::weave::selectors::word(0)),
+                   named + 5u)
+             << "alpha joined the union";
+         EXPECT_EQ(glyphsAddressed(selectors::style("term") &
+                                   sigil::weave::selectors::word(1)),
+                   4u)
+             << "the intersection is the first named run alone";
+         EXPECT_EQ(glyphsAddressed(!selectors::style("term")), whole - named);
+       }},
+      {"PlainTextCarriesNoNamesAndSaysSoOnce",
+       [&] {
+         // Only a named weave::rich() run carries a name. Plain text has none,
+         // so the selector addresses nothing — the silent-no-op rule, made
+         // audible.
+         Host host(400, 120);
+         ::testing::internal::CaptureStderr();
+         const auto describe = [] {
+           return box().padding(10).children(
+               {text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
+                    .key("t")
+                    .textFx({.where = selectors::style("unregistered-register"),
+                             .effect = textFx::enter(textFx::rise(0)),
+                             .tween = {.duration = 1ms,
+                                       .delay = sigil::motion::stagger(30ms)},
+                             .unit = sigil::weave::Unit::Glyph})});
+         };
+         host.composer.render(describe());
+         host.frame();
+         EXPECT_TRUE(host.composer.beatsOf("t", 0).empty())
+             << "a name no run was written with addressed glyphs anyway";
 
-  const auto redsIn = [&](sigil::weave::Selector where, const Beat& beat) {
-    host.composer.render(box().padding(10).children(
-        {text(copy).key("t").span(std::move(where), inked(SK_ColorRED))}));
-    host.frame();
-    return countColor(host, bandOf(beat), SK_ColorRED);
-  };
+         // A selector is re-resolved on every reflow, so a name that is wrong
+         // is wrong every time — and must not report itself every time.
+         host.composer.render(box().padding(11).children(
+             {text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
+                  .key("t")
+                  .textFx({.where = selectors::style("unregistered-register"),
+                           .effect = textFx::enter(textFx::rise(0)),
+                           .tween = {.duration = 1ms,
+                                     .delay = sigil::motion::stagger(30ms)},
+                           .unit = sigil::weave::Unit::Glyph})}));
+         host.frame();
+         const std::string log = ::testing::internal::GetCapturedStderr();
+         size_t seen = 0;
+         for (size_t at = log.find("unregistered-register");
+              at != std::string::npos;
+              at = log.find("unregistered-register", at + 1))
+           ++seen;
+         EXPECT_EQ(seen, 1u) << log;
+       }},
+      {"ItReachesTheSpanRestylesToo",
+       [&] {
+         // The span verbs resolve their selection as TEXT RANGES through a
+         // second resolver. One vocabulary means one answer: the name must
+         // address the same two runs there.
+         Host host(760, 140);
+         const sigil::weave::RichText copy =
+             glossaryCopy(glossarySet(SK_ColorWHITE, 24));
 
-  EXPECT_GT(redsIn(selectors::style("term"), betas[0]), 5)
-      << "the first named run";
-  EXPECT_GT(redsIn(selectors::style("term"), betas[2]), 5)
-      << "the last named run";
-  EXPECT_EQ(redsIn(selectors::style("term"), betas[1]), 0)
-      << "the unnamed beta was repainted, so the restyle resolver matched "
-         "the word rather than the run";
-  EXPECT_GT(redsIn(sigil::weave::selectors::text(u8"beta"), betas[1]), 5)
-      << "…which the literal selector does catch, as it must";
+         // Where the three betas actually sit, read off the layout rather than
+         // guessed, so the assertions below can name one of them.
+         host.composer.render(
+             box().padding(10).children({text(copy).key("t").textFx(
+                 {.where = sigil::weave::selectors::text(u8"beta"),
+                  .effect = textFx::enter(textFx::rise(0)),
+                  .tween = {.duration = 1ms,
+                            .delay = sigil::motion::stagger(1ms)},
+                  .unit = sigil::weave::Unit::Word})}));
+         host.frame();
+         const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
+         ASSERT_EQ(betas.size(), 3u);
+         const auto bandOf = [](const Beat& b) {
+           return SkIRect::MakeLTRB((int)std::floor(b.rect.left()), 0,
+                                    (int)std::ceil(b.rect.right()), 140);
+         };
 
-  // And through a span that re-shapes: exactly the named runs do.
-  host.composer.render(box().padding(10).children({text(copy).key("t")}));
-  host.frame();
-  const std::vector<const void*> before = runShapes(host, "t");
-  ASSERT_FALSE(before.empty());
-  const auto reshapedUnder = [&](sigil::weave::Selector where) {
-    host.composer.render(box().padding(10).children({text(copy).key("t").span(
-        std::move(where), sizedAndInked(34, SK_ColorGREEN))}));
-    host.frame();
-    const std::vector<const void*> after = runShapes(host, "t");
-    // A run list of a different LENGTH is not a re-shape count at all — the
-    // restyle re-broke the passage, and the comparison below would be
-    // pairing runs that are not each other's.
-    if (after.size() != before.size()) return SIZE_MAX;
-    size_t moved = 0;
-    for (size_t i = 0; i < after.size(); ++i) moved += after[i] != before[i];
-    return moved;
-  };
-  EXPECT_EQ(reshapedUnder(selectors::style("term")), 2u);
-  EXPECT_EQ(reshapedUnder(sigil::weave::selectors::text(u8"beta")), 3u);
-}
+         const auto redsIn = [&](sigil::weave::Selector where,
+                                 const Beat& beat) {
+           host.composer.render(
+               box().padding(10).children({text(copy).key("t").span(
+                   std::move(where), inked(SK_ColorRED))}));
+           host.frame();
+           return countColor(host, bandOf(beat), SK_ColorRED);
+         };
 
-TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
-  // The name is a handle on the RUN, not on the style span it produced — so
-  // re-registering it against a different style, at a different size that
-  // re-shapes and re-places everything, leaves the same runs addressed.
-  Host host(760, 140);
-  const auto namedGlyphs = [&](const sigil::weave::TypeSheet& set) {
-    host.composer.render(box().padding(10).children(
-        {text(glossaryCopy(set))
-             .key("t")
-             .textFx({.where = selectors::style("term"),
-                      .effect = textFx::enter(textFx::rise(0)),
-                      .tween = {.duration = 1ms,
-                                .delay = sigil::motion::stagger(1ms)},
-                      .unit = sigil::weave::Unit::Glyph})}));
-    host.frame();
-    return host.composer.beatsOf("t", 0).size();
-  };
-  EXPECT_EQ(namedGlyphs(glossarySet(SK_ColorRED, 24)), 8u);
-  EXPECT_EQ(namedGlyphs(glossarySet(SK_ColorGREEN, 36)), 8u)
-      << "a re-registered name stopped resolving, so the selector is keyed "
-         "on the style rather than on the run that wears it";
+         EXPECT_GT(redsIn(selectors::style("term"), betas[0]), 5)
+             << "the first named run";
+         EXPECT_GT(redsIn(selectors::style("term"), betas[2]), 5)
+             << "the last named run";
+         EXPECT_EQ(redsIn(selectors::style("term"), betas[1]), 0)
+             << "the unnamed beta was repainted, so the restyle resolver "
+                "matched "
+                "the word rather than the run";
+         EXPECT_GT(redsIn(sigil::weave::selectors::text(u8"beta"), betas[1]), 5)
+             << "…which the literal selector does catch, as it must";
+
+         // And through a span that re-shapes: exactly the named runs do.
+         host.composer.render(
+             box().padding(10).children({text(copy).key("t")}));
+         host.frame();
+         const std::vector<const void*> before = runShapes(host, "t");
+         ASSERT_FALSE(before.empty());
+         const auto reshapedUnder = [&](sigil::weave::Selector where) {
+           host.composer.render(
+               box().padding(10).children({text(copy).key("t").span(
+                   std::move(where), sizedAndInked(34, SK_ColorGREEN))}));
+           host.frame();
+           const std::vector<const void*> after = runShapes(host, "t");
+           // A run list of a different LENGTH is not a re-shape count at all —
+           // the restyle re-broke the passage, and the comparison below would
+           // be pairing runs that are not each other's.
+           if (after.size() != before.size()) return SIZE_MAX;
+           size_t moved = 0;
+           for (size_t i = 0; i < after.size(); ++i)
+             moved += after[i] != before[i];
+           return moved;
+         };
+         EXPECT_EQ(reshapedUnder(selectors::style("term")), 2u);
+         EXPECT_EQ(reshapedUnder(sigil::weave::selectors::text(u8"beta")), 3u);
+       }},
+      {"ANameOutlivesTheStyleItResolvedTo",
+       [&] {
+         // The name is a handle on the RUN, not on the style span it produced —
+         // so re-registering it against a different style, at a different size
+         // that re-shapes and re-places everything, leaves the same runs
+         // addressed.
+         Host host(760, 140);
+         const auto namedGlyphs = [&](const sigil::weave::TypeSheet& set) {
+           host.composer.render(box().padding(10).children(
+               {text(glossaryCopy(set))
+                    .key("t")
+                    .textFx({.where = selectors::style("term"),
+                             .effect = textFx::enter(textFx::rise(0)),
+                             .tween = {.duration = 1ms,
+                                       .delay = sigil::motion::stagger(1ms)},
+                             .unit = sigil::weave::Unit::Glyph})}));
+           host.frame();
+           return host.composer.beatsOf("t", 0).size();
+         };
+         EXPECT_EQ(namedGlyphs(glossarySet(SK_ColorRED, 24)), 8u);
+         EXPECT_EQ(namedGlyphs(glossarySet(SK_ColorGREEN, 36)), 8u)
+             << "a re-registered name stopped resolving, so the selector is "
+                "keyed "
+                "on the style rather than on the run that wears it";
+       }},
+  });
 }

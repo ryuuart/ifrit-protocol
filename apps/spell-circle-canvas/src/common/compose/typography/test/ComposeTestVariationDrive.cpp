@@ -3,6 +3,7 @@
 // advances would re-place every glyph after the one it touched, so the
 // drive refuses it rather than shaping again per frame.
 
+#include "support/Rows.h"
 #include "support/TextTestSupport.h"
 
 namespace {
@@ -31,121 +32,130 @@ sk_sp<SkTypeface> gradeInstrument(float& lo, float& hi) {
 // ---------------------------------------------------------------------------
 // VariationDrive — draw-time variable-font axes, gated by the advance probe
 
-TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
-  // The gate proves advances HOLD; it cannot prove the clone RESPONDS, and
-  // a face that accepts the axis and renders identically would let this
-  // case pass while seeing nothing. The instrument answers both: one glyph
-  // rasterized at each end of the range must differ.
-  float gradeMin = 0, gradeMax = 0;
-  const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
-  ASSERT_TRUE(ui) << "the instrument's GRAD axis must hold advances "
-                     "over a range";
-  {
-    const sigil::weave::FontVariation vLo("GRAD", gradeMin),
-        vHi("GRAD", gradeMax);
-    SkFont fLo(fonts().variedTypeface(ui, {&vLo, 1}), 48);
-    SkFont fHi(fonts().variedTypeface(ui, {&vHi, 1}), 48);
-    SkGlyphID glyph = fLo.unicharToGlyph('W');
-    auto rasterize = [&](const SkFont& f) {
-      sk_sp<SkSurface> s =
-          SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 80));
-      s->getCanvas()->clear(SK_ColorBLACK);
-      SkPaint paint;
-      paint.setColor(SK_ColorWHITE);
-      paint.setAntiAlias(true);
-      const SkPoint at{10, 60};
-      s->getCanvas()->drawGlyphs(SkSpan(&glyph, 1), SkSpan(&at, 1), {0, 0}, f,
-                                 paint);
-      SkBitmap bm;
-      bm.allocPixels(s->imageInfo());
-      s->readPixels(bm.pixmap(), 0, 0);
-      return bm;
-    };
-    SkBitmap rLo = rasterize(fLo), rHi = rasterize(fHi);
-    int rasterDelta = 0;
-    for (int y = 0; y < 80; ++y)
-      for (int x = 0; x < 100; ++x)
-        if (rLo.getColor(x, y) != rHi.getColor(x, y)) ++rasterDelta;
-    ASSERT_GT(rasterDelta, 0) << "the instrument's GRAD clone renders inert";
-  }
+TEST(ComposeVariationDrive, ADrivenAxisDrawsWithoutReshaping) {
+  sigil::compose::test::checkRows({
+      {"AnAdvanceInvariantAxisDrivesPaintOnly",
+       [&] {
+         // The gate proves advances HOLD; it cannot prove the clone RESPONDS,
+         // and a face that accepts the axis and renders identically would let
+         // this case pass while seeing nothing. The instrument answers both:
+         // one glyph rasterized at each end of the range must differ.
+         float gradeMin = 0, gradeMax = 0;
+         const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
+         ASSERT_TRUE(ui) << "the instrument's GRAD axis must hold advances "
+                            "over a range";
+         {
+           const sigil::weave::FontVariation vLo("GRAD", gradeMin),
+               vHi("GRAD", gradeMax);
+           SkFont fLo(fonts().variedTypeface(ui, {&vLo, 1}), 48);
+           SkFont fHi(fonts().variedTypeface(ui, {&vHi, 1}), 48);
+           SkGlyphID glyph = fLo.unicharToGlyph('W');
+           auto rasterize = [&](const SkFont& f) {
+             sk_sp<SkSurface> s =
+                 SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 80));
+             s->getCanvas()->clear(SK_ColorBLACK);
+             SkPaint paint;
+             paint.setColor(SK_ColorWHITE);
+             paint.setAntiAlias(true);
+             const SkPoint at{10, 60};
+             s->getCanvas()->drawGlyphs(SkSpan(&glyph, 1), SkSpan(&at, 1),
+                                        {0, 0}, f, paint);
+             SkBitmap bm;
+             bm.allocPixels(s->imageInfo());
+             s->readPixels(bm.pixmap(), 0, 0);
+             return bm;
+           };
+           SkBitmap rLo = rasterize(fLo), rHi = rasterize(fHi);
+           int rasterDelta = 0;
+           for (int y = 0; y < 80; ++y)
+             for (int x = 0; x < 100; ++x)
+               if (rLo.getColor(x, y) != rHi.getColor(x, y)) ++rasterDelta;
+           ASSERT_GT(rasterDelta, 0)
+               << "the instrument's GRAD clone renders inert";
+         }
 
-  sigil::motion::Animatable<float> grade = sigil::motion::animatable<float>(gradeMin);
-  Host host;
-  auto describe = [&] {
-    sigil::weave::TextStyle style = styleAt(48);
-    style.shaping.typeface = ui;
-    style.paint.foreground.setColor(SK_ColorWHITE);  // black-on-black otherwise
-    return box().children(
-        {text(u8"WEIGHT", style)
-             .key("t")
-             .variationDrive("GRAD", grade)
-             .absolute()
-             .inset(60, 20)});
-  };
-  host.composer.render(describe());
-  host.frame();
-  const SkRect before = require(host.composer.bounds("t"));
-  SkBitmap lo;
-  lo.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-  host.surface->readPixels(lo.pixmap(), 0, 0);
+         sigil::motion::Animatable<float> grade =
+             sigil::motion::animatable<float>(gradeMin);
+         Host host;
+         auto describe = [&] {
+           sigil::weave::TextStyle style = styleAt(48);
+           style.shaping.typeface = ui;
+           style.paint.foreground.setColor(
+               SK_ColorWHITE);  // black-on-black otherwise
+           return box().children({text(u8"WEIGHT", style)
+                                      .key("t")
+                                      .variationDrive("GRAD", grade)
+                                      .absolute()
+                                      .inset(60, 20)});
+         };
+         host.composer.render(describe());
+         host.frame();
+         const SkRect before = require(host.composer.bounds("t"));
+         SkBitmap lo;
+         lo.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+         host.surface->readPixels(lo.pixmap(), 0, 0);
 
-  grade = gradeMax;  // heavy grade — glyphs thicken, advances hold
-  host.frame();
-  const SkRect after = require(host.composer.bounds("t"));
-  SkBitmap hi;
-  hi.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-  host.surface->readPixels(hi.pixmap(), 0, 0);
+         grade = gradeMax;  // heavy grade — glyphs thicken, advances hold
+         host.frame();
+         const SkRect after = require(host.composer.bounds("t"));
+         SkBitmap hi;
+         hi.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+         host.surface->readPixels(hi.pixmap(), 0, 0);
 
-  EXPECT_EQ(before, after);  // no relayout — paint-only volatility
-  int changed = 0;
-  for (int y = 0; y < 200; y += 2)
-    for (int x = 0; x < 200; x += 2)
-      if (lo.getColor(x, y) != hi.getColor(x, y)) ++changed;
-  EXPECT_GT(changed, 20) << "GRAD range " << gradeMin << ".."
-                         << gradeMax;  // visible thickening
-}
+         EXPECT_EQ(before, after);  // no relayout — paint-only volatility
+         int changed = 0;
+         for (int y = 0; y < 200; y += 2)
+           for (int x = 0; x < 200; x += 2)
+             if (lo.getColor(x, y) != hi.getColor(x, y)) ++changed;
+         EXPECT_GT(changed, 20) << "GRAD range " << gradeMin << ".."
+                                << gradeMax;  // visible thickening
+       }},
+      {"OnAPathRun",
+       [&] {
+         // The old baseline-on-a-path draw was its own path through the engine
+         // and took none of the per-glyph dressing with it, so a driven axis on
+         // a ring simply did nothing. One draw now places both, so it does.
+         float gradeMin = 0, gradeMax = 0;
+         const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
+         ASSERT_TRUE(ui) << "the instrument's GRAD axis must hold advances "
+                            "over a range";
 
-TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
-  // The old baseline-on-a-path draw was its own path through the engine and
-  // took none of the per-glyph dressing with it, so a driven axis on a ring
-  // simply did nothing. One draw now places both, so it does.
-  float gradeMin = 0, gradeMax = 0;
-  const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
-  ASSERT_TRUE(ui) << "the instrument's GRAD axis must hold advances "
-                     "over a range";
+         sigil::motion::Animatable<float> grade =
+             sigil::motion::animatable<float>(gradeMin);
+         Host host(240, 240);
+         sigil::weave::TextStyle style = styleAt(26);
+         style.shaping.typeface = ui;
+         style.paint.foreground.setColor(SK_ColorWHITE);
+         host.composer.render(box().children(
+             {text(u8"GRADED RING", style)
+                  .key("ring")
+                  .width(200)
+                  .height(200)
+                  .absolute()
+                  .left(20)
+                  .top(20)
+                  .textOnPath({.path = geometry::shapes::circle(),
+                               .align = TextPath::Align::Center})
+                  .variationDrive("GRAD", grade)}));
+         host.frame();
+         SkBitmap lo;
+         lo.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
+         host.surface->readPixels(lo.pixmap(), 0, 0);
 
-  sigil::motion::Animatable<float> grade = sigil::motion::animatable<float>(gradeMin);
-  Host host(240, 240);
-  sigil::weave::TextStyle style = styleAt(26);
-  style.shaping.typeface = ui;
-  style.paint.foreground.setColor(SK_ColorWHITE);
-  host.composer.render(
-      box().children({text(u8"GRADED RING", style)
-                          .key("ring")
-                          .width(200)
-                          .height(200)
-                          .absolute()
-                          .left(20)
-                          .top(20)
-                          .textOnPath({.path = geometry::shapes::circle(),
-                                       .align = TextPath::Align::Center})
-                          .variationDrive("GRAD", grade)}));
-  host.frame();
-  SkBitmap lo;
-  lo.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
-  host.surface->readPixels(lo.pixmap(), 0, 0);
+         grade = gradeMax;
+         host.frame();  // paint-only: no re-describe, no relayout
+         SkBitmap hi;
+         hi.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
+         host.surface->readPixels(hi.pixmap(), 0, 0);
 
-  grade = gradeMax;
-  host.frame();  // paint-only: no re-describe, no relayout
-  SkBitmap hi;
-  hi.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
-  host.surface->readPixels(hi.pixmap(), 0, 0);
-
-  int changed = 0;
-  for (int y = 0; y < 240; y += 2)
-    for (int x = 0; x < 240; x += 2)
-      if (lo.getColor(x, y) != hi.getColor(x, y)) ++changed;
-  EXPECT_GT(changed, 20) << "the drive did not reach the glyphs on the ring";
+         int changed = 0;
+         for (int y = 0; y < 240; y += 2)
+           for (int x = 0; x < 240; x += 2)
+             if (lo.getColor(x, y) != hi.getColor(x, y)) ++changed;
+         EXPECT_GT(changed, 20)
+             << "the drive did not reach the glyphs on the ring";
+       }},
+  });
 }
 
 namespace {
@@ -169,7 +179,7 @@ bool faceDeclaresAxis(const sk_sp<SkTypeface>& face, SkFourByteTag tag) {
 
 }  // namespace
 
-TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
+TEST(ComposeVariationDrive, AnAdvanceVariantAxisIsRefused) {
   // This needs a face whose wght axis genuinely CHANGES advances, so that
   // the drive has something to refuse. The instrument's does — it is the
   // same face the GRAD cases above read, on its other axis — and both
@@ -187,12 +197,11 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   sigil::weave::TextStyle style = styleAt(48);
   style.shaping.typeface = ui;
   style.paint.foreground.setColor(SK_ColorWHITE);  // black-on-black otherwise
-  host.composer.render(box().children(
-      {text(u8"WEIGHT", style)
-           .key("t")
-           .variationDrive("wght", weight)
-           .absolute()
-           .inset(60, 20)}));
+  host.composer.render(box().children({text(u8"WEIGHT", style)
+                                           .key("t")
+                                           .variationDrive("wght", weight)
+                                           .absolute()
+                                           .inset(60, 20)}));
   host.frame();
   SkBitmap base;
   base.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
@@ -229,15 +238,15 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   sigil::weave::TextStyle style = styleAt(48);
   style.shaping.typeface = ui;
   style.paint.foreground.setColor(SK_ColorWHITE);
-  sigil::motion::Animatable<float> grade = sigil::motion::animatable<float>(gradeMax);
+  sigil::motion::Animatable<float> grade =
+      sigil::motion::animatable<float>(gradeMax);
 
   Host verb;
-  verb.composer.render(box().children(
-      {text(u8"GRADE", style)
-           .key("t")
-           .variationDrive("GRAD", grade)
-           .absolute()
-           .inset(60, 20)}));
+  verb.composer.render(box().children({text(u8"GRADE", style)
+                                           .key("t")
+                                           .variationDrive("GRAD", grade)
+                                           .absolute()
+                                           .inset(60, 20)}));
   verb.frame();
 
   Host byHand;
@@ -321,7 +330,7 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
     // A zero delay: every glyph reads the one master phase, so the
     // coordinate is exactly the sequence driven below and nothing else.
     Track track{.effect = textFx::enter(
-                      textFx::variableAxisSweep("GRAD", gradeMin, gradeMax)),
+                    textFx::variableAxisSweep("GRAD", gradeMin, gradeMax)),
                 .tween = {.duration = 100ms, .delay = 0ms},
                 .progress = phase};
     track.continuous = continuous;

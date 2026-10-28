@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -65,61 +66,6 @@ struct CounterRow {
 
 }  // namespace
 
-TEST(ComposeFollowing, AChangedCounterDescribesItsMemoAgainAndNotItsSibling) {
-  Host host;
-  CounterRow row;
-  host.composer.render(row.describe());
-  host.frame();
-  EXPECT_EQ(row.counterDescribes, 1);
-  EXPECT_EQ(row.siblingDescribes, 1);
-  row.counter = 3.0f;
-  host.frame();
-  EXPECT_EQ(row.counterDescribes, 2);
-  EXPECT_EQ(row.siblingDescribes, 1);
-  // The sibling moved over by the width the counter describes.
-  EXPECT_FLOAT_EQ(require(host.composer.bounds("sibling")).fLeft, 50.0f);
-}
-
-TEST(ComposeFollowing, NothingIsDescribedAgainWhenNothingChanged) {
-  Host host;
-  CounterRow row;
-  host.composer.render(row.describe());
-  host.frame();
-  host.frame();
-  row.counter = 0.0f;  // the number it holds
-  host.frame();
-  EXPECT_EQ(row.counterDescribes, 1);
-  EXPECT_EQ(row.siblingDescribes, 1);
-  EXPECT_FALSE(host.composer.isRunning());
-}
-
-TEST(ComposeFollowing, TwoChangesBeforeOneDrawDescribeOnce) {
-  Host host;
-  CounterRow row;
-  host.composer.render(row.describe());
-  host.frame();
-  row.counter = 1.0f;
-  EXPECT_TRUE(host.composer.isRunning()) << "a followed change asks for a draw";
-  row.counter = 2.0f;
-  host.frame();
-  EXPECT_EQ(row.counterDescribes, 2);
-  EXPECT_FLOAT_EQ(require(host.composer.bounds("sibling")).fLeft, 40.0f);
-}
-
-TEST(ComposeFollowing, TheDescribeLandsInTheFrameTheChangePrecedes) {
-  Host host;
-  motion::Animatable<float> lit = motion::animatable(0.0f);
-  host.composer.render(memo(0, [&lit](int) {
-                         return box().width(40).height(40).fill(
-                             lit.value() > 0.5f ? green() : red());
-                       }).key("swatch"));
-  host.frame();
-  EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
-  lit = 1.0f;
-  host.frame();
-  EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
-}
-
 TEST(ComposeFollowing, APeekTakesTheNumberWithoutFollowingIt) {
   Host host;
   motion::Animatable<float> counter = motion::animatable(0.0f);
@@ -156,22 +102,83 @@ TEST(ComposeFollowing, AMemoWritingWhatItReadIsReportedOnceAndDoesNotLoop) {
   EXPECT_EQ(heard.refusals(), 1u);
 }
 
-TEST(ComposeFollowing, AMemoInsideSlotContentFollowsToo) {
-  Host host;
-  motion::Animatable<float> counter = motion::animatable(0.0f);
-  int describes = 0;
-  host.composer.render(box().children({slot("panel")}));
-  host.composer.renderSlot(
-      "panel",
-      memo(0, [&](int) {
-        ++describes;
-        return box().width(20 + counter.value() * 10).height(20).fill(red());
-      }).key("inside"));
-  host.frame();
-  counter = 2.0f;
-  host.frame();
-  EXPECT_EQ(describes, 2);
-  EXPECT_FLOAT_EQ(require(host.composer.bounds("inside")).width(), 40.0f);
+// The draw after a live value a memo read changes calls that memo's
+// component once, and that memo's alone.
+TEST(ComposeFollowing, AMemoIsDescribedAgainTheDrawAfterAValueItReadChanges) {
+  sigil::compose::test::checkRows({
+      {"AMemoBesideASiblingThatReadsNothing",
+       [] {
+         Host host;
+         CounterRow row;
+         host.composer.render(row.describe());
+         host.frame();
+         EXPECT_EQ(row.counterDescribes, 1);
+         EXPECT_EQ(row.siblingDescribes, 1);
+
+         host.frame();
+         row.counter = 0.0f;  // the number it holds
+         host.frame();
+         EXPECT_EQ(row.counterDescribes, 1)
+             << "nothing is described again when nothing changed";
+         EXPECT_FALSE(host.composer.isRunning())
+             << "nothing is described again when nothing changed";
+
+         row.counter = 1.0f;
+         EXPECT_TRUE(host.composer.isRunning())
+             << "a followed change asks for a draw";
+         row.counter = 2.0f;
+         host.frame();
+         EXPECT_EQ(row.counterDescribes, 2)
+             << "two changes before one draw describe once";
+         EXPECT_FLOAT_EQ(require(host.composer.bounds("sibling")).fLeft, 40.0f)
+             << "two changes before one draw describe once";
+
+         row.counter = 3.0f;
+         host.frame();
+         EXPECT_EQ(row.counterDescribes, 3)
+             << "a changed counter describes its memo again";
+         EXPECT_EQ(row.siblingDescribes, 1)
+             << "a changed counter does not describe its sibling";
+         // The sibling moved over by the width the counter describes.
+         EXPECT_FLOAT_EQ(require(host.composer.bounds("sibling")).fLeft, 50.0f)
+             << "a changed counter describes its memo again";
+       }},
+      {"TheDescribeLandsInTheFrameTheChangePrecedes",
+       [] {
+         Host host;
+         motion::Animatable<float> lit = motion::animatable(0.0f);
+         host.composer.render(memo(0, [&lit](int) {
+                                return box().width(40).height(40).fill(
+                                    lit.value() > 0.5f ? green() : red());
+                              }).key("swatch"));
+         host.frame();
+         EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
+         lit = 1.0f;
+         host.frame();
+         EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
+       }},
+      {"AMemoInsideSlotContentFollowsToo",
+       [] {
+         Host host;
+         motion::Animatable<float> counter = motion::animatable(0.0f);
+         int describes = 0;
+         host.composer.render(box().children({slot("panel")}));
+         host.composer.renderSlot("panel",
+                                  memo(0, [&](int) {
+                                    ++describes;
+                                    return box()
+                                        .width(20 + counter.value() * 10)
+                                        .height(20)
+                                        .fill(red());
+                                  }).key("inside"));
+         host.frame();
+         counter = 2.0f;
+         host.frame();
+         EXPECT_EQ(describes, 2);
+         EXPECT_FLOAT_EQ(require(host.composer.bounds("inside")).width(),
+                         40.0f);
+       }},
+  });
 }
 
 TEST(ComposeFollowingQueries, AMemoReadingBeatsFollowsTheLayoutAndTheProgress) {

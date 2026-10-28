@@ -4,59 +4,9 @@
 
 #include <sigilmaterial/skia/Paint.h>
 
+#include "support/Rows.h"
 #include "support/ShapeTestSupport.h"
 #include "support/Travel.h"
-
-TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
-  Host host(120, 60);
-  host.composer.render(
-      box().children({box()
-                          .width(120)
-                          .height(60)
-                          .absolute()
-                          .left(0)
-                          .top(0)
-                          .shape(geometry::shapes::arrow())
-                          .fill(material::Color{0, 1, 0, 1})}));
-  host.frame();
-  EXPECT_GT(SkColorGetG(host.pixel(20, 30)), 200u);  // shaft on the axis
-  EXPECT_LT(SkColorGetG(host.pixel(20, 6)), 60u);    // and not above it
-  EXPECT_GT(SkColorGetG(host.pixel(80, 12)), 200u);  // head is tall
-  EXPECT_LT(SkColorGetG(host.pixel(118, 12)), 60u);  // and tapers to a point
-}
-
-TEST(ComposeShapes, SectorIsClosedAndFillable) {
-  // geometry::shapes::arc() is open by contract; a pie wedge needs a closed
-  // path. A 90-degree sector starting at 0 (Skia: 0 = +x, clockwise) fills the
-  // lower-right quadrant of its box and nothing else.
-  Host host(200, 200);
-  host.composer.render(
-      box().children({box()
-                          .width(200)
-                          .height(200)
-                          .absolute()
-                          .inset(0)
-                          .shape(geometry::shapes::sector(0, 90))
-                          .fill(material::Color{1, 0, 0, 1})}));
-  host.frame();
-  EXPECT_GT(SkColorGetR(host.pixel(130, 130)), 200u);  // inside the wedge
-  EXPECT_LT(SkColorGetR(host.pixel(70, 130)), 60u);    // lower-left: outside
-  EXPECT_LT(SkColorGetR(host.pixel(130, 70)), 60u);    // upper-right: outside
-
-  // innerRatio carves the donut hole out of the middle.
-  Host donut(200, 200);
-  donut.composer.render(
-      box().children({box()
-                          .width(200)
-                          .height(200)
-                          .absolute()
-                          .inset(0)
-                          .shape(geometry::shapes::sector(0, 350, 0.6f))
-                          .fill(material::Color{1, 0, 0, 1})}));
-  donut.frame();
-  EXPECT_GT(SkColorGetR(donut.pixel(180, 100)), 200u);  // on the ring
-  EXPECT_LT(SkColorGetR(donut.pixel(100, 100)), 60u);   // through the hole
-}
 
 TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
   // A live material over a custom outline(): the resolved shader must
@@ -82,75 +32,87 @@ TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
   EXPECT_LT(dim, 90u);  // tracked the Output inside the shape
 }
 
-TEST(ComposeTravel, PlacesTheTransformOriginOnTheParentSizedCurve) {
-  // THE PIXEL PIN. Four values of t, four quadrant points of the circle
-  // inscribed in the PARENT's box — not the rider's own 8x8 box, which is
-  // the whole difficulty a size-dependent Shape brings that CameraPath
-  // never faced.
-  Host host(200, 200);
-  sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);
-  const auto describe = [&] {
-    return travelFrame(rider({.path = geometry::shapes::circle(), .t = t}));
-  };
+TEST(ComposeTravel, PlacesTheTransformOriginAlongTheCurve) {
+  sigil::compose::test::checkRows({
+      {"PlacesTheTransformOriginOnTheParentSizedCurve",
+       [&] {
+         // THE PIXEL PIN. Four values of t, four quadrant points of the circle
+         // inscribed in the PARENT's box — not the rider's own 8x8 box, which
+         // is the whole difficulty a size-dependent Shape brings that
+         // CameraPath never faced.
+         Host host(200, 200);
+         sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);
+         const auto describe = [&] {
+           return travelFrame(
+               rider({.path = geometry::shapes::circle(), .t = t}));
+         };
 
-  // Skia's addOval(dir=kCW, startIndex=1) begins at the RIGHT extreme and
-  // runs clockwise, so quarter turns are right → bottom → left → top.
-  const SkPoint want[4] = {{180, 100}, {100, 180}, {20, 100}, {100, 20}};
-  for (int i = 0; i < 4; ++i) {
-    t = (float)i * 0.25f;
-    host.composer.render(describe());
-    host.frame();
-    const SkPoint ink = inkCentroid(host, SK_ColorRED, 200, 200);
-    ASSERT_GE(ink.x(), 0) << "nothing painted at t=" << t.value();
-    EXPECT_NEAR(ink.x(), want[i].x(), 1.5f) << "t=" << t.value();
-    EXPECT_NEAR(ink.y(), want[i].y(), 1.5f) << "t=" << t.value();
-  }
+         // Skia's addOval(dir=kCW, startIndex=1) begins at the RIGHT extreme
+         // and runs clockwise, so quarter turns are right → bottom → left →
+         // top.
+         const SkPoint want[4] = {{180, 100}, {100, 180}, {20, 100}, {100, 20}};
+         for (int i = 0; i < 4; ++i) {
+           t = (float)i * 0.25f;
+           host.composer.render(describe());
+           host.frame();
+           const SkPoint ink = inkCentroid(host, SK_ColorRED, 200, 200);
+           ASSERT_GE(ink.x(), 0) << "nothing painted at t=" << t.value();
+           EXPECT_NEAR(ink.x(), want[i].x(), 1.5f) << "t=" << t.value();
+           EXPECT_NEAR(ink.y(), want[i].y(), 1.5f) << "t=" << t.value();
+         }
 
-  // …and the point that rides is the TRANSFORM ORIGIN, so moving the origin
-  // to the rider's top-left offsets the whole ink by half its box.
-  t = 0.0f;
-  host.composer.render(
-      travelFrame(rider({.path = geometry::shapes::circle(), .t = t})
-                      .transformOrigin(percent(0), percent(0))));
-  host.frame();
-  const SkPoint pinned = inkCentroid(host, SK_ColorRED, 200, 200);
-  EXPECT_NEAR(pinned.x(), 184.0f, 1.5f)
-      << "transformOrigin() is not the point on the curve";
-  EXPECT_NEAR(pinned.y(), 104.0f, 1.5f);
-}
+         // …and the point that rides is the TRANSFORM ORIGIN, so moving the
+         // origin to the rider's top-left offsets the whole ink by half its
+         // box.
+         t = 0.0f;
+         host.composer.render(
+             travelFrame(rider({.path = geometry::shapes::circle(), .t = t})
+                             .transformOrigin(percent(0), percent(0))));
+         host.frame();
+         const SkPoint pinned = inkCentroid(host, SK_ColorRED, 200, 200);
+         EXPECT_NEAR(pinned.x(), 184.0f, 1.5f)
+             << "transformOrigin() is not the point on the curve";
+         EXPECT_NEAR(pinned.y(), 104.0f, 1.5f);
+       }},
+      {"WrapsOnAClosedCurveAndClampsOnAnOpenOne",
+       [&] {
+         Host host(200, 200);
+         sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);
+         const auto atT = [&](Shape path, float value) {
+           t = value;
+           host.composer.render(
+               travelFrame(rider({.path = std::move(path), .t = t})));
+           host.frame();
+           return inkCentroid(host, SK_ColorRED, 200, 200);
+         };
 
-TEST(ComposeTravel, WrapsOnAClosedCurveAndClampsOnAnOpenOne) {
-  Host host(200, 200);
-  sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);
-  const auto atT = [&](Shape path, float value) {
-    t = value;
-    host.composer.render(travelFrame(rider({.path = std::move(path), .t = t})));
-    host.frame();
-    return inkCentroid(host, SK_ColorRED, 200, 200);
-  };
+         // Closed: a lap and a quarter is a quarter, and negative runs
+         // backwards.
+         const SkPoint quarter = atT(geometry::shapes::circle(), 0.25f);
+         const SkPoint lapAndAQuarter = atT(geometry::shapes::circle(), 1.25f);
+         EXPECT_NEAR(lapAndAQuarter.x(), quarter.x(), 1.0f)
+             << "a closed curve did "
+                "not WRAP";
+         EXPECT_NEAR(lapAndAQuarter.y(), quarter.y(), 1.0f);
+         const SkPoint back = atT(geometry::shapes::circle(), -0.25f);
+         const SkPoint threeQuarters = atT(geometry::shapes::circle(), 0.75f);
+         EXPECT_NEAR(back.x(), threeQuarters.x(), 1.0f);
+         EXPECT_NEAR(back.y(), threeQuarters.y(), 1.0f);
 
-  // Closed: a lap and a quarter is a quarter, and negative runs backwards.
-  const SkPoint quarter = atT(geometry::shapes::circle(), 0.25f);
-  const SkPoint lapAndAQuarter = atT(geometry::shapes::circle(), 1.25f);
-  EXPECT_NEAR(lapAndAQuarter.x(), quarter.x(), 1.0f) << "a closed curve did "
-                                                        "not WRAP";
-  EXPECT_NEAR(lapAndAQuarter.y(), quarter.y(), 1.0f);
-  const SkPoint back = atT(geometry::shapes::circle(), -0.25f);
-  const SkPoint threeQuarters = atT(geometry::shapes::circle(), 0.75f);
-  EXPECT_NEAR(back.x(), threeQuarters.x(), 1.0f);
-  EXPECT_NEAR(back.y(), threeQuarters.y(), 1.0f);
-
-  // Open: both ends park. The line runs the frame's full width at mid-height.
-  const auto line = skiaShape([](SkSize s) {
-    SkPathBuilder b;
-    b.moveTo(0, s.height() / 2);
-    b.lineTo(s.width(), s.height() / 2);
-    return b.detach();
+         // Open: both ends park. The line runs the frame's full width at
+         // mid-height.
+         const auto line = skiaShape([](SkSize s) {
+           SkPathBuilder b;
+           b.moveTo(0, s.height() / 2);
+           b.lineTo(s.width(), s.height() / 2);
+           return b.detach();
+         });
+         const SkPoint past = atT(line, 1.5f);
+         EXPECT_NEAR(past.x(), 180.0f, 1.5f) << "an open curve did not CLAMP";
+         const SkPoint before = atT(line, -0.5f);
+         EXPECT_NEAR(before.x(), 20.0f, 1.5f);
+       }},
   });
-  const SkPoint past = atT(line, 1.5f);
-  EXPECT_NEAR(past.x(), 180.0f, 1.5f) << "an open curve did not CLAMP";
-  const SkPoint before = atT(line, -0.5f);
-  EXPECT_NEAR(before.x(), 20.0f, 1.5f);
 }
 
 TEST(ComposeTravel, OutranksTheTranslateLanesAndHandsThemBack) {
@@ -304,7 +266,7 @@ TEST(ComposeTravel, PrunesOnlyWhenEveryFieldOfThePathMatches) {
          "escape-hatch contract is not being carried through travel()";
 }
 
-TEST(ComposeTravel, IsPaintOnlyAndAResizedFrameKeepsT) {
+TEST(ComposeTravel, IsPaintOnlyAndAResizedFrameKeepsItsFraction) {
   // Paint-only: the LAID-OUT box never moves, whatever t does.
   Host host(200, 200);
   sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);

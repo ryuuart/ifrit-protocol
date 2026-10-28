@@ -759,7 +759,7 @@ optionals these functions answer.
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
 `data_test` over every feature's `test/` and one `data_bench`, ctest one
-entry per CASE, what a case may pin, and what a label promises. No case
+entry per SUITE, what a case may pin, and what a label promises. No case
 here carries one — nothing in this library needs a device, a font or a
 port. What is only true of SigilData:
 

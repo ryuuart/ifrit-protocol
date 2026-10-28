@@ -8,10 +8,11 @@ cmake --build build --config Release --target sketch_test
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-A suite is selected by its own name — `ctest -R '^SketchRegistry\.'` — and
-a case by its full one, with no target behind either.
+A suite is selected by its own name — `ctest -R '^sketch\.SketchRegistry$'` — with
+no target behind it, and a case by its full one on the binary itself —
+`sketch_test --gtest_filter=SketchRegistry.<Case>`.
 The library has one test binary, `sketch_test`, built from every
-feature's `test/` directory; ctest discovers one entry per CASE out of
+feature's `test/` directory; ctest discovers one entry per SUITE out of
 it. `core/test/` covers the registry, the kind seam, the crash reporter
 and where a sketch stands on disk; `scene2d/test/` and
 `scene3d/test/` the two sessions;

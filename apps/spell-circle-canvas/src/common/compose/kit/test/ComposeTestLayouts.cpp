@@ -10,63 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "support/Rows.h"
 #include "support/ShapeTestSupport.h"
-
-TEST(ComposeLayouts, RadialPlacesChildrenOnTheRing) {
-  Host host;
-  std::vector<Element> dots;
-  dots.reserve(4);
-  for (int i = 0; i < 4; ++i)
-    dots.push_back(
-        box().width(10).height(10).fill(red()).key("d" + std::to_string(i)));
-  host.composer.render(
-      box().children({layout(layouts::Radial{.radiusFraction = 0.8f})
-                          .width(200)
-                          .height(200)
-                          .children(dots)}));
-  host.frame();
-  // Radius 80 from center (100,100), starting up, clockwise quarters.
-  auto center = [&](const char* k) {
-    auto r = host.composer.bounds(k);
-    return SkPoint{r->centre().x, r->centre().y};
-  };
-  EXPECT_NEAR(center("d0").x(), 100, 1);
-  EXPECT_NEAR(center("d0").y(), 20, 1);   // top
-  EXPECT_NEAR(center("d1").x(), 180, 1);  // right
-  EXPECT_NEAR(center("d1").y(), 100, 1);
-  EXPECT_NEAR(center("d2").y(), 180, 1);  // bottom
-  EXPECT_NEAR(center("d3").x(), 20, 1);   // left
-}
-
-TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
-  Host host;
-  std::vector<Element> beads;
-  beads.reserve(10);
-  for (int i = 0; i < 10; ++i)
-    beads.push_back(
-        box().width(6).height(6).fill(green()).key("b" + std::to_string(i)));
-  host.composer.render(box().children(
-      {layout(layouts::AlongPath{.path = geometry::shapes::star(5)})
-           .width(180)
-           .height(180)
-           .children(beads)}));
-  host.frame();
-  // First bead sits on the star's top point (contour start).
-  auto b0 = host.composer.bounds("b0");
-  ASSERT_TRUE(b0.has_value());
-  EXPECT_NEAR(b0->centre().x, 90, 1.5);
-  EXPECT_NEAR(b0->centre().y, 0, 1.5);
-  // All beads land ON the star outline: distance from center between
-  // inner and outer radius.
-  for (int i = 0; i < 10; ++i) {
-    auto r = host.composer.bounds("b" + std::to_string(i));
-    ASSERT_TRUE(r.has_value());
-    const float dx = r->centre().x - 90, dy = r->centre().y - 90;
-    const float dist = std::sqrt(dx * dx + dy * dy);
-    EXPECT_GE(dist, 0.4f * 90 - 2);
-    EXPECT_LE(dist, 90 + 2);
-  }
-}
 
 TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
   // Non-text children anchor by BOTTOM: heights 15 & 27 on rhythm 20 land
@@ -130,108 +75,6 @@ TEST(ComposeLayouts, JitteredIsDeterministicAndContained) {
   EXPECT_NE(a1, b);   // new seed → new chaos
 }
 
-TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
-  // `radiusAt` gives each child its own ring radius, so one Radial can draw
-  // nested orbits rather than a single circle. The list may be shorter than
-  // the child count: the tail falls back to `radiusFraction`, which is what
-  // the second half of this case checks.
-  Host host;
-  std::vector<Element> dots;
-  dots.reserve(4);
-  for (int i = 0; i < 4; ++i)
-    dots.push_back(
-        box().width(10).height(10).fill(red()).key("r" + std::to_string(i)));
-  host.composer.render(box().children(
-      {layout(layouts::Radial{.radiusFraction = 0.8f, .radiusAt = {0.4f, 0.8f}})
-           .width(200)
-           .height(200)
-           .children(dots)}));
-  host.frame();
-  auto center = [&](const char* k) {
-    auto r = host.composer.bounds(k);
-    return SkPoint{r->centre().x, r->centre().y};
-  };
-  EXPECT_NEAR(center("r0").y(), 60, 1);   // top, INNER ring (0.4 → r=40)
-  EXPECT_NEAR(center("r1").x(), 180, 1);  // right, outer (0.8 → r=80)
-  EXPECT_NEAR(center("r2").y(), 180, 1);  // bottom, fallback 0.8
-  EXPECT_NEAR(center("r3").x(), 20, 1);   // left, fallback 0.8
-}
-
-TEST(ComposeLayouts, AlongPathUsesTheSelectedContoursClosure) {
-  for (bool firstClosed : {false, true}) {
-    SCOPED_TRACE(firstClosed);
-    layouts::AlongPath scheme{.path = skiaShape([firstClosed] {
-                                SkPathBuilder path;
-                                path.moveTo(0, 0).lineTo(100, 0);
-                                if (firstClosed) path.close();
-                                path.moveTo(0, 50).lineTo(100, 50);
-                                if (!firstClosed) path.close();
-                                return path.detach();
-                              })};
-    Arrangement arrangement;
-    arrangement.box = geometry::path::Rect::of({0, 0}, {100, 100});
-    std::array<Arrangement::Child, 2> children;
-    arrangement.children = children;
-    scheme.arrange(arrangement);
-    const auto& placed = arrangement.children;
-    EXPECT_FLOAT_EQ(placed[0].rect.centre().x, 0);
-    EXPECT_FLOAT_EQ(placed[1].rect.centre().x, 100);
-    EXPECT_FLOAT_EQ(placed[1].rect.centre().y, 0);
-  }
-}
-
-TEST(ComposeLayouts, RadialPlacesByAFactWhenToldTheLane) {
-  // Written out of order, with hours missing, under twelve divisions: each
-  // numeral stands at its own hour, and a child stating no hour stands at
-  // its index.
-  Host host;
-  auto hour = [](int number) {
-    return box()
-        .key("h" + std::to_string(number))
-        .attribute("hour", number)
-        .width(10)
-        .height(10)
-        .fill(red());
-  };
-  host.composer.render(
-      box()
-          .width(200)
-          .height(200)
-          .operators({layouts::Radial{.lane = "hour", .divisions = 12}})
-          .children({hour(9), hour(3)}));
-  host.frame();
-  auto centre = [&](const char* key) {
-    auto rect = host.composer.bounds(key);
-    return SkPoint{rect->centre().x, rect->centre().y};
-  };
-  EXPECT_NEAR(centre("h3").x(), 180, 1);
-  EXPECT_NEAR(centre("h3").y(), 100, 1);
-  EXPECT_NEAR(centre("h9").x(), 20, 1);
-  EXPECT_NEAR(centre("h9").y(), 100, 1);
-}
-
-TEST(ComposeLayouts, RadialFacingTurnsEachChildAlongItsRadius) {
-  // A tall bar at three o'clock, facing, is turned a quarter clockwise:
-  // it paints wide, so the pixel above and below its centre is background
-  // and the one beside it is the bar.
-  Host host;
-  host.composer.render(
-      box()
-          .width(200)
-          .height(200)
-          .operators({layouts::Radial{
-              .radiusFraction = 0.5f, .startDegrees = 0.0f, .facing = true}})
-          .children({box().key("bar").width(6).height(40).fill(red())}));
-  host.frame();
-  auto rect = host.composer.bounds("bar");
-  ASSERT_TRUE(rect.has_value());
-  EXPECT_NEAR(rect->centre().x, 150, 1);
-  EXPECT_NEAR(rect->centre().y, 100, 1);
-  EXPECT_EQ(host.pixel(150, 85), SK_ColorBLACK);
-  EXPECT_EQ(host.pixel(135, 100), SK_ColorRED);
-  EXPECT_EQ(host.pixel(165, 100), SK_ColorRED);
-}
-
 TEST(ComposeLayouts, JitterNudgesWhatTheOperatorBeforeItPlaced) {
   Host host;
   auto tree = [](bool jittered) {
@@ -279,44 +122,214 @@ void expectPlaced(const Arrangement& arrangement,
 }
 }  // namespace
 
-TEST(ComposeLayouts, RadialPlacesAnOblongRingToTheBit) {
-  // Seven children on the ellipse inscribed in a 300 × 180 box, facing:
-  // every coordinate and every turn is pinned to the bit, so a change in
-  // how the ring's multiplications associate shows here before it moves
-  // a picture.
-  Arrangement ring;
-  ring.box = geometry::path::Rect::of({0, 0}, {300, 180});
-  std::array<Arrangement::Child, 7> children;
-  ring.children = children;
-  for (auto& child : ring.children) child.size = {10, 10};
-  layouts::Radial{.facing = true}.arrange(ring);
-  expectPlaced(ring, {{0x1.22p+7f, 0x1.ap+3f, 0x0p+0f},
-                      {0x1.dda3b8p+7f, 0x1.40deaep+5f, 0x1.9b6db6p+5f},
-                      {0x1.05fdc8p+8f, 0x1.941606p+6f, 0x1.9b6db6p+6f},
-                      {0x1.8a21dp+7f, 0x1.2bbd5p+7f, 0x1.34924ap+7f},
-                      {0x1.73bc62p+6f, 0x1.2bbd5p+7f, 0x1.9b6db6p+7f},
-                      {0x1.c02378p+4f, 0x1.94160ap+6f, 0x1.012492p+8f},
-                      {0x1.99712p+5f, 0x1.40deacp+5f, 0x1.34924ap+8f}});
+TEST(ComposeLayouts, RadialPlacesChildrenOnTheRing) {
+  sigil::compose::test::checkRows({
+      {"RadialPlacesChildrenOnTheRing",
+       [&] {
+         Host host;
+         std::vector<Element> dots;
+         dots.reserve(4);
+         for (int i = 0; i < 4; ++i)
+           dots.push_back(box().width(10).height(10).fill(red()).key(
+               "d" + std::to_string(i)));
+         host.composer.render(
+             box().children({layout(layouts::Radial{.radiusFraction = 0.8f})
+                                 .width(200)
+                                 .height(200)
+                                 .children(dots)}));
+         host.frame();
+         // Radius 80 from center (100,100), starting up, clockwise quarters.
+         auto center = [&](const char* k) {
+           auto r = host.composer.bounds(k);
+           return SkPoint{r->centre().x, r->centre().y};
+         };
+         EXPECT_NEAR(center("d0").x(), 100, 1);
+         EXPECT_NEAR(center("d0").y(), 20, 1);   // top
+         EXPECT_NEAR(center("d1").x(), 180, 1);  // right
+         EXPECT_NEAR(center("d1").y(), 100, 1);
+         EXPECT_NEAR(center("d2").y(), 180, 1);  // bottom
+         EXPECT_NEAR(center("d3").x(), 20, 1);   // left
+       }},
+      {"RadialRadiusAtGivesEachChildItsOwnRing",
+       [&] {
+         // `radiusAt` gives each child its own ring radius, so one Radial can
+         // draw nested orbits rather than a single circle. The list may be
+         // shorter than the child count: the tail falls back to
+         // `radiusFraction`, which is what the second half of this case checks.
+         Host host;
+         std::vector<Element> dots;
+         dots.reserve(4);
+         for (int i = 0; i < 4; ++i)
+           dots.push_back(box().width(10).height(10).fill(red()).key(
+               "r" + std::to_string(i)));
+         host.composer.render(
+             box().children({layout(layouts::Radial{.radiusFraction = 0.8f,
+                                                    .radiusAt = {0.4f, 0.8f}})
+                                 .width(200)
+                                 .height(200)
+                                 .children(dots)}));
+         host.frame();
+         auto center = [&](const char* k) {
+           auto r = host.composer.bounds(k);
+           return SkPoint{r->centre().x, r->centre().y};
+         };
+         EXPECT_NEAR(center("r0").y(), 60, 1);   // top, INNER ring (0.4 → r=40)
+         EXPECT_NEAR(center("r1").x(), 180, 1);  // right, outer (0.8 → r=80)
+         EXPECT_NEAR(center("r2").y(), 180, 1);  // bottom, fallback 0.8
+         EXPECT_NEAR(center("r3").x(), 20, 1);   // left, fallback 0.8
+       }},
+      {"RadialPlacesByAFactWhenToldTheLane",
+       [&] {
+         // Written out of order, with hours missing, under twelve divisions:
+         // each numeral stands at its own hour, and a child stating no hour
+         // stands at its index.
+         Host host;
+         auto hour = [](int number) {
+           return box()
+               .key("h" + std::to_string(number))
+               .attribute("hour", number)
+               .width(10)
+               .height(10)
+               .fill(red());
+         };
+         host.composer.render(
+             box()
+                 .width(200)
+                 .height(200)
+                 .operators({layouts::Radial{.lane = "hour", .divisions = 12}})
+                 .children({hour(9), hour(3)}));
+         host.frame();
+         auto centre = [&](const char* key) {
+           auto rect = host.composer.bounds(key);
+           return SkPoint{rect->centre().x, rect->centre().y};
+         };
+         EXPECT_NEAR(centre("h3").x(), 180, 1);
+         EXPECT_NEAR(centre("h3").y(), 100, 1);
+         EXPECT_NEAR(centre("h9").x(), 20, 1);
+         EXPECT_NEAR(centre("h9").y(), 100, 1);
+       }},
+      {"RadialFacingTurnsEachChildAlongItsRadius",
+       [&] {
+         // A tall bar at three o'clock, facing, is turned a quarter clockwise:
+         // it paints wide, so the pixel above and below its centre is
+         // background and the one beside it is the bar.
+         Host host;
+         host.composer.render(
+             box()
+                 .width(200)
+                 .height(200)
+                 .operators({layouts::Radial{.radiusFraction = 0.5f,
+                                             .startDegrees = 0.0f,
+                                             .facing = true}})
+                 .children({box().key("bar").width(6).height(40).fill(red())}));
+         host.frame();
+         auto rect = host.composer.bounds("bar");
+         ASSERT_TRUE(rect.has_value());
+         EXPECT_NEAR(rect->centre().x, 150, 1);
+         EXPECT_NEAR(rect->centre().y, 100, 1);
+         EXPECT_EQ(host.pixel(150, 85), SK_ColorBLACK);
+         EXPECT_EQ(host.pixel(135, 100), SK_ColorRED);
+         EXPECT_EQ(host.pixel(165, 100), SK_ColorRED);
+       }},
+      {"RadialPlacesAnOblongRingToTheBit",
+       [&] {
+         // Seven children on the ellipse inscribed in a 300 × 180 box, facing:
+         // every coordinate and every turn is pinned to the bit, so a change in
+         // how the ring's multiplications associate shows here before it moves
+         // a picture.
+         Arrangement ring;
+         ring.box = geometry::path::Rect::of({0, 0}, {300, 180});
+         std::array<Arrangement::Child, 7> children;
+         ring.children = children;
+         for (auto& child : ring.children) child.size = {10, 10};
+         layouts::Radial{.facing = true}.arrange(ring);
+         expectPlaced(ring, {{0x1.22p+7f, 0x1.ap+3f, 0x0p+0f},
+                             {0x1.dda3b8p+7f, 0x1.40deaep+5f, 0x1.9b6db6p+5f},
+                             {0x1.05fdc8p+8f, 0x1.941606p+6f, 0x1.9b6db6p+6f},
+                             {0x1.8a21dp+7f, 0x1.2bbd5p+7f, 0x1.34924ap+7f},
+                             {0x1.73bc62p+6f, 0x1.2bbd5p+7f, 0x1.9b6db6p+7f},
+                             {0x1.c02378p+4f, 0x1.94160ap+6f, 0x1.012492p+8f},
+                             {0x1.99712p+5f, 0x1.40deacp+5f, 0x1.34924ap+8f}});
+       }},
+  });
 }
 
-TEST(ComposeLayouts, AlongPathTurnsWithTheCurveToTheBit) {
-  // Five children walked along one quadratic arch, facing: the turn is
-  // the tangent's heading, level at the crown and mirrored either side.
-  layouts::AlongPath walk{.path = skiaShape([] {
-                            SkPathBuilder path;
-                            path.moveTo(0, 100).quadTo(150, 0, 300, 100);
-                            return path.detach();
-                          }),
-                          .facing = true};
-  Arrangement curve;
-  curve.box = geometry::path::Rect::of({0, 0}, {300, 180});
-  std::array<Arrangement::Child, 5> children;
-  curve.children = children;
-  for (auto& child : curve.children) child.size = {10, 10};
-  walk.arrange(curve);
-  expectPlaced(curve, {{-0x1.4p+2f, 0x1.7cp+6f, -0x1.0d8542p+5f},
-                       {0x1.0981b4p+6f, 0x1.d5e548p+5f, -0x1.342e5p+4f},
-                       {0x1.22p+7f, 0x1.68p+5f, 0x0p+0f},
-                       {0x1.bf3f26p+7f, 0x1.d5e548p+5f, 0x1.342e5p+4f},
-                       {0x1.27p+8f, 0x1.7cp+6f, 0x1.0d8542p+5f}});
+TEST(ComposeLayouts, AlongPathCentresChildrenAlongTheContour) {
+  sigil::compose::test::checkRows({
+      {"AlongPathFollowsAStarContour",
+       [&] {
+         Host host;
+         std::vector<Element> beads;
+         beads.reserve(10);
+         for (int i = 0; i < 10; ++i)
+           beads.push_back(box().width(6).height(6).fill(green()).key(
+               "b" + std::to_string(i)));
+         host.composer.render(box().children(
+             {layout(layouts::AlongPath{.path = geometry::shapes::star(5)})
+                  .width(180)
+                  .height(180)
+                  .children(beads)}));
+         host.frame();
+         // First bead sits on the star's top point (contour start).
+         auto b0 = host.composer.bounds("b0");
+         ASSERT_TRUE(b0.has_value());
+         EXPECT_NEAR(b0->centre().x, 90, 1.5);
+         EXPECT_NEAR(b0->centre().y, 0, 1.5);
+         // All beads land ON the star outline: distance from center between
+         // inner and outer radius.
+         for (int i = 0; i < 10; ++i) {
+           auto r = host.composer.bounds("b" + std::to_string(i));
+           ASSERT_TRUE(r.has_value());
+           const float dx = r->centre().x - 90, dy = r->centre().y - 90;
+           const float dist = std::sqrt(dx * dx + dy * dy);
+           EXPECT_GE(dist, 0.4f * 90 - 2);
+           EXPECT_LE(dist, 90 + 2);
+         }
+       }},
+      {"AlongPathUsesTheSelectedContoursClosure",
+       [&] {
+         for (bool firstClosed : {false, true}) {
+           SCOPED_TRACE(firstClosed);
+           layouts::AlongPath scheme{.path = skiaShape([firstClosed] {
+                                       SkPathBuilder path;
+                                       path.moveTo(0, 0).lineTo(100, 0);
+                                       if (firstClosed) path.close();
+                                       path.moveTo(0, 50).lineTo(100, 50);
+                                       if (!firstClosed) path.close();
+                                       return path.detach();
+                                     })};
+           Arrangement arrangement;
+           arrangement.box = geometry::path::Rect::of({0, 0}, {100, 100});
+           std::array<Arrangement::Child, 2> children;
+           arrangement.children = children;
+           scheme.arrange(arrangement);
+           const auto& placed = arrangement.children;
+           EXPECT_FLOAT_EQ(placed[0].rect.centre().x, 0);
+           EXPECT_FLOAT_EQ(placed[1].rect.centre().x, 100);
+           EXPECT_FLOAT_EQ(placed[1].rect.centre().y, 0);
+         }
+       }},
+      {"AlongPathTurnsWithTheCurveToTheBit",
+       [&] {
+         // Five children walked along one quadratic arch, facing: the turn is
+         // the tangent's heading, level at the crown and mirrored either side.
+         layouts::AlongPath walk{.path = skiaShape([] {
+                                   SkPathBuilder path;
+                                   path.moveTo(0, 100).quadTo(150, 0, 300, 100);
+                                   return path.detach();
+                                 }),
+                                 .facing = true};
+         Arrangement curve;
+         curve.box = geometry::path::Rect::of({0, 0}, {300, 180});
+         std::array<Arrangement::Child, 5> children;
+         curve.children = children;
+         for (auto& child : curve.children) child.size = {10, 10};
+         walk.arrange(curve);
+         expectPlaced(curve, {{-0x1.4p+2f, 0x1.7cp+6f, -0x1.0d8542p+5f},
+                              {0x1.0981b4p+6f, 0x1.d5e548p+5f, -0x1.342e5p+4f},
+                              {0x1.22p+7f, 0x1.68p+5f, 0x0p+0f},
+                              {0x1.bf3f26p+7f, 0x1.d5e548p+5f, 0x1.342e5p+4f},
+                              {0x1.27p+8f, 0x1.7cp+6f, 0x1.0d8542p+5f}});
+       }},
+  });
 }

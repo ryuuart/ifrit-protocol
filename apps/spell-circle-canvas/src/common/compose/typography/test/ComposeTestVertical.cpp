@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "support/Rows.h"
 #include "support/TextTestSupport.h"
 
 namespace {
@@ -151,127 +152,6 @@ TEST(TextVertical, IntrinsicMeasurementSwapsTheAxes) {
   EXPECT_GT(tall.height(), wide.height() * 2.0f);
 }
 
-TEST(TextVertical, MaxLinesClampsColumns) {
-  Host host(340, 200);
-  host.composer.render(box().padding(10).children(
-      {text(kProse, jp(20, SK_ColorWHITE))
-           .width(300)
-           .height(120)
-           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .maxTextLines(2)
-           .key("t")}));
-  host.frame();
-  const auto* layout = host.composer.paragraphLayout("t");
-  ASSERT_NE(layout, nullptr);
-  EXPECT_EQ(layout->lineCount, 2)
-      << "maxTextLines clamps COLUMNS in vertical text";
-  EXPECT_TRUE(layout->overflowed());
-}
-
-TEST(TextVertical, ALineSelectorAddressesAColumn) {
-  // weave::selectors::line resolves through the LAYOUT, and in a vertical
-  // passage the layout numbers columns. Column 0 is the RIGHTMOST one.
-  Host host(300, 240);
-  host.composer.render(box().padding(10).children(
-      {text(kProse, jp(22, SK_ColorWHITE))
-           .width(200)
-           .height(180)
-           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .span(sigil::weave::selectors::line(0), inked(SK_ColorRED))
-           .key("t")}));
-  host.frame();
-  const auto* layout = host.composer.paragraphLayout("t");
-  ASSERT_NE(layout, nullptr);
-  ASSERT_GT(layout->lineCount, 1);
-
-  const std::vector<float> axes = columnAxes(*layout);
-  ASSERT_GE(axes.size(), 2u);
-  const int split = (int)((axes[0] + axes[1]) * 0.5f);
-  const SkIRect rightmost = SkIRect::MakeLTRB(split, 0, 300, 240);
-  const SkIRect rest = SkIRect::MakeLTRB(0, 0, split, 240);
-  EXPECT_GT(countPixels(host, rightmost, SK_ColorRED), 10)
-      << "column 0 is the one at the right edge";
-  EXPECT_EQ(countPixels(host, rest, SK_ColorRED), 0)
-      << "the restyle leaked into a column it does not name";
-  EXPECT_GT(countPixels(host, rest, SK_ColorWHITE), 10) << "the rest";
-}
-
-TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
-  // Mid-cascade the top of the column has arrived and the bottom has not:
-  // reading order down a column is what a stagger beats over.
-  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.45f);
-  Host host(200, 320);
-  host.composer.render(box().padding(10).children(
-      {text(u8"一二三四五六七八九十", jp(24, SK_ColorWHITE))
-           .width(60)
-           .height(300)
-           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .textFx({.effect = textFx::enter(textFx::rise(30)),
-                    .tween = {.duration = 450ms,
-                              .delay = sigil::motion::stagger(90ms)},
-                    .unit = sigil::weave::Unit::Cluster,
-                    .progress = progress})
-           .key("t")}));
-  host.frame();
-  const int top = inkCount(host, SkIRect::MakeXYWH(0, 10, 200, 120));
-  const int bottom = inkCount(host, SkIRect::MakeXYWH(0, 190, 200, 120));
-  EXPECT_GT(top, 0) << "the head of the column must have arrived";
-  EXPECT_GT(top, bottom * 2)
-      << "the tail of the column must still be on its way";
-
-  progress = 1.0f;
-  host.frame();
-  EXPECT_GT(inkCount(host, SkIRect::MakeXYWH(0, 190, 200, 120)), 0)
-      << "at rest the whole column draws";
-}
-
-TEST(TextVertical, APaintSpanRecolorsAColumnWithoutReshaping) {
-  Host host(300, 260);
-  const std::u8string body = u8"赤い文字と白い文字";
-  const auto shapesOf = [&] {
-    std::vector<const void*> out;
-    const auto* layout = host.composer.paragraphLayout("t");
-    if (!layout) return out;
-    for (const sigil::weave::PositionedRun& run : layout->runs)
-      out.push_back(run.shaped);
-    return out;
-  };
-  const auto originsOf = [&] {
-    std::vector<glm::vec2> out;
-    const auto* layout = host.composer.paragraphLayout("t");
-    if (!layout) return out;
-    for (const sigil::weave::PositionedRun& run : layout->runs)
-      out.push_back(run.origin);
-    return out;
-  };
-
-  const auto describe = [&](bool restyled) {
-    Text t =
-        text(body, jp(24, SK_ColorWHITE))
-            .width(200)
-            .height(220)
-            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-            .key("t");
-    if (restyled)
-      t.span(sigil::weave::selectors::text(u8"赤い"), inked(SK_ColorRED));
-    return box().padding(10).children({std::move(t)});
-  };
-
-  host.composer.render(describe(false));
-  host.frame();
-  const std::vector<const void*> shapesBefore = shapesOf();
-  const std::vector<glm::vec2> originsBefore = originsOf();
-  ASSERT_FALSE(shapesBefore.empty());
-
-  host.composer.render(describe(true));
-  host.frame();
-  EXPECT_EQ(shapesOf(), shapesBefore) << "a paint-only restyle re-shaped";
-  EXPECT_EQ(originsOf(), originsBefore) << "a paint-only restyle moved a glyph";
-  const SkIRect all = SkIRect::MakeXYWH(0, 0, 300, 260);
-  EXPECT_GT(countPixels(host, all, SK_ColorRED), 10) << "the named range";
-  EXPECT_GT(countPixels(host, all, SK_ColorWHITE), 10) << "the rest";
-}
-
 TEST(TextVertical, TheParagraphOverloadKeepsTheFieldMaskContract) {
   Host host(300, 240);
   auto vertical = std::make_shared<sigil::weave::Paragraph>();
@@ -387,53 +267,6 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
          "VERTICAL advance sideways";
 }
 
-TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
-  // A cascade's read-back has to speak the geometry the column is in. A
-  // vertical glyph advances DOWN its column and stands about an em across
-  // it, so beats descend inside a column and step LEFT to the next one —
-  // the reading order kVerticalRL puts them in, and the exact opposite of
-  // what a horizontal rect built from the same numbers would say.
-  Host host(220, 300);
-  host.composer.render(box().padding(10).children(
-      {text(kProse, jp(20, SK_ColorWHITE))
-           .key("col")
-           .width(180)
-           .height(240)
-           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .textFx({.effect = textFx::enter(textFx::rise(10)),
-                    .tween = {.duration = 450ms,
-                              .delay = sigil::motion::stagger(40ms)},
-                    .unit = sigil::weave::Unit::Cluster})}));
-  host.frame();
-
-  const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
-  ASSERT_GT(beats.size(), 12u);
-  const SkRect block = geometry::path::toSk(
-      host.composer.bounds("col").value_or(geometry::path::Rect{}));
-  ASSERT_FALSE(block.isEmpty()) << "the column block was never laid out";
-  for (const Beat& beat : beats) {
-    EXPECT_FALSE(beat.rect.empty());
-    EXPECT_GT(beat.rect.height(), 4.0f)
-        << "a vertical glyph's beat has no extent along its own advance";
-  }
-  // Down a column: consecutive beats descend until the column breaks.
-  int descents = 0, columnBreaks = 0;
-  for (size_t i = 1; i < beats.size(); ++i) {
-    if (beats[i].rect.centre().y > beats[i - 1].rect.centre().y + 1.0f)
-      ++descents;
-    else if (beats[i].rect.centre().x < beats[i - 1].rect.centre().x - 1.0f)
-      ++columnBreaks;
-  }
-  EXPECT_GT(descents, (int)beats.size() / 2)
-      << "the beats do not run down the column";
-  EXPECT_GT(columnBreaks, 0)
-      << "the passage never broke to a second column: nothing is proven";
-  // …and the whole schedule stays inside the node it belongs to.
-  for (const Beat& beat : beats)
-    EXPECT_TRUE(block.intersects(geometry::path::toSk(beat.rect)))
-        << "a beat landed outside the column block";
-}
-
 TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
   // A code-point substitution draws its replacement at the ORIGINAL glyph's
   // pen position, so it is sound exactly when the two advance the pen
@@ -542,108 +375,297 @@ TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
   EXPECT_GT(level, 0) << "the digits set across the column were not named";
 }
 
-TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
-  // A mark's rect is the union of the advance boxes of the glyphs it
-  // addressed, and in a column those boxes stack DOWN one axis. So a
-  // phrase's mark is a tall narrow box standing in that phrase's column —
-  // not a wide short one across the page.
-  Host host(300, 260);
-  host.composer.render(box().padding(10).children(
-      {text(kProse, jp(22, SK_ColorWHITE))
-           .width(200)
-           .height(200)
-           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .textAttach(sigil::weave::selectors::text(u8"縦組み"),
-                       box().key("rule").width(3.0f).fill(red()))
-           .key("t")}));
-  host.frame();
-  const auto* layout = host.composer.paragraphLayout("t");
-  ASSERT_NE(layout, nullptr);
-  const SkRect rule = geometry::path::toSk(
-      host.composer.bounds("rule").value_or(geometry::path::Rect{}));
-  ASSERT_FALSE(rule.isEmpty()) << "the mark never resolved";
-  EXPECT_GT(rule.height(), rule.width() * 3)
-      << "three characters of a column make a TALL mark";
+TEST(TextVertical, TheEngineRunsInColumns) {
+  sigil::compose::test::checkRows({
+      {"MaxLinesClampsColumns",
+       [&] {
+         Host host(340, 200);
+         host.composer.render(box().padding(10).children(
+             {text(kProse, jp(20, SK_ColorWHITE))
+                  .width(300)
+                  .height(120)
+                  .paragraph(
+                      {.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                  .maxTextLines(2)
+                  .key("t")}));
+         host.frame();
+         const auto* layout = host.composer.paragraphLayout("t");
+         ASSERT_NE(layout, nullptr);
+         EXPECT_EQ(layout->lineCount, 2)
+             << "maxTextLines clamps COLUMNS in vertical text";
+         EXPECT_TRUE(layout->overflowed());
+       }},
+      {"ALineSelectorAddressesAColumn",
+       [&] {
+         // weave::selectors::line resolves through the LAYOUT, and in a
+         // vertical passage the layout numbers columns. Column 0 is the
+         // RIGHTMOST one.
+         Host host(300, 240);
+         host.composer.render(box().padding(10).children(
+             {text(kProse, jp(22, SK_ColorWHITE))
+                  .width(200)
+                  .height(180)
+                  .paragraph(
+                      {.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                  .span(sigil::weave::selectors::line(0), inked(SK_ColorRED))
+                  .key("t")}));
+         host.frame();
+         const auto* layout = host.composer.paragraphLayout("t");
+         ASSERT_NE(layout, nullptr);
+         ASSERT_GT(layout->lineCount, 1);
 
-  // And it stands in the column those characters are in: the phrase opens
-  // the passage, so that is column 0, the rightmost.
-  const std::vector<float> axes = columnAxes(*layout);
-  ASSERT_GE(axes.size(), 2u);
-  EXPECT_GT(rule.centerX(), (axes[0] + axes[1]) * 0.5f)
-      << "the mark drifted out of the column it names";
-}
+         const std::vector<float> axes = columnAxes(*layout);
+         ASSERT_GE(axes.size(), 2u);
+         const int split = (int)((axes[0] + axes[1]) * 0.5f);
+         const SkIRect rightmost = SkIRect::MakeLTRB(split, 0, 300, 240);
+         const SkIRect rest = SkIRect::MakeLTRB(0, 0, split, 240);
+         EXPECT_GT(countPixels(host, rightmost, SK_ColorRED), 10)
+             << "column 0 is the one at the right edge";
+         EXPECT_EQ(countPixels(host, rest, SK_ColorRED), 0)
+             << "the restyle leaked into a column it does not name";
+         EXPECT_GT(countPixels(host, rest, SK_ColorWHITE), 10) << "the rest";
+       }},
+      {"AClusterEntranceStaggersDownTheColumn",
+       [&] {
+         // Mid-cascade the top of the column has arrived and the bottom has
+         // not: reading order down a column is what a stagger beats over.
+         sigil::motion::Animatable<float> progress =
+             sigil::motion::animatable(0.45f);
+         Host host(200, 320);
+         host.composer.render(box().padding(10).children(
+             {text(u8"一二三四五六七八九十", jp(24, SK_ColorWHITE))
+                  .width(60)
+                  .height(300)
+                  .paragraph(
+                      {.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                  .textFx({.effect = textFx::enter(textFx::rise(30)),
+                           .tween = {.duration = 450ms,
+                                     .delay = sigil::motion::stagger(90ms)},
+                           .unit = sigil::weave::Unit::Cluster,
+                           .progress = progress})
+                  .key("t")}));
+         host.frame();
+         const int top = inkCount(host, SkIRect::MakeXYWH(0, 10, 200, 120));
+         const int bottom = inkCount(host, SkIRect::MakeXYWH(0, 190, 200, 120));
+         EXPECT_GT(top, 0) << "the head of the column must have arrived";
+         EXPECT_GT(top, bottom * 2)
+             << "the tail of the column must still be on its way";
 
-TEST(TextVertical, ASizeSpanReshapesOnlyTheRunItNames) {
-  // A span restyle that changes SHAPING re-shapes its own run and leaves
-  // its neighbours' shaped words alone — the same contract a line keeps,
-  // asked of a column, where the re-shaped run also changes how far the
-  // pen steps DOWN.
-  Host host(300, 300);
-  const auto describe = [&](bool dressed) {
-    Text t =
-        text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
-            .width(80)
-            .height(260)
-            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-            .key("t");
-    if (dressed) {
-      t.span(sigil::weave::selectors::text(u8"文章"), SpanStyle().fontSize(40));
-    }
-    return box().padding(10).children({std::move(t)});
-  };
-  host.composer.render(describe(false));
-  host.frame();
-  const auto* plain = host.composer.paragraphLayout("t");
-  ASSERT_NE(plain, nullptr);
-  const float plainExtent = plain->runs.back().origin.y;
+         progress = 1.0f;
+         host.frame();
+         EXPECT_GT(inkCount(host, SkIRect::MakeXYWH(0, 190, 200, 120)), 0)
+             << "at rest the whole column draws";
+       }},
+      {"APaintSpanRecoloursAColumnWithoutReshaping",
+       [&] {
+         Host host(300, 260);
+         const std::u8string body = u8"赤い文字と白い文字";
+         const auto shapesOf = [&] {
+           std::vector<const void*> out;
+           const auto* layout = host.composer.paragraphLayout("t");
+           if (!layout) return out;
+           for (const sigil::weave::PositionedRun& run : layout->runs)
+             out.push_back(run.shaped);
+           return out;
+         };
+         const auto originsOf = [&] {
+           std::vector<glm::vec2> out;
+           const auto* layout = host.composer.paragraphLayout("t");
+           if (!layout) return out;
+           for (const sigil::weave::PositionedRun& run : layout->runs)
+             out.push_back(run.origin);
+           return out;
+         };
 
-  host.composer.render(describe(true));
-  host.frame();
-  const auto* dressed = host.composer.paragraphLayout("t");
-  ASSERT_NE(dressed, nullptr);
-  bool sawBigger = false;
-  for (const sigil::weave::PositionedRun& run : dressed->runs)
-    if (run.shaped && run.shaped->fontSize > 30.0f) sawBigger = true;
-  EXPECT_TRUE(sawBigger) << "the named run kept the size it was set at";
-  EXPECT_GT(dressed->runs.back().origin.y, plainExtent)
-      << "a taller run must push the pen further down the column";
-}
+         const auto describe = [&](bool restyled) {
+           Text t = text(body, jp(24, SK_ColorWHITE))
+                        .width(200)
+                        .height(220)
+                        .paragraph({.writingMode =
+                                        sigil::weave::WritingMode::kVerticalRL})
+                        .key("t");
+           if (restyled)
+             t.span(sigil::weave::selectors::text(u8"赤い"),
+                    inked(SK_ColorRED));
+           return box().padding(10).children({std::move(t)});
+         };
 
-TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
-  // `weave::Unit::Line` IS a column here. Mid-cascade the first column has
-  // arrived whole and the next has not — the two halves of the same
-  // passage separated by the geometry, not by the text.
-  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.35f);
-  Host host(300, 260);
-  host.composer.render(box().padding(10).children(
-      {text(kProse, jp(22, SK_ColorWHITE))
-           .width(200)
-           .height(200)
-           .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .textFx({.effect = textFx::enter(textFx::typeOn()),
-                    .tween = {.duration = 450ms,
-                              .delay = sigil::motion::stagger(400ms)},
-                    .unit = sigil::weave::Unit::Line,
-                    .progress = progress})
-           .key("t")}));
-  host.frame();
-  const auto* layout = host.composer.paragraphLayout("t");
-  ASSERT_NE(layout, nullptr);
-  ASSERT_GT(layout->lineCount, 1);
-  const std::vector<float> axes = columnAxes(*layout);
-  ASSERT_GE(axes.size(), 2u);
-  const int split = (int)((axes[0] + axes[1]) * 0.5f);
+         host.composer.render(describe(false));
+         host.frame();
+         const std::vector<const void*> shapesBefore = shapesOf();
+         const std::vector<glm::vec2> originsBefore = originsOf();
+         ASSERT_FALSE(shapesBefore.empty());
 
-  EXPECT_GT(inkCount(host, SkIRect::MakeLTRB(split, 0, 300, 260)), 0)
-      << "the first column must have arrived";
-  EXPECT_EQ(inkCount(host, SkIRect::MakeLTRB(0, 0, split, 260)), 0)
-      << "a later column arrived with the first: the cascade is not "
-         "beating over COLUMNS";
+         host.composer.render(describe(true));
+         host.frame();
+         EXPECT_EQ(shapesOf(), shapesBefore)
+             << "a paint-only restyle re-shaped";
+         EXPECT_EQ(originsOf(), originsBefore)
+             << "a paint-only restyle moved a glyph";
+         const SkIRect all = SkIRect::MakeXYWH(0, 0, 300, 260);
+         EXPECT_GT(countPixels(host, all, SK_ColorRED), 10)
+             << "the named range";
+         EXPECT_GT(countPixels(host, all, SK_ColorWHITE), 10) << "the rest";
+       }},
+      {"BeatsRunDownTheColumnAndAcrossToTheNext",
+       [&] {
+         // A cascade's read-back has to speak the geometry the column is in. A
+         // vertical glyph advances DOWN its column and stands about an em
+         // across it, so beats descend inside a column and step LEFT to the
+         // next one — the reading order kVerticalRL puts them in, and the exact
+         // opposite of what a horizontal rect built from the same numbers would
+         // say.
+         Host host(220, 300);
+         host.composer.render(box().padding(10).children(
+             {text(kProse, jp(20, SK_ColorWHITE))
+                  .key("col")
+                  .width(180)
+                  .height(240)
+                  .paragraph(
+                      {.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                  .textFx({.effect = textFx::enter(textFx::rise(10)),
+                           .tween = {.duration = 450ms,
+                                     .delay = sigil::motion::stagger(40ms)},
+                           .unit = sigil::weave::Unit::Cluster})}));
+         host.frame();
 
-  progress = 1.0f;
-  host.frame();
-  EXPECT_GT(inkCount(host, SkIRect::MakeLTRB(0, 0, split, 260)), 0)
-      << "at rest every column draws";
+         const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
+         ASSERT_GT(beats.size(), 12u);
+         const SkRect block = geometry::path::toSk(
+             host.composer.bounds("col").value_or(geometry::path::Rect{}));
+         ASSERT_FALSE(block.isEmpty()) << "the column block was never laid out";
+         for (const Beat& beat : beats) {
+           EXPECT_FALSE(beat.rect.empty());
+           EXPECT_GT(beat.rect.height(), 4.0f)
+               << "a vertical glyph's beat has no extent along its own advance";
+         }
+         // Down a column: consecutive beats descend until the column breaks.
+         int descents = 0, columnBreaks = 0;
+         for (size_t i = 1; i < beats.size(); ++i) {
+           if (beats[i].rect.centre().y > beats[i - 1].rect.centre().y + 1.0f)
+             ++descents;
+           else if (beats[i].rect.centre().x <
+                    beats[i - 1].rect.centre().x - 1.0f)
+             ++columnBreaks;
+         }
+         EXPECT_GT(descents, (int)beats.size() / 2)
+             << "the beats do not run down the column";
+         EXPECT_GT(columnBreaks, 0)
+             << "the passage never broke to a second column: nothing is proven";
+         // …and the whole schedule stays inside the node it belongs to.
+         for (const Beat& beat : beats)
+           EXPECT_TRUE(block.intersects(geometry::path::toSk(beat.rect)))
+               << "a beat landed outside the column block";
+       }},
+      {"AMarkAnchorsToTheColumnItsUnitStandsIn",
+       [&] {
+         // A mark's rect is the union of the advance boxes of the glyphs it
+         // addressed, and in a column those boxes stack DOWN one axis. So a
+         // phrase's mark is a tall narrow box standing in that phrase's column
+         // — not a wide short one across the page.
+         Host host(300, 260);
+         host.composer.render(box().padding(10).children(
+             {text(kProse, jp(22, SK_ColorWHITE))
+                  .width(200)
+                  .height(200)
+                  .paragraph(
+                      {.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                  .textAttach(sigil::weave::selectors::text(u8"縦組み"),
+                              box().key("rule").width(3.0f).fill(red()))
+                  .key("t")}));
+         host.frame();
+         const auto* layout = host.composer.paragraphLayout("t");
+         ASSERT_NE(layout, nullptr);
+         const SkRect rule = geometry::path::toSk(
+             host.composer.bounds("rule").value_or(geometry::path::Rect{}));
+         ASSERT_FALSE(rule.isEmpty()) << "the mark never resolved";
+         EXPECT_GT(rule.height(), rule.width() * 3)
+             << "three characters of a column make a TALL mark";
+
+         // And it stands in the column those characters are in: the phrase
+         // opens the passage, so that is column 0, the rightmost.
+         const std::vector<float> axes = columnAxes(*layout);
+         ASSERT_GE(axes.size(), 2u);
+         EXPECT_GT(rule.centerX(), (axes[0] + axes[1]) * 0.5f)
+             << "the mark drifted out of the column it names";
+       }},
+      {"ASizeSpanReshapesOnlyTheRunItNames",
+       [&] {
+         // A span restyle that changes SHAPING re-shapes its own run and leaves
+         // its neighbours' shaped words alone — the same contract a line keeps,
+         // asked of a column, where the re-shaped run also changes how far the
+         // pen steps DOWN.
+         Host host(300, 300);
+         const auto describe = [&](bool dressed) {
+           Text t = text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
+                        .width(80)
+                        .height(260)
+                        .paragraph({.writingMode =
+                                        sigil::weave::WritingMode::kVerticalRL})
+                        .key("t");
+           if (dressed) {
+             t.span(sigil::weave::selectors::text(u8"文章"),
+                    SpanStyle().fontSize(40));
+           }
+           return box().padding(10).children({std::move(t)});
+         };
+         host.composer.render(describe(false));
+         host.frame();
+         const auto* plain = host.composer.paragraphLayout("t");
+         ASSERT_NE(plain, nullptr);
+         const float plainExtent = plain->runs.back().origin.y;
+
+         host.composer.render(describe(true));
+         host.frame();
+         const auto* dressed = host.composer.paragraphLayout("t");
+         ASSERT_NE(dressed, nullptr);
+         bool sawBigger = false;
+         for (const sigil::weave::PositionedRun& run : dressed->runs)
+           if (run.shaped && run.shaped->fontSize > 30.0f) sawBigger = true;
+         EXPECT_TRUE(sawBigger) << "the named run kept the size it was set at";
+         EXPECT_GT(dressed->runs.back().origin.y, plainExtent)
+             << "a taller run must push the pen further down the column";
+       }},
+      {"ACascadeOverLinesBeatsColumnByColumn",
+       [&] {
+         // `weave::Unit::Line` IS a column here. Mid-cascade the first column
+         // has arrived whole and the next has not — the two halves of the same
+         // passage separated by the geometry, not by the text.
+         sigil::motion::Animatable<float> progress =
+             sigil::motion::animatable(0.35f);
+         Host host(300, 260);
+         host.composer.render(box().padding(10).children(
+             {text(kProse, jp(22, SK_ColorWHITE))
+                  .width(200)
+                  .height(200)
+                  .paragraph(
+                      {.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                  .textFx({.effect = textFx::enter(textFx::typeOn()),
+                           .tween = {.duration = 450ms,
+                                     .delay = sigil::motion::stagger(400ms)},
+                           .unit = sigil::weave::Unit::Line,
+                           .progress = progress})
+                  .key("t")}));
+         host.frame();
+         const auto* layout = host.composer.paragraphLayout("t");
+         ASSERT_NE(layout, nullptr);
+         ASSERT_GT(layout->lineCount, 1);
+         const std::vector<float> axes = columnAxes(*layout);
+         ASSERT_GE(axes.size(), 2u);
+         const int split = (int)((axes[0] + axes[1]) * 0.5f);
+
+         EXPECT_GT(inkCount(host, SkIRect::MakeLTRB(split, 0, 300, 260)), 0)
+             << "the first column must have arrived";
+         EXPECT_EQ(inkCount(host, SkIRect::MakeLTRB(0, 0, split, 260)), 0)
+             << "a later column arrived with the first: the cascade is not "
+                "beating over COLUMNS";
+
+         progress = 1.0f;
+         host.frame();
+         EXPECT_GT(inkCount(host, SkIRect::MakeLTRB(0, 0, split, 260)), 0)
+             << "at rest every column draws";
+       }},
+  });
 }
 
 TEST(TextVertical, ABandStandsAtRestUnderATrack) {

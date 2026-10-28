@@ -27,7 +27,8 @@ concept SaysTextWillChange = requires(Node node) { node.textWillChange(); };
 template <class Node>
 concept SaysAtRest = requires(Node node) { node.atRest(); };
 template <class Node>
-concept SaysImageRegion = requires(Node node) { node.imageRegion(geometry::path::Rect{}); };
+concept SaysImageRegion =
+    requires(Node node) { node.imageRegion(geometry::path::Rect{}); };
 template <class Node>
 concept SaysBandAlignment = requires(Node node) {
   node.bandAlignment(sigil::geometry::path::Formation::Inner);
@@ -60,9 +61,6 @@ static_assert(std::convertible_to<Band, Element>);
 static_assert(std::same_as<
               decltype(std::declval<Text&>().width(10).opacity(0.5f)), Text&>);
 static_assert(std::same_as<decltype(std::declval<Text&>().atRest()), Text>);
-
-// -------------------------------------------------------------------------
-// The node underneath is the same node.
 
 TEST(ComposeTypedLeaves, ATextDescribedThroughTheLeafPrunes) {
   // Holding the leaf as `Text` for the length of a chain must not change its

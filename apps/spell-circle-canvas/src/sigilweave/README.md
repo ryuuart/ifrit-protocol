@@ -655,7 +655,7 @@ Skia stays named where it is what the entrance is about:
 [docs/overview/testing.md](../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
 `weave_test` over every feature's `test/` and one `weave_bench` over
-every feature's `bench/`, ctest one entry per CASE, what a case may pin,
+every feature's `bench/`, ctest one entry per SUITE, what a case may pin,
 and what a label promises. What is only true of SigilWeave:
 
 **Nothing here reads a clock.** A feature's `test/` states what that
@@ -863,7 +863,7 @@ bar is identity: the plate is rasterized on the CPU, and the same layout
 in the same faces answers the same bytes. A move that was meant is
 adopted by `sigil.py plates --rebase`, which adopts every library's
 plates and the sketch manifest together, and committed with its cause;
-`SIGIL_PLATES_REBASE=1` on `ctest -R '^WeavePlates\.'` is the same
+`SIGIL_PLATES_REBASE=1` on `ctest -R '^weave\.WeavePlates$'` is the same
 adoption for these plates alone.
 
 `WeaveGallery` (`examples/gallery/`) is the interactive home for the animated

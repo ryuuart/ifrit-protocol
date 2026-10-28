@@ -139,7 +139,7 @@ INSTANTIATE_TEST_SUITE_P(ComposeStripTiles, StripTile,
                            return info.param.what;
                          });
 
-TEST(ComposeStripTiles, MirroredTileReadsForwardUnderMirroredSampling) {
+TEST(ComposeStripTiles, ATileWindowLaysEachTileByItsFlowAndFacing) {
   // What Facing::Mirrored actually promises: bake mirrored, sample mirrored,
   // and the strip reads exactly as the forward bake does. A caller drawing
   // the back face of a ribbon relies on this being an exact reflection

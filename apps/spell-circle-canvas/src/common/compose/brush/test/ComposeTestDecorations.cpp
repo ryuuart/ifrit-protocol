@@ -10,212 +10,147 @@
 #include <functional>
 
 #include "support/BrushTestSupport.h"
+#include "support/Rows.h"
 
-TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
-  Host host;
-  PathFormat dashed;
-  dashed.width = 6;
-  dashed.strokeFill = Fill::color({1, 1, 0, 1});
-  dashed.dashIntervals = {10, 10};
-  host.composer.render(box().children(
-      {box().width(120).height(120).inset(20).absolute().foreground(dashed)}));
-  host.frame();
-  // Somewhere along the top edge a dash lands; somewhere it doesn't.
-  int lit = 0;
-  for (int x = 25; x < 135; ++x)
-    if (host.pixel(x, 20) == SK_ColorYELLOW) ++lit;
-  EXPECT_GT(lit, 10);
-  EXPECT_LT(lit, 110);  // gaps exist → it really dashed
+TEST(ComposeDecorations,
+     AContourWalkStampsEachSampleAndRecordsOnceUnlessItsWalkIsAnimated) {
+  sigil::compose::test::checkRows({
+      {"AnAnimatedWalkRepaintsEachFrame",
+       [&] {
+         Host host;
+         static int visits;
+         visits = 0;
+         ContourWalk walk;
+         walk.spacing = 50.0f;
+         walk.animatedWalk = true;
+         walk.draw = [] { ++visits; };
+         host.composer.render(
+             box().children({box().width(100).height(100).foreground(walk)}));
+         host.frame();
+         host.frame();
+         EXPECT_EQ(visits, 16);  // 8 samples × 2 frames: repainted per frame
+       }},
+      {"StampAtSequencesPerSampleArt",
+       [&] {
+         // `stamp` replays ONE piece of art at every sample. stampAt(sample,
+         // index) is the sequence form — ruler ticks carrying numbers, chained
+         // ornament — returning per-index art, with nullopt falling back to the
+         // shared `stamp`.
+         //
+         // Two costs come with it, both inherent. ContourWalk carries a raw
+         // callable, so it has no operator== and its node never prunes. And the
+         // art is re-baked per call: each returned Element is a fresh node, so
+         // the instance-side stamp cache has no stable key to hold it by.
+         Host host;
+         static int asked;
+         asked = 0;
+         ContourWalk walk;
+         walk.spacing = 40.0f;
+         walk.stamp = box().width(10).height(10).fill(green());
+         walk.stampAt = [](const PathSample& s,
+                           size_t i) -> std::optional<Element> {
+           ++asked;
+           EXPECT_FLOAT_EQ(s.distance,
+                           40.0f * (float)i);  // the sequence contract
+           if (i % 2 == 1)
+             return std::nullopt;  // odd samples: the shared stamp replays
+           return box().width(10).height(10).fill(red());
+         };
+         host.composer.render(
+             box().children({box()
+                                 .absolute()
+                                 .inset(80, 20)
+                                 .shape(skiaShape([](SkSize s) {
+                                   SkPathBuilder b;
+                                   b.moveTo(0, s.height() / 2);
+                                   b.lineTo(s.width(), s.height() / 2);
+                                   return b.detach();
+                                 }))
+                                 .foreground(walk)}));
+         host.frame();
+         // 160px rail, spacing 40 → samples at x = 20, 60, 100, 140 (y = 100).
+         EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);    // index 0: its own art
+         EXPECT_EQ(host.pixel(60, 100), SK_ColorGREEN);  // index 1: fallback
+         EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);   // index 2
+         EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // index 3
+         EXPECT_EQ(asked, 4);
+         host.frame();  // a static walk records once and replays — no re-bakes
+         EXPECT_EQ(asked, 4);
+       }},
+  });
 }
 
-TEST(ComposeDecorations, ContourWalkVisitsSamplesPositioned) {
-  Host host;
-  static int visits;
-  visits = 0;
-  ContourWalk walk;
-  walk.spacing = 25.0f;
-  walk.draw = [](sigil::draw::Pen& pen, const PathSample& s) {
-    SkCanvas& c = *pen.canvas();
-    ++visits;
-    EXPECT_GE(s.fraction, 0.0f);
-    EXPECT_LE(s.fraction, 1.0f);
-    SkPaint p;
-    p.setColor(SK_ColorGREEN);
-    c.drawRect(SkRect::MakeXYWH(-2, -2, 4, 4), p);  // at the sample origin
-  };
-  host.composer.render(box().children(
-      {box().width(100).height(100).inset(50).absolute().foreground(walk)}));
-  host.frame();
-  EXPECT_EQ(visits, 16);  // 400px perimeter / 25px spacing
-  EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);  // top edge stamped
-  host.frame();
-  EXPECT_EQ(visits, 16);  // static walk → recorded once, replayed
+TEST(ComposeDecorations, ABoxShadowPaintsWhereCssPaintsIt) {
+  sigil::compose::test::checkRows({
+      {"ABoxShadowSpreadsAndInsetsAsCssDoes",
+       [&] {
+         // An 80 px square at (40, 40). A hard outer shadow spread by 10
+         // reaches 10 px past every side, its corners square as CSS's are; a
+         // negative spread shrinks it inside the fill, where it is hidden.
+         Host host;
+         host.composer.render(box().children(
+             {box()
+                  .width(80)
+                  .height(80)
+                  .inset(40)
+                  .absolute()
+                  .fill(red())
+                  .boxShadow(
+                      {.spread = 10, .color = Fill::color({0, 0, 1, 1})})}));
+         host.frame();
+         EXPECT_EQ(host.pixel(80, 34), SK_ColorBLUE);
+         EXPECT_EQ(host.pixel(33, 33), SK_ColorBLUE);  // a square corner
+         EXPECT_NE(host.pixel(80, 28), SK_ColorBLUE);
+         EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);
+
+         Host shrunk;
+         shrunk.composer.render(box().children(
+             {box().width(80).height(80).inset(40).absolute().boxShadow(
+                 {.offset = {20, 0},
+                  .spread = -10,
+                  .color = Fill::color({0, 0, 1, 1})})}));
+         shrunk.frame();
+         // Moved 20 right and 10 in from every side: it covers x 70 to 130.
+         EXPECT_EQ(shrunk.pixel(100, 80), SK_ColorBLUE);
+         EXPECT_NE(shrunk.pixel(64, 80), SK_ColorBLUE);
+         EXPECT_NE(shrunk.pixel(80, 46), SK_ColorBLUE);
+
+         // Inset and cast downward, the band hugs the top inner edge OVER the
+         // fill, and nothing paints outside the square.
+         Host inset;
+         inset.composer.render(
+             box().children({box()
+                                 .width(80)
+                                 .height(80)
+                                 .inset(40)
+                                 .absolute()
+                                 .fill(red())
+                                 .boxShadow({.offset = {0, 6},
+                                             .color = Fill::color({0, 0, 1, 1}),
+                                             .inset = true})}));
+         inset.frame();
+         EXPECT_EQ(inset.pixel(80, 44), SK_ColorBLUE);
+         EXPECT_EQ(inset.pixel(80, 80), SK_ColorRED);
+         EXPECT_EQ(inset.pixel(80, 117), SK_ColorRED);
+         EXPECT_NE(inset.pixel(80, 37), SK_ColorBLUE);
+       }},
+      {"AListPaintsItsFirstEntryOnTop",
+       [&] {
+         Host host;
+         host.composer.render(box().children(
+             {box().width(80).height(80).inset(40).absolute().boxShadow(
+                 {Shadow{.offset = {10, 10},
+                         .color = Fill::color({0, 1, 0, 1})},
+                  Shadow{.offset = {20, 20},
+                         .color = Fill::color({0, 0, 1, 1})}})}));
+         host.frame();
+         EXPECT_EQ(host.pixel(125, 125), SK_ColorGREEN);  // where both fall
+         EXPECT_EQ(host.pixel(135, 135), SK_ColorBLUE);   // past the first
+       }},
+  });
 }
 
-TEST(ComposeDecorations, AnimatedWalkDeclaresVolatility) {
-  Host host;
-  static int visits;
-  visits = 0;
-  ContourWalk walk;
-  walk.spacing = 50.0f;
-  walk.animatedWalk = true;
-  walk.draw = [] { ++visits; };
-  host.composer.render(
-      box().children({box().width(100).height(100).foreground(walk)}));
-  host.frame();
-  host.frame();
-  EXPECT_EQ(visits, 16);  // 8 samples × 2 frames: repainted per frame
-}
-
-TEST(ComposeDecorations, ContourWalkStampAtSequencesPerSampleArt) {
-  // `stamp` replays ONE piece of art at every sample. stampAt(sample, index)
-  // is the sequence form — ruler ticks carrying numbers, chained ornament —
-  // returning per-index art, with nullopt falling back to the shared
-  // `stamp`.
-  //
-  // Two costs come with it, both inherent. ContourWalk carries a raw
-  // callable, so it has no operator== and its node never prunes. And the art
-  // is re-baked per call: each returned Element is a fresh node, so the
-  // instance-side stamp cache has no stable key to hold it by.
-  Host host;
-  static int asked;
-  asked = 0;
-  ContourWalk walk;
-  walk.spacing = 40.0f;
-  walk.stamp = box().width(10).height(10).fill(green());
-  walk.stampAt = [](const PathSample& s, size_t i) -> std::optional<Element> {
-    ++asked;
-    EXPECT_FLOAT_EQ(s.distance, 40.0f * (float)i);  // the sequence contract
-    if (i % 2 == 1)
-      return std::nullopt;  // odd samples: the shared stamp replays
-    return box().width(10).height(10).fill(red());
-  };
-  host.composer.render(box().children({box()
-                                           .absolute()
-                                           .inset(80, 20)
-                                           .shape(skiaShape([](SkSize s) {
-                                             SkPathBuilder b;
-                                             b.moveTo(0, s.height() / 2);
-                                             b.lineTo(s.width(),
-                                                      s.height() / 2);
-                                             return b.detach();
-                                           }))
-                                           .foreground(walk)}));
-  host.frame();
-  // 160px rail, spacing 40 → samples at x = 20, 60, 100, 140 (y = 100).
-  EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);     // index 0: its own art
-  EXPECT_EQ(host.pixel(60, 100), SK_ColorGREEN);   // index 1: fallback
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);    // index 2
-  EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // index 3
-  EXPECT_EQ(asked, 4);
-  host.frame();  // a static walk records once and replays — no re-bakes
-  EXPECT_EQ(asked, 4);
-}
-
-TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
-  // Synthesize a 30x30 nine-patch: 10px red border ring, green center.
-  SkBitmap src;
-  src.allocN32Pixels(30, 30);
-  src.eraseColor(SK_ColorRED);
-  src.erase(SK_ColorGREEN, SkIRect::MakeXYWH(10, 10, 10, 10));
-  auto asset = sigil::media::Image::of(src.asImage());
-
-  Host host;
-  Slice nine;
-  nine.asset = asset;
-  nine.xDivs = {10, 20};
-  nine.yDivs = {10, 20};
-  host.composer.render(
-      box().children({box().width(120).height(120).background(nine)}));
-  host.frame();
-  EXPECT_EQ(host.pixel(60, 60), SK_ColorGREEN);  // stretched center
-  EXPECT_EQ(host.pixel(4, 4), SK_ColorRED);      // corner intact
-  EXPECT_EQ(host.pixel(115, 115), SK_ColorRED);
-  EXPECT_EQ(host.pixel(60, 4), SK_ColorRED);  // edge strip
-}
-
-TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
-  Host host;
-  host.composer.render(
-      box().children({box()
-                          .width(80)
-                          .height(80)
-                          .inset(40)
-                          .absolute()
-                          .borderRadius({10})
-                          .background(sigil::compose::shadow(
-                              material::Color{0, 0, 1, 1}, {12, 12}, 0))
-                          .fill(red())
-                          .foreground(sigil::compose::stroke(4, green()))}));
-  host.frame();
-  EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);     // fill over shadow
-  EXPECT_EQ(host.pixel(128, 128), SK_ColorBLUE);  // shadow offset corner
-  EXPECT_EQ(host.pixel(80, 40), SK_ColorGREEN);   // stroked top edge
-}
-
-TEST(ComposeDecorations, ABoxShadowSpreadsAndInsetsAsCssDoes) {
-  // An 80 px square at (40, 40). A hard outer shadow spread by 10 reaches
-  // 10 px past every side, its corners square as CSS's are; a negative
-  // spread shrinks it inside the fill, where it is hidden.
-  Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(80)
-           .height(80)
-           .inset(40)
-           .absolute()
-           .fill(red())
-           .boxShadow({.spread = 10, .color = Fill::color({0, 0, 1, 1})})}));
-  host.frame();
-  EXPECT_EQ(host.pixel(80, 34), SK_ColorBLUE);
-  EXPECT_EQ(host.pixel(33, 33), SK_ColorBLUE);  // a square corner
-  EXPECT_NE(host.pixel(80, 28), SK_ColorBLUE);
-  EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);
-
-  Host shrunk;
-  shrunk.composer.render(box().children(
-      {box().width(80).height(80).inset(40).absolute().boxShadow(
-          {.offset = {20, 0},
-           .spread = -10,
-           .color = Fill::color({0, 0, 1, 1})})}));
-  shrunk.frame();
-  // Moved 20 right and 10 in from every side: it covers x 70 to 130.
-  EXPECT_EQ(shrunk.pixel(100, 80), SK_ColorBLUE);
-  EXPECT_NE(shrunk.pixel(64, 80), SK_ColorBLUE);
-  EXPECT_NE(shrunk.pixel(80, 46), SK_ColorBLUE);
-
-  // Inset and cast downward, the band hugs the top inner edge OVER the
-  // fill, and nothing paints outside the square.
-  Host inset;
-  inset.composer.render(box().children(
-      {box()
-           .width(80)
-           .height(80)
-           .inset(40)
-           .absolute()
-           .fill(red())
-           .boxShadow({.offset = {0, 6},
-                       .color = Fill::color({0, 0, 1, 1}),
-                       .inset = true})}));
-  inset.frame();
-  EXPECT_EQ(inset.pixel(80, 44), SK_ColorBLUE);
-  EXPECT_EQ(inset.pixel(80, 80), SK_ColorRED);
-  EXPECT_EQ(inset.pixel(80, 117), SK_ColorRED);
-  EXPECT_NE(inset.pixel(80, 37), SK_ColorBLUE);
-}
-
-TEST(ComposeDecorations, ABoxShadowListPaintsItsFirstEntryOnTop) {
-  Host host;
-  host.composer.render(box().children(
-      {box().width(80).height(80).inset(40).absolute().boxShadow(
-          {Shadow{.offset = {10, 10}, .color = Fill::color({0, 1, 0, 1})},
-           Shadow{.offset = {20, 20}, .color = Fill::color({0, 0, 1, 1})}})}));
-  host.frame();
-  EXPECT_EQ(host.pixel(125, 125), SK_ColorGREEN);  // where both fall
-  EXPECT_EQ(host.pixel(135, 135), SK_ColorBLUE);   // past the first
-}
-
-TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
+TEST(ComposeReconcile, AnEqualDescriptionOfValueDecorationsPrunes) {
   // Value decorations (Shadow, PathFormat stroke/dash) compare by value, so
   // a static decorated node prunes without a memo. A decoration that did
   // not would force a re-patch and a re-record on every render().
@@ -281,58 +216,6 @@ PathFormat railLine() {
 }
 
 }  // namespace
-
-TEST(ComposeWire, ThreadsThroughItsStops) {
-  // Three stations, one wire through their centers: the routed polyline is
-  // the element the operator attaches; the PathFormat dresses it.
-  Host host;
-  host.composer.render(
-      stack()
-          .children({station("s1", 10, 40), station("s2", 90, 40),
-                     station("s3", 170, 40)})
-          .operators({connect::Along{.stops = {{"s1"}, {"s2"}, {"s3"}},
-                                     .wire = railLine()}}));
-  host.frame();
-  EXPECT_EQ(host.pixel(60, 50), SK_ColorGREEN);   // between s1 and s2
-  EXPECT_EQ(host.pixel(140, 50), SK_ColorGREEN);  // between s2 and s3
-  EXPECT_EQ(host.pixel(60, 80), SK_ColorBLACK);   // off the rail
-}
-
-TEST(ComposeWire, DrawsOnWithTrim) {
-  // Composition, not new machinery: a span gate on a wire = the
-  // self-drawing subway line. A bound reveal advances with no render()
-  // calls.
-  motion::Animatable<float> reveal = motion::animatable(0.05f);
-  Host host;
-  host.composer.render(
-      stack()
-          .children({station("a", 10, 40), station("b", 170, 40)})
-          .operators({connect::Along{.stops = {{"a"}, {"b"}},
-                                     .wire = railLine(),
-                                     .mask = by::spans(spans::upTo(reveal))}}));
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK);  // reveal stops at ~x=28
-  reveal = 1.0f;                                  // no render()
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);  // the whole line
-}
-
-TEST(ComposeWire, OctilinearRoutesDiagonalThenStraight) {
-  // The metro-map router: a 45° leg for the shorter delta, then straight —
-  // never the direct slanted line.
-  Host host;
-  host.composer.render(
-      stack()
-          .children({station("a", 10, 40)})    // center (20, 50)
-          .children({station("b", 130, 100)})  // center (140, 110)
-          .operators({connect::Along{.stops = {{"a"}, {"b"}},
-                                     .router = routers::octilinear(0.0f),
-                                     .wire = railLine()}}));
-  host.frame();
-  EXPECT_EQ(host.pixel(50, 80), SK_ColorGREEN);    // on the 45° leg
-  EXPECT_EQ(host.pixel(110, 110), SK_ColorGREEN);  // on the straight leg
-  EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK);    // NOT the direct line
-}
 
 namespace {
 
@@ -415,98 +298,147 @@ INSTANTIATE_TEST_SUITE_P(
       return info.param.what;
     });
 
-TEST(ComposeWire, ClearsWhenAStopUnmounts) {
-  // An unmounted station takes its wire with it. A route whose stop is
-  // gone resolves to nothing and must draw nothing, not keep its last
-  // path.
-  Host host;
-  auto scene = [](bool withB) {
-    auto s = stack()
-                 .children({station("a", 10, 40)})
+TEST(ComposeWire, AWireRunsThroughItsStopsAsItsRouterAndDressingSay) {
+  sigil::compose::test::checkRows({
+      {"ABoundGateDrawsTheWireOn",
+       [&] {
+         // Composition, not new machinery: a span gate on a wire = the
+         // self-drawing subway line. A bound reveal advances with no render()
+         // calls.
+         motion::Animatable<float> reveal = motion::animatable(0.05f);
+         Host host;
+         host.composer.render(
+             stack()
+                 .children({station("a", 10, 40), station("b", 170, 40)})
+                 .operators(
+                     {connect::Along{.stops = {{"a"}, {"b"}},
+                                     .wire = railLine(),
+                                     .mask = by::spans(spans::upTo(reveal))}}));
+         host.frame();
+         EXPECT_EQ(host.pixel(100, 50),
+                   SK_ColorBLACK);  // reveal stops at ~x=28
+         reveal = 1.0f;             // no render()
+         host.frame();
+         EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);  // the whole line
+       }},
+      {"OctilinearRoutesDiagonalThenStraight",
+       [&] {
+         // The metro-map router: a 45° leg for the shorter delta, then straight
+         // — never the direct slanted line.
+         Host host;
+         host.composer.render(
+             stack()
+                 .children({station("a", 10, 40)})    // center (20, 50)
+                 .children({station("b", 130, 100)})  // center (140, 110)
                  .operators({connect::Along{.stops = {{"a"}, {"b"}},
-                                            .wire = railLine()}});
-    if (withB) s.children({station("b", 170, 40)});
-    return s;
-  };
-  host.composer.render(scene(true));
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);
-  host.composer.render(scene(false));  // station b unmounts
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK);  // gone, not stale
+                                            .router = routers::octilinear(0.0f),
+                                            .wire = railLine()}}));
+         host.frame();
+         EXPECT_EQ(host.pixel(50, 80), SK_ColorGREEN);    // on the 45° leg
+         EXPECT_EQ(host.pixel(110, 110), SK_ColorGREEN);  // on the straight leg
+         EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK);    // NOT the direct line
+       }},
+      {"ClearsWhenAStopUnmounts",
+       [&] {
+         // An unmounted station takes its wire with it. A route whose stop is
+         // gone resolves to nothing and must draw nothing, not keep its last
+         // path.
+         Host host;
+         auto scene = [](bool withB) {
+           auto s = stack()
+                        .children({station("a", 10, 40)})
+                        .operators({connect::Along{.stops = {{"a"}, {"b"}},
+                                                   .wire = railLine()}});
+           if (withB) s.children({station("b", 170, 40)});
+           return s;
+         };
+         host.composer.render(scene(true));
+         host.frame();
+         EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);
+         host.composer.render(scene(false));  // station b unmounts
+         host.frame();
+         EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK);  // gone, not stale
+       }},
+  });
 }
 
 // ---- Trim Path (draw-on reveals) -------------------------------------------
 
-TEST(ComposeMask, PartialOutlineStrokesOnlyRevealedStretch) {
-  // mask(by::spans(upTo(0.2))) on a square + stroked outline: only the
-  // first 20% of the perimeter is dressed; right/bottom stay bare. The
-  // fill and every outline decoration trace the CUT path.
-  Host host;
-  host.composer.render(
-      box().children({box()
-                          .width(100)
-                          .height(100)
-                          .inset(0, 100, 100, 0)
-                          .absolute()
-                          .mask(by::spans(spans::upTo(0.2f)))
-                          .foreground(sigil::compose::stroke(4, green()))}));
-  host.frame();
-  // Perimeter order for this outline: left → top → right → bottom, so the
-  // first 20% is about the left edge. That order is a property of how the
-  // path is built, which is why the assertions name specific edges.
-  EXPECT_EQ(host.pixel(1, 50), SK_ColorGREEN);   // left edge revealed
-  EXPECT_EQ(host.pixel(50, 1), SK_ColorBLACK);   // top edge bare
-  EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);  // bottom edge bare
-}
-
-TEST(ComposeMask, TransitionDrawsOn) {
-  // The draw-on border: a span gate's end transitioned 0 → 1 reveals the
-  // perimeter over time (retarget-safe like every transitioned prop).
-  Host host;
-  auto tree = [](motion::Animatable<float> end) {
-    return box().children(
-        {box()
-             .key("b")
-             .width(100)
-             .height(100)
-             .inset(0, 100, 100, 0)
-             .absolute()
-             .mask(by::spans(spans::upTo(std::move(end))))
-             .foreground(sigil::compose::stroke(4, green()))});
-  };
-  host.composer.render(tree(0.001f));
-  host.frame();
-  EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
-  host.composer.render(tree(motion::animate(
-      {.to = 1.0f, .duration = 400ms, .ease = motion::ease::linear})));
-  host.frame(0.2);  // ~50%: left + top revealed, bottom still bare
-  EXPECT_EQ(host.pixel(50, 1), SK_ColorGREEN);
-  EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
-  host.frame(0.25);  // settle → the full perimeter
-  EXPECT_EQ(host.pixel(50, 99), SK_ColorGREEN);
-}
-
-TEST(ComposeMask, BoundGateRevealsWithoutRender) {
-  // A bound gate end is content volatility: mutate the live value, no
-  // render(), and the reveal advances — the self-drawing wire primitive.
-  motion::Animatable<float> end = motion::animatable(0.2f);
-  Host host;
-  host.composer.render(
-      box().children({box()
-                          .width(100)
-                          .height(100)
-                          .inset(0, 100, 100, 0)
-                          .absolute()
-                          .mask(by::spans(spans::upTo(end)))
-                          .foreground(sigil::compose::stroke(4, green()))}));
-  host.frame();
-  // (99,30) sits at ~57.5% of the perimeter (right edge, top→bottom).
-  EXPECT_EQ(host.pixel(99, 30), SK_ColorBLACK);  // bare at end=0.2
-  end = 0.6f;                                    // no render()
-  host.frame();
-  EXPECT_EQ(host.pixel(99, 30), SK_ColorGREEN);       // reveal reached it
-  EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // paints live
+TEST(ComposeMask, ASpansGateRevealsTheOutlineAsItsEndMoves) {
+  sigil::compose::test::checkRows({
+      {"APartialGateStrokesOnlyTheRevealedStretch",
+       [&] {
+         // mask(by::spans(upTo(0.2))) on a square + stroked outline: only the
+         // first 20% of the perimeter is dressed; right/bottom stay bare. The
+         // fill and every outline decoration trace the CUT path.
+         Host host;
+         host.composer.render(box().children(
+             {box()
+                  .width(100)
+                  .height(100)
+                  .inset(0, 100, 100, 0)
+                  .absolute()
+                  .mask(by::spans(spans::upTo(0.2f)))
+                  .foreground(sigil::compose::stroke(4, green()))}));
+         host.frame();
+         // Perimeter order for this outline: left → top → right → bottom, so
+         // the first 20% is about the left edge. That order is a property of
+         // how the path is built, which is why the assertions name specific
+         // edges.
+         EXPECT_EQ(host.pixel(1, 50), SK_ColorGREEN);   // left edge revealed
+         EXPECT_EQ(host.pixel(50, 1), SK_ColorBLACK);   // top edge bare
+         EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);  // bottom edge bare
+       }},
+      {"ATransitionedEndDrawsOn",
+       [&] {
+         // The draw-on border: a span gate's end transitioned 0 → 1 reveals the
+         // perimeter over time (retarget-safe like every transitioned prop).
+         Host host;
+         auto tree = [](motion::Animatable<float> end) {
+           return box().children(
+               {box()
+                    .key("b")
+                    .width(100)
+                    .height(100)
+                    .inset(0, 100, 100, 0)
+                    .absolute()
+                    .mask(by::spans(spans::upTo(std::move(end))))
+                    .foreground(sigil::compose::stroke(4, green()))});
+         };
+         host.composer.render(tree(0.001f));
+         host.frame();
+         EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
+         host.composer.render(tree(motion::animate(
+             {.to = 1.0f, .duration = 400ms, .ease = motion::ease::linear})));
+         host.frame(0.2);  // ~50%: left + top revealed, bottom still bare
+         EXPECT_EQ(host.pixel(50, 1), SK_ColorGREEN);
+         EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
+         host.frame(0.25);  // settle → the full perimeter
+         EXPECT_EQ(host.pixel(50, 99), SK_ColorGREEN);
+       }},
+      {"ABoundEndRevealsWithoutADescribe",
+       [&] {
+         // A bound gate end is content volatility: mutate the live value, no
+         // render(), and the reveal advances — the self-drawing wire primitive.
+         motion::Animatable<float> end = motion::animatable(0.2f);
+         Host host;
+         host.composer.render(box().children(
+             {box()
+                  .width(100)
+                  .height(100)
+                  .inset(0, 100, 100, 0)
+                  .absolute()
+                  .mask(by::spans(spans::upTo(end)))
+                  .foreground(sigil::compose::stroke(4, green()))}));
+         host.frame();
+         // (99,30) sits at ~57.5% of the perimeter (right edge, top→bottom).
+         EXPECT_EQ(host.pixel(99, 30), SK_ColorBLACK);  // bare at end=0.2
+         end = 0.6f;                                    // no render()
+         host.frame();
+         EXPECT_EQ(host.pixel(99, 30), SK_ColorGREEN);  // reveal reached it
+         EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // paints live
+       }},
+  });
 }
 
 TEST(ComposeBrushes, FilamentGlowsAroundItsCore) {
@@ -530,7 +462,7 @@ TEST(ComposeBrushes, FilamentGlowsAroundItsCore) {
   EXPECT_LT(SkColorGetB(far), 12u);
 }
 
-TEST(ComposeDecorations, AStrokeCanRefuseTheSmoothingThatBlursAHardRule) {
+TEST(ComposeDecorations, APathFormatDashesAndSmoothsAsItsFieldsSay) {
   // A stroke that is not axis-aligned is where the smoothing shows: it
   // either feathers the edge over two pixels or it does not exist.
   auto feathered = [](Host& host) {
@@ -574,104 +506,124 @@ TEST(ComposeDecorations, AStrokeCanRefuseTheSmoothingThatBlursAHardRule) {
   EXPECT_EQ(feathered(off), 0);
 }
 
-TEST(ComposeDecorations, ABrushThatBlendsRefusesItsGroupTheBake) {
-  // The same claim on the slot a BRUSH stands in. A SPAN-QUALIFIED stroke
-  // pass keeps its Decoration in a list of its own — an unqualified stroke
-  // is a foreground and was already read — and an additive filament along
-  // part of the outline reads what is beneath the node for the reason a
-  // wash does. Every carrier of a Decoration is asked, or a mark declines
-  // the bake on one slot and takes it on another.
-  const auto page = [](Cache caching) {
-    LayeredBrush glow;
-    glow.layers.push_back({.width = 6,
-                           .ink = Fill::color({0.9f, 0.7f, 0.3f, 1}),
-                           .blurSigma = 2,
-                           .blend = material::BlendMode::PlusLighter});
-    return box()
-        .cache(Cache::None)
-        .children(
-            {box().absolute().left(0).top(0).width(200).height(200).fill(
-                 Fill::color({0.55f, 0.4f, 0.2f, 1})),
-             box().key("group").absolute().inset(0).cache(caching).children(
-                 {box()
-                      .key("filament")
-                      .absolute()
-                      .left(30)
-                      .top(30)
-                      .width(140)
-                      .height(140)
-                      .stroke(spans::edges(14), glow)})});
-  };
-  const auto render = [&](Cache caching, Composer::CacheState* state) {
-    Host host;
-    host.composer.setProfiling(true);
-    host.composer.render(page(caching));
-    for (int i = 0; i < 3; ++i) host.frame();
-    if (const Composer::NodeCost* row = requireRow(host.composer, "group"))
-      *state = row->cacheState;
-    return grab(host);
-  };
-  Composer::CacheState unasked = Composer::CacheState::Live;
-  Composer::CacheState asked = Composer::CacheState::Group;
-  const std::vector<SkColor> live = render(Cache::None, &unasked);
-  const std::vector<SkColor> grouped = render(Cache::Group, &asked);
-  ASSERT_EQ(live.size(), grouped.size());
-  size_t differing = 0;
-  for (size_t i = 0; i < live.size(); ++i)
-    if (live[i] != grouped[i]) ++differing;
-  EXPECT_EQ(differing, 0u)
-      << differing
-      << " pixels moved: a node whose brush blends with the page was baked "
-         "away from the page";
-  EXPECT_NE(asked, Composer::CacheState::Group)
-      << "the group holding a node that blends with the page took its bake";
-}
-
-TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsGroupTheBake) {
-  // A wash through a blend mode reads what is UNDER the node — that is the
-  // whole of what a soft-light pass over a page is for. A bake would offer
-  // it the layer's transparent black instead, and the difference is the
-  // mark rather than a rounding. So the node declares it, and a group
-  // holding it refuses the bake: the two renders are identical to the byte.
-  const auto page = [](Cache caching) {
-    return box()
-        .cache(Cache::None)
-        .children(
-            {box().absolute().left(0).top(0).width(200).height(200).fill(
-                 Fill::color({0.55f, 0.4f, 0.2f, 1})),
-             box().key("group").absolute().inset(0).cache(caching).children(
-                 {box()
-                      .key("washed")
-                      .absolute()
-                      .left(30)
-                      .top(30)
-                      .width(140)
-                      .height(140)
-                      .foreground(decorations::wash(
-                          material::Color{0.9f, 0.9f, 0.9f, 1},
-                          material::BlendMode::SoftLight, 0.8f))})});
-  };
-  const auto render = [&](Cache caching, Composer::CacheState* state) {
-    Host host;
-    host.composer.setProfiling(true);
-    host.composer.render(page(caching));
-    for (int i = 0; i < 3; ++i) host.frame();
-    if (const Composer::NodeCost* row = requireRow(host.composer, "group"))
-      *state = row->cacheState;
-    return grab(host);
-  };
-  Composer::CacheState unasked = Composer::CacheState::Live;
-  Composer::CacheState asked = Composer::CacheState::Group;
-  const std::vector<SkColor> live = render(Cache::None, &unasked);
-  const std::vector<SkColor> grouped = render(Cache::Group, &asked);
-  ASSERT_EQ(live.size(), grouped.size());
-  size_t differing = 0;
-  for (size_t i = 0; i < live.size(); ++i)
-    if (live[i] != grouped[i]) ++differing;
-  EXPECT_EQ(differing, 0u)
-      << differing
-      << " pixels moved: a node whose wash blends with the page was baked "
-         "away from the page";
-  EXPECT_NE(asked, Composer::CacheState::Group)
-      << "the group holding a node that blends with the page took its bake";
+TEST(ComposeDecorations, AMarkThatBlendsWithThePageRefusesItsGroupTheBake) {
+  sigil::compose::test::checkRows({
+      {"ABlendingBrushOnASpanPass",
+       [&] {
+         // The same claim on the slot a BRUSH stands in. A SPAN-QUALIFIED
+         // stroke pass keeps its Decoration in a list of its own — an
+         // unqualified stroke is a foreground and was already read — and an
+         // additive filament along part of the outline reads what is beneath
+         // the node for the reason a wash does. Every carrier of a Decoration
+         // is asked, or a mark declines the bake on one slot and takes it on
+         // another.
+         const auto page = [](Cache caching) {
+           LayeredBrush glow;
+           glow.layers.push_back({.width = 6,
+                                  .ink = Fill::color({0.9f, 0.7f, 0.3f, 1}),
+                                  .blurSigma = 2,
+                                  .blend = material::BlendMode::PlusLighter});
+           return box()
+               .cache(Cache::None)
+               .children(
+                   {box().absolute().left(0).top(0).width(200).height(200).fill(
+                        Fill::color({0.55f, 0.4f, 0.2f, 1})),
+                    box()
+                        .key("group")
+                        .absolute()
+                        .inset(0)
+                        .cache(caching)
+                        .children({box()
+                                       .key("filament")
+                                       .absolute()
+                                       .left(30)
+                                       .top(30)
+                                       .width(140)
+                                       .height(140)
+                                       .stroke(spans::edges(14), glow)})});
+         };
+         const auto render = [&](Cache caching, Composer::CacheState* state) {
+           Host host;
+           host.composer.setProfiling(true);
+           host.composer.render(page(caching));
+           for (int i = 0; i < 3; ++i) host.frame();
+           if (const Composer::NodeCost* row =
+                   requireRow(host.composer, "group"))
+             *state = row->cacheState;
+           return grab(host);
+         };
+         Composer::CacheState unasked = Composer::CacheState::Live;
+         Composer::CacheState asked = Composer::CacheState::Group;
+         const std::vector<SkColor> live = render(Cache::None, &unasked);
+         const std::vector<SkColor> grouped = render(Cache::Group, &asked);
+         ASSERT_EQ(live.size(), grouped.size());
+         size_t differing = 0;
+         for (size_t i = 0; i < live.size(); ++i)
+           if (live[i] != grouped[i]) ++differing;
+         EXPECT_EQ(differing, 0u) << differing
+                                  << " pixels moved: a node whose brush blends "
+                                     "with the page was baked "
+                                     "away from the page";
+         EXPECT_NE(asked, Composer::CacheState::Group)
+             << "the group holding a node that blends with the page took its "
+                "bake";
+       }},
+      {"AWashThroughABlendMode",
+       [&] {
+         // A wash through a blend mode reads what is UNDER the node — that is
+         // the whole of what a soft-light pass over a page is for. A bake would
+         // offer it the layer's transparent black instead, and the difference
+         // is the mark rather than a rounding. So the node declares it, and a
+         // group holding it refuses the bake: the two renders are identical to
+         // the byte.
+         const auto page = [](Cache caching) {
+           return box()
+               .cache(Cache::None)
+               .children(
+                   {box().absolute().left(0).top(0).width(200).height(200).fill(
+                        Fill::color({0.55f, 0.4f, 0.2f, 1})),
+                    box()
+                        .key("group")
+                        .absolute()
+                        .inset(0)
+                        .cache(caching)
+                        .children(
+                            {box()
+                                 .key("washed")
+                                 .absolute()
+                                 .left(30)
+                                 .top(30)
+                                 .width(140)
+                                 .height(140)
+                                 .foreground(decorations::wash(
+                                     material::Color{0.9f, 0.9f, 0.9f, 1},
+                                     material::BlendMode::SoftLight, 0.8f))})});
+         };
+         const auto render = [&](Cache caching, Composer::CacheState* state) {
+           Host host;
+           host.composer.setProfiling(true);
+           host.composer.render(page(caching));
+           for (int i = 0; i < 3; ++i) host.frame();
+           if (const Composer::NodeCost* row =
+                   requireRow(host.composer, "group"))
+             *state = row->cacheState;
+           return grab(host);
+         };
+         Composer::CacheState unasked = Composer::CacheState::Live;
+         Composer::CacheState asked = Composer::CacheState::Group;
+         const std::vector<SkColor> live = render(Cache::None, &unasked);
+         const std::vector<SkColor> grouped = render(Cache::Group, &asked);
+         ASSERT_EQ(live.size(), grouped.size());
+         size_t differing = 0;
+         for (size_t i = 0; i < live.size(); ++i)
+           if (live[i] != grouped[i]) ++differing;
+         EXPECT_EQ(differing, 0u) << differing
+                                  << " pixels moved: a node whose wash blends "
+                                     "with the page was baked "
+                                     "away from the page";
+         EXPECT_NE(asked, Composer::CacheState::Group)
+             << "the group holding a node that blends with the page took its "
+                "bake";
+       }},
+  });
 }

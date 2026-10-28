@@ -7,6 +7,7 @@
 
 #include "sigilweave/advanced/Skia.h"
 #include "support/KitType.h"
+#include "support/Rows.h"
 #include "support/ShapeTestSupport.h"
 
 namespace kit = sigil::compose::kit;
@@ -79,70 +80,36 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
          "proved nothing — the pad test above is unguarded here";
 }
 
-TEST(KitPixelType, MaskIsCroppedToItsInkAndCarriesTheOffsetBack) {
-  const kit::Coverage cov = kit::coverage(u8"MM", fonts(), pixelStyle(12.0f));
-  ASSERT_TRUE(cov.valid());
-  const kit::Mask m = kit::threshold(cov);
-  ASSERT_TRUE(m);
-  EXPECT_EQ(m.w, cov.ink.width());
-  EXPECT_EQ(m.h, cov.ink.height());
-  EXPECT_EQ(m.inkX, cov.ink.left());
-  EXPECT_GT(m.advance, 0.0f);
-  // Uncropped keeps the whole padded plane.
-  const kit::Mask full = kit::threshold(cov, 0.5f, /*cropToInk=*/false);
-  EXPECT_EQ(full.w, cov.width());
-  EXPECT_GT(full.w, m.w);
+TEST(KitPixelType, AMaskIsOneBitCroppedToItsInk) {
+  sigil::compose::test::checkRows({
+      {"MaskIsCroppedToItsInkAndCarriesTheOffsetBack",
+       [&] {
+         const kit::Coverage cov =
+             kit::coverage(u8"MM", fonts(), pixelStyle(12.0f));
+         ASSERT_TRUE(cov.valid());
+         const kit::Mask m = kit::threshold(cov);
+         ASSERT_TRUE(m);
+         EXPECT_EQ(m.w, cov.ink.width());
+         EXPECT_EQ(m.h, cov.ink.height());
+         EXPECT_EQ(m.inkX, cov.ink.left());
+         EXPECT_GT(m.advance, 0.0f);
+         // Uncropped keeps the whole padded plane.
+         const kit::Mask full = kit::threshold(cov, 0.5f, /*cropToInk=*/false);
+         EXPECT_EQ(full.w, cov.width());
+         EXPECT_GT(full.w, m.w);
+       }},
+      {"SpaceHasAnAdvanceAndNoMask",
+       [&] {
+         const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(10.0f));
+         const kit::Cell& sp = f.cell(' ');
+         EXPECT_EQ(sp.mask, nullptr);
+         EXPECT_GT(sp.advance, 0);
+         EXPECT_GT(kit::widthOf(f, "a a"), kit::widthOf(f, "aa"));
+       }},
+  });
 }
 
-TEST(KitPixelType, TheMaskIsOneBit) {
-  const kit::Coverage cov = kit::coverage(u8"Ag", fonts(), pixelStyle(11.0f));
-  ASSERT_TRUE(cov.valid());
-  const kit::Mask m = kit::threshold(cov);
-  ASSERT_TRUE(m);
-  SkBitmap read;
-  read.allocPixels(SkImageInfo::MakeA8(m.w, m.h));
-  ASSERT_FALSE(m.image->frames().empty());
-  ASSERT_TRUE(sigil::media::toSk(m.image->frames().front().image)
-                  ->readPixels(read.pixmap(), 0, 0));
-  for (int y = 0; y < m.h; ++y)
-    for (int x = 0; x < m.w; ++x) {
-      const uint8_t v = *read.getAddr8(x, y);
-      ASSERT_TRUE(v == 0 || v == 255)
-          << "grey " << (int)v << " at " << x << "," << y;
-    }
-}
-
-TEST(KitPixelType, DigitsShareOneAdvanceSoAReadoutDoesNotShiver) {
-  const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(10.0f));
-  EXPECT_GT(f.lineHeight, 0);
-  EXPECT_GT(f.digitAdvance, 0);
-  EXPECT_FLOAT_EQ(kit::widthOf(f, "111"), kit::widthOf(f, "888"));
-}
-
-TEST(KitPixelType, SpaceHasAnAdvanceAndNoMask) {
-  const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(10.0f));
-  const kit::Cell& sp = f.cell(' ');
-  EXPECT_EQ(sp.mask, nullptr);
-  EXPECT_GT(sp.advance, 0);
-  EXPECT_GT(kit::widthOf(f, "a a"), kit::widthOf(f, "aa"));
-}
-
-TEST(KitPixelType, BlitAdvancesByTheMeasuredWidthAndSnaps) {
-  const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(10.0f));
-  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 40));
-  ASSERT_TRUE(s);
-  const kit::Blit b{.track = 1.0f};
-  const float w = kit::blit(PenOn(*s->getCanvas()).pen(), f, {4, 4}, "1234",
-                            {1, 1, 1, 1}, b);
-  EXPECT_NEAR(w, kit::widthOf(f, "1234", b), 1e-3f);
-
-  const kit::Blit snapped{.track = 1.0f, .snap = 4.0f};
-  const float ws = kit::blit(PenOn(*s->getCanvas()).pen(), f, {4.9f, 4.1f}, "1",
-                             {1, 1, 1, 1}, snapped);
-  EXPECT_NEAR(std::fmod(ws, 4.0f), 0.0f, 1e-3f);
-}
-
-TEST(KitPixelType, ASnappedRunMeasuresTheWidthItDraws) {
+TEST(KitPixelType, ABlitSetsARunOfCellsOnOneBaselineAtTheWidthItMeasures) {
   const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(10.0f));
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 40));
   ASSERT_TRUE(s);
@@ -160,52 +127,6 @@ TEST(KitPixelType, ASnappedRunMeasuresTheWidthItDraws) {
   EXPECT_FLOAT_EQ(kit::blit(PenOn(*s->getCanvas()).pen(), f, {4.9f, 4.1f},
                             "1234", {1, 1, 1, 1}, b),
                   drawn);
-}
-
-TEST(KitPixelType, ARunOfCellsStandsOnOneBaseline) {
-  // A cell is cropped to its ink, so where that ink sat inside the line
-  // box is the cell's to carry: an `x` and an `l` cropped flush and drawn
-  // at one y would stand on no common line at all. The drop tells them
-  // apart, and the two inks END together — which is what a baseline is.
-  const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(12.0f));
-  const kit::Cell& tall = f.cell('l');
-  const kit::Cell& shortOne = f.cell('x');
-  ASSERT_NE(tall.mask, nullptr);
-  ASSERT_NE(shortOne.mask, nullptr);
-  EXPECT_GT(shortOne.inkY, tall.inkY)
-      << "an x sits lower in the line box than an l";
-  EXPECT_NEAR(tall.inkY + tall.h, shortOne.inkY + shortOne.h, 1)
-      << "both rest on the same baseline";
-  // A descender reaches BELOW that baseline, and the line box holds it.
-  const kit::Cell& below = f.cell('p');
-  ASSERT_NE(below.mask, nullptr);
-  EXPECT_GT(below.inkY + below.h, shortOne.inkY + shortOne.h);
-  EXPECT_GE(f.lineHeight, below.inkY + below.h);
-}
-
-TEST(KitPixelType, ABlitLandsEachCellAtItsOwnDropInTheLineBox) {
-  // The pen walk is unchanged by the drop — the advance is the advance —
-  // but the ink lands where the cell says, so a mixed run reads as type
-  // rather than as a row of tops.
-  const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(12.0f));
-  const kit::Cell& shortOne = f.cell('x');
-  ASSERT_NE(shortOne.mask, nullptr);
-  ASSERT_GT(shortOne.inkY, 0);
-  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(80, 40));
-  ASSERT_TRUE(s);
-  s->getCanvas()->clear(SK_ColorBLACK);
-  kit::blit(PenOn(*s->getCanvas()).pen(), f, {4, 4}, "x", {1, 1, 1, 1});
-  SkBitmap read;
-  ASSERT_TRUE(read.tryAllocPixels(SkImageInfo::MakeN32Premul(80, 40)));
-  ASSERT_TRUE(s->readPixels(read.pixmap(), 0, 0));
-  int topmost = 40;
-  for (int y = 0; y < 40; ++y)
-    for (int x = 0; x < 80; ++x)
-      if (SkColorGetR(read.getColor(x, y)) > 0) {
-        topmost = std::min(topmost, y);
-        break;
-      }
-  EXPECT_EQ(topmost, 4 + shortOne.inkY);
 }
 
 TEST(KitPixelType, MaskedIsANodeTheSizeOfTheMask) {

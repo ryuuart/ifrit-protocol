@@ -5,6 +5,7 @@
 #include <sigilmaterial/pattern/Weave.h>
 
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -28,12 +29,9 @@ material::pattern::Tile checkedCloth() {
  *  filter puts across every thread edge, and nearest never does. */
 int blendedPixels(const Pattern& pattern) {
   Host host(kSide, kSide);
-  host.composer.render(box().children({box()
-                                           .width(kSide)
-                                           .height(kSide)
-                                           .absolute()
-                                           .inset(0)
-                                           .fill(pattern.material())}));
+  host.composer.render(
+      box().children({box().width(kSide).height(kSide).absolute().inset(0).fill(
+          pattern.material())}));
   host.frame();
   int blended = 0;
   for (int y = 0; y < kSide; ++y)
@@ -46,15 +44,21 @@ int blendedPixels(const Pattern& pattern) {
 
 }  // namespace
 
-TEST(ComposePatternSampling, APatternSamplesAsItsTileSays) {
-  ASSERT_EQ(checkedCloth().sampling(), material::Sampling::Nearest);
-  Pattern cloth(checkedCloth());
-  cloth.scale(8);
-  EXPECT_EQ(blendedPixels(cloth), 0);
-}
-
-TEST(ComposePatternSampling, ASamplingThePatternStatesWins) {
-  Pattern cloth(checkedCloth());
-  cloth.scale(8).sampling(material::Sampling::Linear);
-  EXPECT_GT(blendedPixels(cloth), 0);
+TEST(ComposePatternSampling,
+     APatternSamplesAsItsTileSaysUnlessItStatesASampling) {
+  sigil::compose::test::checkRows({
+      {"AsTheTileSays",
+       [&] {
+         ASSERT_EQ(checkedCloth().sampling(), material::Sampling::Nearest);
+         Pattern cloth(checkedCloth());
+         cloth.scale(8);
+         EXPECT_EQ(blendedPixels(cloth), 0);
+       }},
+      {"AStatedSamplingWins",
+       [&] {
+         Pattern cloth(checkedCloth());
+         cloth.scale(8).sampling(material::Sampling::Linear);
+         EXPECT_GT(blendedPixels(cloth), 0);
+       }},
+  });
 }

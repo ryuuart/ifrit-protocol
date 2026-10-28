@@ -29,11 +29,15 @@ TEST(ComposeAdders, PinHangsTheElementWhereTheRequestSaysAndFallsBack) {
       .where = {.on = {1, 0.5f},
                 .at = {0, 0.5f},
                 .offset = {10, 0},
-                .fallbacks = {{.on = {0, 0.5f}, .at = {1, 0.5f}, .offset = {-10, 0}}}}};
-  host.composer.render(box().width(200).height(200)
-                           .children({node("a", 20, 90).attribute("label", request),
-                                      node("b", 170, 90).attribute("label", request)})
-                           .operators({pin::ByLane{.lane = "label"}}));
+                .fallbacks = {
+                    {.on = {0, 0.5f}, .at = {1, 0.5f}, .offset = {-10, 0}}}}};
+  host.composer.render(
+      box()
+          .width(200)
+          .height(200)
+          .children({node("a", 20, 90).attribute("label", request),
+                     node("b", 170, 90).attribute("label", request)})
+          .operators({pin::ByLane{.lane = "label"}}));
   host.frame();
   // a's callout hangs to its right: 40..90 wide, level with it.
   auto a = host.composer.bounds("a-pin");
@@ -52,17 +56,21 @@ TEST(ComposeAdders, PinHangsTheElementWhereTheRequestSaysAndFallsBack) {
 TEST(ComposeAdders, AroundAttachesABandAlongTheNodesOutline) {
   Host host;
   host.composer.render(
-      box().width(200).height(200)
-          .children({box().key("dial").left(50).top(50).width(100).height(100)
-                         .shape(geometry::shapes::circle())})
-          .operators({outline::Around{
-              .key = "dial",
-              .across = 10,
-              .formation = geometry::path::Formation::Outer,
-              .fill = red()}}));
+      box()
+          .width(200)
+          .height(200)
+          .children(
+              {box().key("dial").left(50).top(50).width(100).height(100).shape(
+                  geometry::shapes::circle())})
+          .operators(
+              {outline::Around{.key = "dial",
+                               .across = 10,
+                               .formation = geometry::path::Formation::Outer,
+                               .fill = red()}}));
   host.frame();
   ASSERT_TRUE(host.composer.bounds("dial-outline").has_value());
-  EXPECT_EQ(host.pixel(100, 45), SK_ColorRED);    // 55 from the centre: on the band
+  EXPECT_EQ(host.pixel(100, 45),
+            SK_ColorRED);  // 55 from the centre: on the band
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);  // inside the dial, unfilled
   EXPECT_EQ(host.pixel(100, 30), SK_ColorBLACK);   // past the band
 }
@@ -70,13 +78,16 @@ TEST(ComposeAdders, AroundAttachesABandAlongTheNodesOutline) {
 TEST(ComposeAdders, HullEnclosesTheClassedNodesAndNoOther) {
   Host host;
   host.composer.render(
-      box().width(200).height(200)
+      box()
+          .width(200)
+          .height(200)
           .children({node("a", 20, 20).styleClass("chosen"),
                      node("b", 150, 20).styleClass("chosen"),
                      node("c", 80, 150).styleClass("chosen"),
                      node("d", 170, 170)})
-          .operators({Operator(outline::Hull{.styleClass = "chosen", .fill = red()})
-                          .zIndex(-1)}));
+          .operators(
+              {Operator(outline::Hull{.styleClass = "chosen", .fill = red()})
+                   .zIndex(-1)}));
   host.frame();
   auto hull = host.composer.bounds("hull:chosen");
   ASSERT_TRUE(hull.has_value());
@@ -94,7 +105,9 @@ TEST(ComposeAdders, AClassAnOperatorReadsIsNoUnknownClass) {
   Host host;
   ::testing::internal::CaptureStderr();
   host.composer.render(
-      box().width(200).height(200)
+      box()
+          .width(200)
+          .height(200)
           .children({node("a", 20, 20).styleClass("hulledOnly"),
                      node("b", 150, 20).styleClass("hulledOnly"),
                      node("c", 80, 150).styleClass("hulledOnly")})
@@ -103,9 +116,8 @@ TEST(ComposeAdders, AClassAnOperatorReadsIsNoUnknownClass) {
   const std::string read = ::testing::internal::GetCapturedStderr();
   EXPECT_EQ(read.find("hulledOnly"), std::string::npos) << read;
   ::testing::internal::CaptureStderr();
-  host.composer.render(
-      box().width(200).height(200)
-          .children({node("a", 20, 20).styleClass("readByNothing")}));
+  host.composer.render(box().width(200).height(200).children(
+      {node("a", 20, 20).styleClass("readByNothing")}));
   host.frame();
   const std::string unread = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(unread.find("readByNothing"), std::string::npos) << unread;
@@ -114,13 +126,13 @@ TEST(ComposeAdders, AClassAnOperatorReadsIsNoUnknownClass) {
 TEST(ComposeAdders, StampMakesOneElementPerNodeAttachedToIt) {
   Host host;
   host.composer.render(
-      box().width(200).height(200)
+      box()
+          .width(200)
+          .height(200)
           .children({node("a", 20, 20).attribute("n", 1),
                      node("b", 150, 150).attribute("n", 2), node("c", 90, 90)})
           .operators({stamp::ByLane{
-              .lane = "n",
-              .key = "dots",
-              .make = [](const Scope::Node& at) {
+              .lane = "n", .key = "dots", .make = [](const Scope::Node& at) {
                 return box().width(6).height(6).fill(red()).centerAt(
                     {at.bounds.width() / 2, at.bounds.height() / 2});
               }}}));

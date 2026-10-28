@@ -36,6 +36,7 @@
 
 #include "description/ComposeInternal.h"
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
 
 // …and the RUNTIME header, for the kSlotSpecs walk at the bottom of the file.
 // It is the reason this target links yoga::yogacore.
@@ -211,199 +212,219 @@ void walkFields(Eq equal, const char* const (&names)[N],
 // the same invisible failure the description's comparator has, one phase
 // later.
 
-TEST(ComposeDeclarations, EveryComputedStyleFieldParticipatesInEquality) {
-  static const char* const kNames[] = {"layout", "paint", "corners",
-                                       "clipContent"};
-  static const bool kParticipates[] = {true, true, true, true};
-  walkFields<cd::ComputedStyle>(cd::computedStyleEqual, kNames, kParticipates);
+TEST(ComposeDeclarations, EveryComputedStyleFieldTakesPartInTheComparison) {
+  sigil::compose::test::checkRows({
+      {"TheComputedStyle",
+       [&] {
+         static const char* const kNames[] = {"layout", "paint", "corners",
+                                              "clipContent"};
+         static const bool kParticipates[] = {true, true, true, true};
+         walkFields<cd::ComputedStyle>(cd::computedStyleEqual, kNames,
+                                       kParticipates);
+       }},
+      {"ThePaintBlock",
+       [&] {
+         // The paint block is the half of the computed style with a
+         // hand-written comparison, so it is walked field by field there as it
+         // is here.
+         static const char* const kNames[] = {"fill",
+                                              "opacity",
+                                              "blendMode",
+                                              "fillBox",
+                                              "translateX",
+                                              "translateY",
+                                              "translateXLength",
+                                              "translateYLength",
+                                              "translateXWrap",
+                                              "translateYWrap",
+                                              "rotate",
+                                              "scale",
+                                              "scaleX",
+                                              "scaleY",
+                                              "skewX",
+                                              "skewY",
+                                              "originX",
+                                              "originY",
+                                              "zIndex"};
+         static const bool kParticipates[] = {
+             true, true, true, true, true, true, true, true, true, true,
+             true, true, true, true, true, true, true, true, true};
+         walkFields<cd::PaintProps>(
+             [](const cd::PaintProps& a, const cd::PaintProps& b) {
+               cd::ComputedStyle sa, sb;
+               sa.paint = a;
+               sb.paint = b;
+               return cd::computedStyleEqual(sa, sb);
+             },
+             kNames, kParticipates);
+       }},
+  });
 }
 
-TEST(ComposeDeclarations, EveryPaintPropsFieldParticipatesInTheStyleCompare) {
-  // The paint block is the half of the computed style with a hand-written
-  // comparison, so it is walked field by field there as it is here.
-  static const char* const kNames[] = {"fill",
-                                       "opacity",
-                                       "blendMode",
-                                       "fillBox",
-                                       "translateX",
-                                       "translateY",
-                                       "translateXLength",
-                                       "translateYLength",
-                                       "translateXWrap",
-                                       "translateYWrap",
-                                       "rotate",
-                                       "scale",
-                                       "scaleX",
-                                       "scaleY",
-                                       "skewX",
-                                       "skewY",
-                                       "originX",
-                                       "originY",
-                                       "zIndex"};
-  static const bool kParticipates[] = {true, true, true, true, true, true, true,
-                                       true, true, true, true, true, true, true,
-                                       true, true, true, true, true};
-  walkFields<cd::PaintProps>(
-      [](const cd::PaintProps& a, const cd::PaintProps& b) {
-        cd::ComputedStyle sa, sb;
-        sa.paint = a;
-        sb.paint = b;
-        return cd::computedStyleEqual(sa, sb);
-      },
-      kNames, kParticipates);
-}
-
-TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
-  // No legitimate exclusion exists in this block: every field of PaintProps
-  // is a lane the painter reads live, so every one must reach the comparator.
-  // The per-axis scales are the easiest ones to leave out, because the
-  // uniform `scale` beside them makes a comparator look complete.
-  static const char* const kNames[] = {"fill",
-                                       "opacity",
-                                       "blendMode",
-                                       "fillBox",
-                                       "translateX",
-                                       "translateY",
-                                       "translateXLength",
-                                       "translateYLength",
-                                       "translateXWrap",
-                                       "translateYWrap",
-                                       "rotate",
-                                       "scale",
-                                       "scaleX",
-                                       "scaleY",
-                                       "skewX",
-                                       "skewY",
-                                       "originX",
-                                       "originY",
-                                       "zIndex"};
-  static const bool kParticipates[] = {true, true, true, true, true, true, true,
-                                       true, true, true, true, true, true, true,
-                                       true, true, true, true, true};
-  walkFields<cd::PaintProps>(
-      [](const cd::PaintProps& a, const cd::PaintProps& b) {
-        cd::ElementNode na, nb;
-        cd::DeclaredFieldsTestAccess::storage(na.fields).paint = a;
-        cd::DeclaredFieldsTestAccess::storage(nb.fields).paint = b;
-        return cd::propertiesEqual(na, nb);
-      },
-      kNames, kParticipates);
-}
-
-TEST(ComposeReconcile, EveryDeclaredFieldsPartParticipatesInEquality) {
-  // Each part moved ALONE — a value with no bit, a bit with no value, an
-  // empty keyword table — so the compare must read every part itself and
-  // cannot pass on the mask that a writer moves beside every value.
-  static const char* const kNames[] = {"layout",      "paint",    "corners",
-                                       "clipContent", "declared", "keywords"};
-  static const bool kParticipates[] = {true, true, true, true, true, true};
-  walkFields<cd::DeclaredFields::Storage>(
-      [](const cd::DeclaredFields::Storage& a,
-         const cd::DeclaredFields::Storage& b) {
-        cd::ElementNode na, nb;
-        cd::DeclaredFieldsTestAccess::storage(na.fields) = a;
-        cd::DeclaredFieldsTestAccess::storage(nb.fields) = b;
-        return cd::propertiesEqual(na, nb);
-      },
-      kNames, kParticipates);
-}
-
-TEST(ComposeReconcile, EveryDepthDataFieldParticipatesInEquality) {
-  // The depth block is read live at paint exactly as PaintProps is: five
-  // lanes, the two origins, the transform origin's depth and the two
-  // modes. A lane left out keeps the plane at the turn it was recorded at;
-  // a mode left out keeps a space open, or a back drawn, that the author
-  // closed.
-  static const char* const kNames[] = {"rotateX",
-                                       "rotateY",
-                                       "translateZ",
-                                       "scaleZ",
-                                       "perspective",
-                                       "perspectiveOriginX",
-                                       "perspectiveOriginY",
-                                       "originZ",
-                                       "preserve3d",
-                                       "backface"};
-  static const bool kParticipates[] = {true, true, true, true, true,
-                                       true, true, true, true, true};
-  walkFields<cd::DepthData>(
-      [](const cd::DepthData& a, const cd::DepthData& b) {
-        cd::ElementNode na, nb;
-        na.depthData.ensure() = a;
-        nb.depthData.ensure() = b;
-        return cd::propertiesEqual(na, nb);
-      },
-      kNames, kParticipates);
-}
-
-TEST(ComposeReconcile, EveryBindingFieldParticipatesInEquality) {
-  // Against Binding's equality directly. Every stage of a live value's
-  // shaping is read at paint, so every one of them participates — including
-  // the wiggle, the wrap and the envelope, which are easy to add to the
-  // struct and forget in the comparator.
-  static const char* const kNames[] = {
-      "from",    "clampFrom", "alternate", "envelope", "ease", "quantize",
-      "reverse", "to",        "wrap",      "wiggle",   "clamp"};
-  static const bool kParticipates[] = {true, true, true, true, true, true,
-                                       true, true, true, true, true};
-  walkFields<sigil::motion::Binding>(
-      [](const sigil::motion::Binding& left,
-         const sigil::motion::Binding& right) { return left == right; },
-      kNames, kParticipates);
-}
-
-TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
-  // Two fields must NOT reach propertiesEqual(), and the table asserts their
-  // inertness rather than describing it, so an accidental inclusion fails
-  // here too:
-  //
-  //  - `memoData` never reaches propertiesEqual at all. resolveMemo()
-  //    compares a memo EARLIER and more strictly (the author's own
-  //    properties comparator) and `inst.description` holds the memo's
-  //    PRODUCED payload, which carries no memo block.
-  //  - `children` are reconciled BY KEY, not compared. A node that prunes
-  //    still walks them — that is the whole point of the structural prune.
-  static const char* const kNames[] = {
-      "kind",         "boundary",   "coverageThreshold", "key",
-      "fields",       "shapeFn",    "hitTestable",       "exits",
-      "cacheMode",    "bakeScale",  "nodeTransition",    "backgrounds",
-      "foregrounds",  "textData",   "imageData",         "customData",
-      "deriveData",   "fxData",     "materialData",      "strokeData",
-      "memoData",     "motionData", "depthData",         "cascadeData",
-      "operatorData", "children"};
-  static const bool kParticipates[] = {
-      true,
-      true,
-      true,
-      true,
-      true,  // fields — the declared values, the mask of which properties
-             // were stated, and the keywords, each walked alone above
-      true,
-      true,
-      true,  // exits
-      true,
-      true,
-      true,
-      true,
-      true,
-      true,
-      true,
-      true,
-      true,
-      true,
-      true,
-      true,
-      false,  // memoData — resolveMemo owns it, and it never lands in
-              // description
-      true,
-      true,
-      true,   // cascadeData — the font, the ink's property and the custom
-              // properties a node declares for everything under it
-      true,   // operatorData — the facts a node states and the operators
-              // it runs; a present block with neither is still a change
-      false,  // children — reconciled by key, never compared
-  };
-  walkFields<cd::ElementNode>(cd::propertiesEqual, kNames, kParticipates);
+TEST(ComposeReconcile, EveryDescribedFieldTakesPartInTheComparison) {
+  sigil::compose::test::checkRows({
+      {"ThePaintBlock",
+       [&] {
+         // No legitimate exclusion exists in this block: every field of
+         // PaintProps is a lane the painter reads live, so every one must reach
+         // the comparator. The per-axis scales are the easiest ones to leave
+         // out, because the uniform `scale` beside them makes a comparator look
+         // complete.
+         static const char* const kNames[] = {"fill",
+                                              "opacity",
+                                              "blendMode",
+                                              "fillBox",
+                                              "translateX",
+                                              "translateY",
+                                              "translateXLength",
+                                              "translateYLength",
+                                              "translateXWrap",
+                                              "translateYWrap",
+                                              "rotate",
+                                              "scale",
+                                              "scaleX",
+                                              "scaleY",
+                                              "skewX",
+                                              "skewY",
+                                              "originX",
+                                              "originY",
+                                              "zIndex"};
+         static const bool kParticipates[] = {
+             true, true, true, true, true, true, true, true, true, true,
+             true, true, true, true, true, true, true, true, true};
+         walkFields<cd::PaintProps>(
+             [](const cd::PaintProps& a, const cd::PaintProps& b) {
+               cd::ElementNode na, nb;
+               cd::DeclaredFieldsTestAccess::storage(na.fields).paint = a;
+               cd::DeclaredFieldsTestAccess::storage(nb.fields).paint = b;
+               return cd::propertiesEqual(na, nb);
+             },
+             kNames, kParticipates);
+       }},
+      {"TheDeclaredFields",
+       [&] {
+         // Each part moved ALONE — a value with no bit, a bit with no value, an
+         // empty keyword table — so the compare must read every part itself and
+         // cannot pass on the mask that a writer moves beside every value.
+         static const char* const kNames[] = {"layout",   "paint",
+                                              "corners",  "clipContent",
+                                              "declared", "keywords"};
+         static const bool kParticipates[] = {true, true, true,
+                                              true, true, true};
+         walkFields<cd::DeclaredFields::Storage>(
+             [](const cd::DeclaredFields::Storage& a,
+                const cd::DeclaredFields::Storage& b) {
+               cd::ElementNode na, nb;
+               cd::DeclaredFieldsTestAccess::storage(na.fields) = a;
+               cd::DeclaredFieldsTestAccess::storage(nb.fields) = b;
+               return cd::propertiesEqual(na, nb);
+             },
+             kNames, kParticipates);
+       }},
+      {"TheDepthBlock",
+       [&] {
+         // The depth block is read live at paint exactly as PaintProps is: five
+         // lanes, the two origins, the transform origin's depth and the two
+         // modes. A lane left out keeps the plane at the turn it was recorded
+         // at; a mode left out keeps a space open, or a back drawn, that the
+         // author closed.
+         static const char* const kNames[] = {"rotateX",
+                                              "rotateY",
+                                              "translateZ",
+                                              "scaleZ",
+                                              "perspective",
+                                              "perspectiveOriginX",
+                                              "perspectiveOriginY",
+                                              "originZ",
+                                              "preserve3d",
+                                              "backface"};
+         static const bool kParticipates[] = {true, true, true, true, true,
+                                              true, true, true, true, true};
+         walkFields<cd::DepthData>(
+             [](const cd::DepthData& a, const cd::DepthData& b) {
+               cd::ElementNode na, nb;
+               na.depthData.ensure() = a;
+               nb.depthData.ensure() = b;
+               return cd::propertiesEqual(na, nb);
+             },
+             kNames, kParticipates);
+       }},
+      {"ALiveValuesBinding",
+       [&] {
+         // Against Binding's equality directly. Every stage of a live value's
+         // shaping is read at paint, so every one of them participates —
+         // including the wiggle, the wrap and the envelope, which are easy to
+         // add to the struct and forget in the comparator.
+         static const char* const kNames[] = {
+             "from", "clampFrom", "alternate", "envelope",
+             "ease", "quantize",  "reverse",   "to",
+             "wrap", "wiggle",    "clamp"};
+         static const bool kParticipates[] = {
+             true, true, true, true, true, true, true, true, true, true, true};
+         walkFields<sigil::motion::Binding>(
+             [](const sigil::motion::Binding& left,
+                const sigil::motion::Binding& right) { return left == right; },
+             kNames, kParticipates);
+       }},
+      {"TheElementNode",
+       [&] {
+         // Two fields must NOT reach propertiesEqual(), and the table asserts
+         // their inertness rather than describing it, so an accidental
+         // inclusion fails here too:
+         //
+         //  - `memoData` never reaches propertiesEqual at all. resolveMemo()
+         //    compares a memo EARLIER and more strictly (the author's own
+         //    properties comparator) and `inst.description` holds the memo's
+         //    PRODUCED payload, which carries no memo block.
+         //  - `children` are reconciled BY KEY, not compared. A node that
+         //  prunes
+         //    still walks them — that is the whole point of the structural
+         //    prune.
+         static const char* const kNames[] = {
+             "kind",         "boundary",   "coverageThreshold", "key",
+             "fields",       "shapeFn",    "hitTestable",       "exits",
+             "cacheMode",    "bakeScale",  "nodeTransition",    "backgrounds",
+             "foregrounds",  "textData",   "imageData",         "customData",
+             "deriveData",   "fxData",     "materialData",      "strokeData",
+             "memoData",     "motionData", "depthData",         "cascadeData",
+             "operatorData", "children"};
+         static const bool kParticipates[] = {
+             true,
+             true,
+             true,
+             true,
+             true,  // fields — the declared values, the mask of which
+                    // properties were stated, and the keywords, each walked
+                    // alone above
+             true,
+             true,
+             true,  // exits
+             true,
+             true,
+             true,
+             true,
+             true,
+             true,
+             true,
+             true,
+             true,
+             true,
+             true,
+             true,
+             false,  // memoData — resolveMemo owns it, and it never lands in
+                     // description
+             true,
+             true,
+             true,  // cascadeData — the font, the ink's property and the custom
+                    // properties a node declares for everything under it
+             true,  // operatorData — the facts a node states and the operators
+                    // it runs; a present block with neither is still a change
+             false,  // children — reconciled by key, never compared
+         };
+         walkFields<cd::ElementNode>(cd::propertiesEqual, kNames,
+                                     kParticipates);
+       }},
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -417,99 +438,115 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
 // ramps `scaleX` in every consumer of the table at once. This walk is what
 // makes that fail.
 
-TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
-  // Every block a slot can hide behind, PRESENT and defaulted — so every
-  // non-Bespoke row must answer with a pointer, and that pointer must be at
-  // the field's own default value.
-  cd::ElementNode node;
-  node.motionData.ensure();                 // travel(): carries kMotionT
-  node.textData.ensure().onPath.emplace();  // textOnPath(): carries kTextPathAt
-  node.depthData.ensure();  // the depth lanes: kRotateX … kPerspective
-  // A row reads a PROPERTY lane off the computed style and a positional one
-  // off the description's block, so the walk hands it both.
-  cd::ComputedStyle style;
-  cd::resolveStyle(nullptr, node, style);
-  const cd::StyledNode styled{style, node};
+TEST(ComposeSlotPins, EveryAnimatedLaneReachesItsOwnResolvedField) {
+  sigil::compose::test::checkRows({
+      {"EveryRowReachesItsOwnFieldAtItsStandingDefault",
+       [&] {
+         // Every block a slot can hide behind, PRESENT and defaulted — so every
+         // non-Bespoke row must answer with a pointer, and that pointer must be
+         // at the field's own default value.
+         cd::ElementNode node;
+         node.motionData.ensure();  // travel(): carries kMotionT
+         node.textData.ensure()
+             .onPath.emplace();    // textOnPath(): carries kTextPathAt
+         node.depthData.ensure();  // the depth lanes: kRotateX … kPerspective
+         // A row reads a PROPERTY lane off the computed style and a positional
+         // one off the description's block, so the walk hands it both.
+         cd::ComputedStyle style;
+         cd::resolveStyle(nullptr, node, style);
+         const cd::StyledNode styled{style, node};
 
-  std::vector<const sigil::motion::Animatable<float>*> seen;
-  int bespoke = 0, opacityRows = 0;
-  for (const cd::SlotSpec& spec : cd::kSlotSpecs) {
-    const int index = (int)spec.slot;
-    if (spec.role == cd::SlotRole::Bespoke) {
-      ++bespoke;
-      // The compile-time assert already pairs "no accessor" with "declared
-      // Bespoke, with a reason"; this is the runtime half of that claim.
-      EXPECT_EQ(spec.of, nullptr) << "slot " << index;
-      EXPECT_EQ(cd::slotValueOf(spec, styled), nullptr)
-          << "slot " << index
-          << ": a Bespoke row must be INERT through "
-             "slotValueOf, so a consumer that walks the table without "
-             "special-casing it does nothing rather than crashing";
-      continue;
-    }
-    if (spec.role == cd::SlotRole::Opacity) ++opacityRows;
-    const sigil::motion::Animatable<float>* v = cd::slotValueOf(spec, styled);
-    ASSERT_NE(v, nullptr) << "slot " << index
-                          << "'s accessor reaches nothing "
-                             "on a node carrying every block";
-    // THE MISAIM. Two rows answering with the same address means one of them
-    // is pointed at the other's field, and every consumer inherits the error.
-    for (size_t i = 0; i < seen.size(); ++i)
-      EXPECT_NE(v, seen[i])
-          << "slot " << index << " and slot " << i << " aim at the SAME field";
-    seen.push_back(v);
-    // …and the STANDING endpoint applyTransitions substitutes when a node
-    // gains or loses the block really is this field's own default. A wrong
-    // number here is a node that jumps on the frame it starts travelling.
-    ASSERT_NE(v->constant(), nullptr) << "slot " << index;
-    EXPECT_FLOAT_EQ(*v->constant(), spec.standing)
-        << "slot " << index << "'s `standing` is not the field's default";
-  }
-  EXPECT_EQ((int)seen.size() + bespoke, (int)cd::Instance::kSlots);
-  EXPECT_EQ(opacityRows, 1)
-      << "exactly one slot is applied by paint()'s saveLayer rather than its "
-         "matrix; computeVolatile's device-bake refusal reads that split";
-}
+         std::vector<const sigil::motion::Animatable<float>*> seen;
+         int bespoke = 0, opacityRows = 0;
+         for (const cd::SlotSpec& spec : cd::kSlotSpecs) {
+           const int index = (int)spec.slot;
+           if (spec.role == cd::SlotRole::Bespoke) {
+             ++bespoke;
+             // The compile-time assert already pairs "no accessor" with
+             // "declared Bespoke, with a reason"; this is the runtime half of
+             // that claim.
+             EXPECT_EQ(spec.of, nullptr) << "slot " << index;
+             EXPECT_EQ(cd::slotValueOf(spec, styled), nullptr)
+                 << "slot " << index
+                 << ": a Bespoke row must be INERT through "
+                    "slotValueOf, so a consumer that walks the table without "
+                    "special-casing it does nothing rather than crashing";
+             continue;
+           }
+           if (spec.role == cd::SlotRole::Opacity) ++opacityRows;
+           const sigil::motion::Animatable<float>* v =
+               cd::slotValueOf(spec, styled);
+           ASSERT_NE(v, nullptr) << "slot " << index
+                                 << "'s accessor reaches nothing "
+                                    "on a node carrying every block";
+           // THE MISAIM. Two rows answering with the same address means one of
+           // them is pointed at the other's field, and every consumer inherits
+           // the error.
+           for (size_t i = 0; i < seen.size(); ++i)
+             EXPECT_NE(v, seen[i]) << "slot " << index << " and slot " << i
+                                   << " aim at the SAME field";
+           seen.push_back(v);
+           // …and the STANDING endpoint applyTransitions substitutes when a
+           // node gains or loses the block really is this field's own default.
+           // A wrong number here is a node that jumps on the frame it starts
+           // travelling.
+           ASSERT_NE(v->constant(), nullptr) << "slot " << index;
+           EXPECT_FLOAT_EQ(*v->constant(), spec.standing)
+               << "slot " << index
+               << "'s `standing` is not the field's default";
+         }
+         EXPECT_EQ((int)seen.size() + bespoke, (int)cd::Instance::kSlots);
+         EXPECT_EQ(opacityRows, 1) << "exactly one slot is applied by "
+                                      "paint()'s saveLayer rather than its "
+                                      "matrix; computeVolatile's device-bake "
+                                      "refusal reads that split";
+       }},
+      // A property row must read the COMPUTED style and not the description it
+      // was filled from. The two hold the same value today, so a row still
+      // pointed at the description passes every assertion above — and then, the
+      // moment a rule or an inherited value writes an answer the description
+      // never carried, that property snaps where every other one eases,
+      // silently.
+      //
+      // What tells the two apart is the ADDRESS, not the value: the style here
+      // is a separate object standing beside the node, so a row reading the
+      // style answers inside `style.paint` and a row still reading the node
+      // answers inside `node.paint`. A row left on the node is then counted as
+      // positional and the total falls short.
+      {"EveryPropertyRowReadsTheComputedStyle",
+       [&] {
+         cd::ElementNode node;
+         node.motionData.ensure();
+         node.textData.ensure().onPath.emplace();
+         node.depthData.ensure();
+         cd::ComputedStyle style;
+         cd::resolveStyle(nullptr, node, style);
 
-// A property row must read the COMPUTED style and not the description it was
-// filled from. The two hold the same value today, so a row still pointed at
-// the description passes every assertion above — and then, the moment a rule
-// or an inherited value writes an answer the description never carried, that
-// property snaps where every other one eases, silently.
-//
-// What tells the two apart is the ADDRESS, not the value: the style here is
-// a separate object standing beside the node, so a row reading the style
-// answers inside `style.paint` and a row still reading the node answers
-// inside `node.paint`. A row left on the node is then counted as positional
-// and the total falls short.
-TEST(ComposeSlotPins, EveryPropertyRowReadsTheComputedStyleAndNotTheNode) {
-  cd::ElementNode node;
-  node.motionData.ensure();
-  node.textData.ensure().onPath.emplace();
-  node.depthData.ensure();
-  cd::ComputedStyle style;
-  cd::resolveStyle(nullptr, node, style);
-
-  // One address per lane of the style's own paint block, so a row that
-  // answers with one of them is reading the style.
-  const void* paintLanes[] = {
-      &style.paint.opacity, &style.paint.translateX, &style.paint.translateY,
-      &style.paint.rotate,  &style.paint.scale,      &style.paint.scaleX,
-      &style.paint.scaleY,  &style.paint.skewX,      &style.paint.skewY};
-  const cd::StyledNode styled{style, node};
-  int propertyRows = 0;
-  for (const cd::SlotSpec& spec : cd::kSlotSpecs) {
-    const sigil::motion::Animatable<float>* v = cd::slotValueOf(spec, styled);
-    if (v == nullptr) continue;
-    bool fromStyle = false;
-    for (const void* lane : paintLanes) fromStyle |= (lane == v);
-    if (!fromStyle) continue;  // a positional lane, read off the block
-    ++propertyRows;
-  }
-  EXPECT_EQ(propertyRows, (int)std::size(paintLanes))
-      << "every transform and opacity lane must come from the computed "
-         "style; a row still reading the description's own paint block "
-         "leaves that property unable to ramp from a resolved value";
+         // One address per lane of the style's own paint block, so a row that
+         // answers with one of them is reading the style.
+         const void* paintLanes[] = {
+             &style.paint.opacity,    &style.paint.translateX,
+             &style.paint.translateY, &style.paint.rotate,
+             &style.paint.scale,      &style.paint.scaleX,
+             &style.paint.scaleY,     &style.paint.skewX,
+             &style.paint.skewY};
+         const cd::StyledNode styled{style, node};
+         int propertyRows = 0;
+         for (const cd::SlotSpec& spec : cd::kSlotSpecs) {
+           const sigil::motion::Animatable<float>* v =
+               cd::slotValueOf(spec, styled);
+           if (v == nullptr) continue;
+           bool fromStyle = false;
+           for (const void* lane : paintLanes) fromStyle |= (lane == v);
+           if (!fromStyle) continue;  // a positional lane, read off the block
+           ++propertyRows;
+         }
+         EXPECT_EQ(propertyRows, (int)std::size(paintLanes))
+             << "every transform and opacity lane must come from the computed "
+                "style; a row still reading the description's own paint block "
+                "leaves that property unable to ramp from a resolved value";
+       }},
+  });
 }
 
 // ---- maximumScaleOf's perspective fallback
@@ -528,7 +565,7 @@ TEST(ComposeSlotPins, EveryPropertyRowReadsTheComputedStyleAndNotTheNode) {
 // bounds. This test holds it to a numerically derived ground truth — finite
 // differences of the mapped point at those same five samples.
 
-TEST(ComposeMaxScale, PerspectiveFallbackTracksTheJacobianNotTheDiagonal) {
+TEST(ComposeMaxScale, ATurnedPlaneBakesAtTheProjectionsLargestLocalScale) {
   // A card tilt WITH a rotation component: setRotate(90) snaps the diagonal
   // to exactly (0, 0), and the perspective row makes the true local scale
   // grow toward the rect's near edge (w = 1 − 0.002·y there).

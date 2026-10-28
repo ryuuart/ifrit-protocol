@@ -166,7 +166,7 @@ a point looks like is the drawing's business.
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
 `motion_test` over every feature's `test/` and one `motion_bench` over
-every feature's `bench/`, ctest one entry per CASE, what a case may pin,
+every feature's `bench/`, ctest one entry per SUITE, what a case may pin,
 and what a label promises. What is only true of SigilMotion:
 
 Targets: `SigilMotionEase`, `SigilMotionBind`, `SigilMotionValues`,

@@ -41,7 +41,7 @@ bool waitForFrame(sigil::scry::WebView& view, uint64_t sinceVersion) {
 
 }  // namespace
 
-TEST(ComposeWeb, WebLeafDrawsPublishedFrame) {
+TEST(ComposeWeb, AWebLeafDrawsThePublishedFrameInItsBox) {
   auto view = sharedEngine().createView(100, 100, {.transparent = false});
   ASSERT_NE(view, nullptr);
   view->loadHTML(
@@ -78,7 +78,7 @@ TEST(ComposeWeb, WebLeafDrawsPublishedFrame) {
   EXPECT_EQ(bm.getColor(0, 0), SK_ColorRED);  // compose chrome around it
 }
 
-TEST(ComposeWeb, ComposerDrawsIntoPageFacingCanvas) {
+TEST(ComposeWeb, AComposerDrawsIntoAPagesCanvasWithNoAdapter) {
   // The reverse direction: a Composer is a guest in any canvas — here a
   // raster surface standing in for a WebImage::paint() callback canvas.
   sigil::motion::Engine engine;

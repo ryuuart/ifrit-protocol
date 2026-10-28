@@ -762,7 +762,8 @@ remain one kernel, not additional libraries.
 [The shared testing contract](../../../docs/overview/testing.md) describes
 builds, tests, labels and benchmarks. Compose has one `compose_test` and
 one `compose_bench` assembled from its feature directories. CTest selects
-individual cases. Public-header tests compile each exported header alone;
+a suite as `compose.<Suite>`; one case runs through
+`compose_test --gtest_filter=Suite.Case`. Public-header tests compile each exported header alone;
 each feature probe uses only its originating target's requirements.
 Documentation probes check names in this page and its registered chapters.
 The first program above is also a standalone consumer example and must

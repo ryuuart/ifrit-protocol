@@ -6,6 +6,7 @@
 #include <sigilcompose/core/StyleSheet.h>
 
 #include "support/BrushTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -22,89 +23,6 @@ Element framed(Element square, StyleSheet sheet = {}) {
 }
 
 }  // namespace
-
-TEST(ComposeRuleMarks, AClassStrokePaintsWhatTheElementsOwnStrokePaints) {
-  Host byClass(kSide, kSide), byElement(kSide, kSide);
-  byClass.composer.render(
-      framed(box().styleClass("frame"),
-             StyleSheet{rule(".frame").stroke(stroke(4, var("line")))}));
-  byElement.composer.render(framed(box().stroke(stroke(4, var("line")))));
-  byClass.frame();
-  byElement.frame();
-  EXPECT_GT(redInk(byClass), 100) << "the class's keyline painted nothing";
-  EXPECT_TRUE(identicalPixels(byClass, byElement, kSide, kSide));
-}
-
-TEST(ComposeRuleMarks,
-     TheElementsOwnStrokePaintsOverTheClasssAsASecondCallWould) {
-  const auto blue = material::Color{0, 0, 1, 1};
-  Host byClass(kSide, kSide), byElement(kSide, kSide);
-  byClass.composer.render(
-      framed(box().styleClass("frame").stroke(stroke(2, Fill::color(blue))),
-             StyleSheet{rule(".frame").stroke(stroke(8, var("line")))}));
-  byElement.composer.render(framed(box()
-                                       .stroke(stroke(8, var("line")))
-                                       .stroke(stroke(2, Fill::color(blue)))));
-  byClass.frame();
-  byElement.frame();
-  EXPECT_TRUE(identicalPixels(byClass, byElement, kSide, kSide));
-  // The outline's own line is the element's blue; three pixels off it,
-  // inside the class's wider keyline and outside the element's, is red.
-  EXPECT_EQ(byClass.pixel(100, 50), SK_ColorBLUE);
-  EXPECT_EQ(byClass.pixel(100, 47), SK_ColorRED);
-}
-
-TEST(ComposeRuleMarks, TwoMatchedRulesStrokeWeakerFirst) {
-  const auto blue = material::Color{0, 0, 1, 1};
-  Host byClasses(kSide, kSide), byElement(kSide, kSide);
-  // `.frame.hot` weighs more than `.frame`, so its ring is the upper one
-  // whatever order the sheet states them in.
-  byClasses.composer.render(
-      framed(box().styleClass("frame hot"),
-             StyleSheet{rule(".frame.hot").stroke(stroke(2, Fill::color(blue))),
-                        rule(".frame").stroke(stroke(8, var("line")))}));
-  byElement.composer.render(framed(box()
-                                       .stroke(stroke(8, var("line")))
-                                       .stroke(stroke(2, Fill::color(blue)))));
-  byClasses.frame();
-  byElement.frame();
-  EXPECT_TRUE(identicalPixels(byClasses, byElement, kSide, kSide));
-}
-
-TEST(ComposeRuleMarks, AClassThatStopsMatchingTakesItsKeylineWithIt) {
-  Host host(kSide, kSide);
-  const StyleSheet sheet{rule(".frame").stroke(stroke(4, var("line")))};
-  host.composer.render(framed(box().styleClass("frame"), sheet));
-  host.frame();
-  EXPECT_GT(redInk(host), 100);
-  host.composer.render(framed(box(), sheet));
-  host.frame();
-  EXPECT_EQ(redInk(host), 0);
-  // …and a sheet that states the keyline in another colour repaints it.
-  host.composer.render(
-      framed(box().styleClass("frame"),
-             StyleSheet{rule(".frame").stroke(
-                 stroke(4, Fill::color(material::Color{0, 0, 1, 1})))}));
-  host.frame();
-  EXPECT_EQ(redInk(host), 0);
-  EXPECT_EQ(host.pixel(100, 50), SK_ColorBLUE);
-}
-
-TEST(ComposeRuleMarks, ARuleBackgroundStandsUnderTheFill) {
-  Host byClass(kSide, kSide), byElement(kSide, kSide);
-  const Decoration offsetShadow =
-      shadow(material::Color{1, 0, 0, 1}, {12, 12}, 0);
-  byClass.composer.render(
-      framed(box().styleClass("card").fill(material::Color{0, 0, 1, 1}),
-             StyleSheet{rule(".card").background(offsetShadow)}));
-  byElement.composer.render(
-      framed(box().background(offsetShadow).fill(material::Color{0, 0, 1, 1})));
-  byClass.frame();
-  byElement.frame();
-  EXPECT_GT(redInk(byClass), 100);
-  EXPECT_EQ(byClass.pixel(100, 100), SK_ColorBLUE);
-  EXPECT_TRUE(identicalPixels(byClass, byElement, kSide, kSide));
-}
 
 // ---------------------------------------------------------------------------
 // A material's effects belong to its ink and its fill, wherever either is
@@ -147,68 +65,169 @@ int blueInk(Host& host) {
 
 }  // namespace
 
-TEST(ComposeRuleMarks, ARulesInkMaterialDressesTheLeafAsItsOwnInkWould) {
-  Host byRule(kSide, kSide), byLeaf(kSide, kSide);
-  byRule.composer.render(page(text(u8"Ag").styleClass("near"),
-                              StyleSheet{rule(".near").ink(halation())}));
-  byLeaf.composer.render(page(text(u8"Ag").ink(halation())));
-  byRule.frame();
-  byLeaf.frame();
-  EXPECT_GT(redInk(byRule), 20) << "the ink's shadow never reached the leaf";
-  EXPECT_TRUE(identicalPixels(byRule, byLeaf, kSide, kSide));
-  EXPECT_EQ(require(byRule.composer.bounds("word")),
-            require(byLeaf.composer.bounds("word")));
+TEST(ComposeRuleMarks,
+     DirectDeclarationsOverrideRulesAndARuleThatStopsMatchingTakesItsMarks) {
+  sigil::compose::test::checkRows({
+      {"TheElementsOwnStrokePaintsOverTheClasss",
+       [&] {
+         const auto blue = material::Color{0, 0, 1, 1};
+         Host byClass(kSide, kSide), byElement(kSide, kSide);
+         byClass.composer.render(framed(
+             box().styleClass("frame").stroke(stroke(2, Fill::color(blue))),
+             StyleSheet{rule(".frame").stroke(stroke(8, var("line")))}));
+         byElement.composer.render(
+             framed(box()
+                        .stroke(stroke(8, var("line")))
+                        .stroke(stroke(2, Fill::color(blue)))));
+         byClass.frame();
+         byElement.frame();
+         EXPECT_TRUE(identicalPixels(byClass, byElement, kSide, kSide));
+         // The outline's own line is the element's blue; three pixels off it,
+         // inside the class's wider keyline and outside the element's, is red.
+         EXPECT_EQ(byClass.pixel(100, 50), SK_ColorBLUE);
+         EXPECT_EQ(byClass.pixel(100, 47), SK_ColorRED);
+       }},
+      {"TwoMatchedRulesStrokeWeakerFirst",
+       [&] {
+         const auto blue = material::Color{0, 0, 1, 1};
+         Host byClasses(kSide, kSide), byElement(kSide, kSide);
+         // `.frame.hot` weighs more than `.frame`, so its ring is the upper one
+         // whatever order the sheet states them in.
+         byClasses.composer.render(framed(
+             box().styleClass("frame hot"),
+             StyleSheet{rule(".frame.hot").stroke(stroke(2, Fill::color(blue))),
+                        rule(".frame").stroke(stroke(8, var("line")))}));
+         byElement.composer.render(
+             framed(box()
+                        .stroke(stroke(8, var("line")))
+                        .stroke(stroke(2, Fill::color(blue)))));
+         byClasses.frame();
+         byElement.frame();
+         EXPECT_TRUE(identicalPixels(byClasses, byElement, kSide, kSide));
+       }},
+      {"AClassThatStopsMatchingTakesItsKeyline",
+       [&] {
+         Host host(kSide, kSide);
+         const StyleSheet sheet{rule(".frame").stroke(stroke(4, var("line")))};
+         host.composer.render(framed(box().styleClass("frame"), sheet));
+         host.frame();
+         EXPECT_GT(redInk(host), 100);
+         host.composer.render(framed(box(), sheet));
+         host.frame();
+         EXPECT_EQ(redInk(host), 0);
+         // …and a sheet that states the keyline in another colour repaints it.
+         host.composer.render(
+             framed(box().styleClass("frame"),
+                    StyleSheet{rule(".frame").stroke(
+                        stroke(4, Fill::color(material::Color{0, 0, 1, 1})))}));
+         host.frame();
+         EXPECT_EQ(redInk(host), 0);
+         EXPECT_EQ(host.pixel(100, 50), SK_ColorBLUE);
+       }},
+      {"ReplacingTheRuleReplacesTheEffectsItsInkCarried",
+       [&] {
+         Host host(kSide, kSide);
+         host.composer.render(page(text(u8"Ag").styleClass("near"),
+                                   StyleSheet{rule(".near").ink(halation())}));
+         host.frame();
+         ASSERT_GT(redInk(host), 20);
+         // Another material: its shadow in place of the first, not beside it.
+         host.composer.render(page(text(u8"Ag").styleClass("near"),
+                                   StyleSheet{rule(".near").ink(halation(
+                                       material::Color{0, 0, 1, 1}))}));
+         host.frame();
+         EXPECT_EQ(redInk(host), 0);
+         EXPECT_GT(blueInk(host), 20);
+         // A plain ink: no effects at all.
+         host.composer.render(
+             page(text(u8"Ag").styleClass("near"),
+                  StyleSheet{rule(".near").ink(material::Color{1, 1, 1, 1})}));
+         host.frame();
+         EXPECT_EQ(blueInk(host), 0);
+         EXPECT_EQ(redInk(host), 0);
+       }},
+      {"TheLeafsOwnInkStandsOverTheRules",
+       [&] {
+         Host host(kSide, kSide);
+         host.composer.render(page(
+             text(u8"Ag").styleClass("near").ink(material::Color{1, 1, 1, 1}),
+             StyleSheet{rule(".near").ink(halation())}));
+         host.frame();
+         EXPECT_EQ(redInk(host), 0);
+         // …and a stronger rule's plain ink stands over a weaker rule's
+         // material.
+         host.composer.render(page(
+             text(u8"Ag").styleClass("near far"),
+             StyleSheet{rule(".near").ink(halation()),
+                        rule(".near.far").ink(material::Color{1, 1, 1, 1})}));
+         host.frame();
+         EXPECT_EQ(redInk(host), 0);
+       }},
+  });
 }
 
-TEST(ComposeRuleMarks, ReplacingTheRuleReplacesTheEffectsItsInkCarried) {
-  Host host(kSide, kSide);
-  host.composer.render(page(text(u8"Ag").styleClass("near"),
-                            StyleSheet{rule(".near").ink(halation())}));
-  host.frame();
-  ASSERT_GT(redInk(host), 20);
-  // Another material: its shadow in place of the first, not beside it.
-  host.composer.render(page(
-      text(u8"Ag").styleClass("near"),
-      StyleSheet{rule(".near").ink(halation(material::Color{0, 0, 1, 1}))}));
-  host.frame();
-  EXPECT_EQ(redInk(host), 0);
-  EXPECT_GT(blueInk(host), 20);
-  // A plain ink: no effects at all.
-  host.composer.render(
-      page(text(u8"Ag").styleClass("near"),
-           StyleSheet{rule(".near").ink(material::Color{1, 1, 1, 1})}));
-  host.frame();
-  EXPECT_EQ(blueInk(host), 0);
-  EXPECT_EQ(redInk(host), 0);
-}
-
-TEST(ComposeRuleMarks, TheLeafsOwnInkStandsWithItsOwnEffectsOverTheRules) {
-  Host host(kSide, kSide);
-  host.composer.render(
-      page(text(u8"Ag").styleClass("near").ink(material::Color{1, 1, 1, 1}),
-           StyleSheet{rule(".near").ink(halation())}));
-  host.frame();
-  EXPECT_EQ(redInk(host), 0);
-  // …and a stronger rule's plain ink stands over a weaker rule's material.
-  host.composer.render(
-      page(text(u8"Ag").styleClass("near far"),
-           StyleSheet{rule(".near").ink(halation()),
-                      rule(".near.far").ink(material::Color{1, 1, 1, 1})}));
-  host.frame();
-  EXPECT_EQ(redInk(host), 0);
-}
-
-TEST(ComposeRuleMarks, ARulesFillMaterialDressesTheBoxAsItsOwnFillWould) {
-  Host byRule(kSide, kSide), byElement(kSide, kSide);
-  const material::Material card =
-      material::from(material::Color{0, 0, 1, 1})
-          .effects(material::Filter::shadow(material::Color{1, 0, 0, 1},
-                                            {.blur = 2, .offset = {10, 10}}));
-  byRule.composer.render(
-      framed(box().styleClass("card"), StyleSheet{rule(".card").fill(card)}));
-  byElement.composer.render(framed(box().fill(card)));
-  byRule.frame();
-  byElement.frame();
-  EXPECT_GT(redInk(byRule), 100);
-  EXPECT_TRUE(identicalPixels(byRule, byElement, kSide, kSide));
+TEST(ComposeRuleMarks, AMatchedRulesMarksDressTheElementAsItsOwnWould) {
+  sigil::compose::test::checkRows({
+      {"AClassStroke",
+       [&] {
+         Host byClass(kSide, kSide), byElement(kSide, kSide);
+         byClass.composer.render(
+             framed(box().styleClass("frame"),
+                    StyleSheet{rule(".frame").stroke(stroke(4, var("line")))}));
+         byElement.composer.render(
+             framed(box().stroke(stroke(4, var("line")))));
+         byClass.frame();
+         byElement.frame();
+         EXPECT_GT(redInk(byClass), 100)
+             << "the class's keyline painted nothing";
+         EXPECT_TRUE(identicalPixels(byClass, byElement, kSide, kSide));
+       }},
+      {"ARuleBackgroundStandsUnderTheFill",
+       [&] {
+         Host byClass(kSide, kSide), byElement(kSide, kSide);
+         const Decoration offsetShadow =
+             shadow(material::Color{1, 0, 0, 1}, {12, 12}, 0);
+         byClass.composer.render(
+             framed(box().styleClass("card").fill(material::Color{0, 0, 1, 1}),
+                    StyleSheet{rule(".card").background(offsetShadow)}));
+         byElement.composer.render(framed(
+             box().background(offsetShadow).fill(material::Color{0, 0, 1, 1})));
+         byClass.frame();
+         byElement.frame();
+         EXPECT_GT(redInk(byClass), 100);
+         EXPECT_EQ(byClass.pixel(100, 100), SK_ColorBLUE);
+         EXPECT_TRUE(identicalPixels(byClass, byElement, kSide, kSide));
+       }},
+      {"ARulesInkMaterial",
+       [&] {
+         Host byRule(kSide, kSide), byLeaf(kSide, kSide);
+         byRule.composer.render(
+             page(text(u8"Ag").styleClass("near"),
+                  StyleSheet{rule(".near").ink(halation())}));
+         byLeaf.composer.render(page(text(u8"Ag").ink(halation())));
+         byRule.frame();
+         byLeaf.frame();
+         EXPECT_GT(redInk(byRule), 20)
+             << "the ink's shadow never reached the leaf";
+         EXPECT_TRUE(identicalPixels(byRule, byLeaf, kSide, kSide));
+         EXPECT_EQ(require(byRule.composer.bounds("word")),
+                   require(byLeaf.composer.bounds("word")));
+       }},
+      {"ARulesFillMaterial",
+       [&] {
+         Host byRule(kSide, kSide), byElement(kSide, kSide);
+         const material::Material card =
+             material::from(material::Color{0, 0, 1, 1})
+                 .effects(
+                     material::Filter::shadow(material::Color{1, 0, 0, 1},
+                                              {.blur = 2, .offset = {10, 10}}));
+         byRule.composer.render(framed(box().styleClass("card"),
+                                       StyleSheet{rule(".card").fill(card)}));
+         byElement.composer.render(framed(box().fill(card)));
+         byRule.frame();
+         byElement.frame();
+         EXPECT_GT(redInk(byRule), 100);
+         EXPECT_TRUE(identicalPixels(byRule, byElement, kSide, kSide));
+       }},
+  });
 }

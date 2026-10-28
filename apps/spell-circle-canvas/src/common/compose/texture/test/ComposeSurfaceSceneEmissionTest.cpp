@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/Rows.h"
 #include "support/SurfaceSceneFixture.h"
 
 namespace {
@@ -107,75 +108,86 @@ TEST(ComposeSurfaceScene,
 }
 
 TEST(ComposeSurfaceScene,
-     AnEmissionPastWhiteIsPaintedAgainstThePagesBrightest) {
-  const auto glowing = [](float strength) {
-    return material::from(material::Color{0, 0, 0, 1})
-        .surface({.emission = {1, 1, 1, 1}, .emissionStrength = strength});
-  };
-  const auto twoGlows = [&](float left, float right) {
-    return box().width(kWidth).height(kHeight).children({
-        box().absolute().rect(0, 0, 64, 112).fill(glowing(left)),
-        box().absolute().rect(64, 0, 64, 112).fill(glowing(right)),
-    });
-  };
-  // A page whose brightest emission is one paints its emission as stated,
-  // and its map is read at the stock strength.
-  const auto plain = SurfaceScene::make({kWidth, kHeight}, fonts());
-  ASSERT_NE(plain, nullptr);
-  plain->render(twoGlows(1, .5f));
-  EXPECT_EQ(plain->maps().emissiveStrength, 1);
-  expectNear(pixelsOf(*plain, Role::Emissive).getColor4f(32, 56), 1, 1, 1);
-  expectNear(pixelsOf(*plain, Role::Emissive).getColor4f(96, 56), .5f, .5f,
-             .5f);
+     TheEmissiveMapsWhiteStandsForTheBrightestEmissionLearnedOrStated) {
+  sigil::compose::test::checkRows({
+      {"LearnedFromTheBrightestPainted",
+       [&] {
+         const auto glowing = [](float strength) {
+           return material::from(material::Color{0, 0, 0, 1})
+               .surface(
+                   {.emission = {1, 1, 1, 1}, .emissionStrength = strength});
+         };
+         const auto twoGlows = [&](float left, float right) {
+           return box().width(kWidth).height(kHeight).children({
+               box().absolute().rect(0, 0, 64, 112).fill(glowing(left)),
+               box().absolute().rect(64, 0, 64, 112).fill(glowing(right)),
+           });
+         };
+         // A page whose brightest emission is one paints its emission as
+         // stated, and its map is read at the stock strength.
+         const auto plain = SurfaceScene::make({kWidth, kHeight}, fonts());
+         ASSERT_NE(plain, nullptr);
+         plain->render(twoGlows(1, .5f));
+         EXPECT_EQ(plain->maps().emissiveStrength, 1);
+         expectNear(pixelsOf(*plain, Role::Emissive).getColor4f(32, 56), 1, 1,
+                    1);
+         expectNear(pixelsOf(*plain, Role::Emissive).getColor4f(96, 56), .5f,
+                    .5f, .5f);
 
-  // Four is painted white and one as a quarter of that light, encoded for
-  // display, and the map is read at four: both keep the light they state.
-  const auto bright = SurfaceScene::make({kWidth, kHeight}, fonts());
-  ASSERT_NE(bright, nullptr);
-  bright->render(twoGlows(4, 1));
-  EXPECT_EQ(bright->maps().emissiveStrength, 4);
-  const SkBitmap emissive = pixelsOf(*bright, Role::Emissive);
-  expectNear(emissive.getColor4f(32, 56), 1, 1, 1);
-  // The display encoding of a quarter.
-  const float quarter = 1.055f * std::pow(.25f, 1 / 2.4f) - .055f;
-  expectNear(emissive.getColor4f(96, 56), quarter, quarter, quarter);
-  // The strength stands once raised, as a stated lobe's maps do.
-  bright->render(twoGlows(1, .5f), 1);
-  EXPECT_EQ(bright->maps().emissiveStrength, 4);
-}
+         // Four is painted white and one as a quarter of that light, encoded
+         // for display, and the map is read at four: both keep the light they
+         // state.
+         const auto bright = SurfaceScene::make({kWidth, kHeight}, fonts());
+         ASSERT_NE(bright, nullptr);
+         bright->render(twoGlows(4, 1));
+         EXPECT_EQ(bright->maps().emissiveStrength, 4);
+         const SkBitmap emissive = pixelsOf(*bright, Role::Emissive);
+         expectNear(emissive.getColor4f(32, 56), 1, 1, 1);
+         // The display encoding of a quarter.
+         const float quarter = 1.055f * std::pow(.25f, 1 / 2.4f) - .055f;
+         expectNear(emissive.getColor4f(96, 56), quarter, quarter, quarter);
+         // The strength stands once raised, as a stated lobe's maps do.
+         bright->render(twoGlows(1, .5f), 1);
+         EXPECT_EQ(bright->maps().emissiveStrength, 4);
+       }},
+      {"StatedByASurfaceRange",
+       [&] {
+         const auto glowing = [](float strength) {
+           return box().width(kWidth).height(kHeight).children(
+               {box()
+                    .absolute()
+                    .rect(0, 0, 64, 64)
+                    .fill(material::from(material::Color{.2f, .2f, .2f, 1})
+                              .surface({.emission = {1, 1, 1, 1},
+                                        .emissionStrength = strength}))});
+         };
+         // Stated: the emissive map's white is eight from the first paint, so a
+         // strength that rises from two to six is read as itself, and the page
+         // paints once for each description rather than again for a reading.
+         const auto stated =
+             SurfaceScene::make({kWidth, kHeight}, fonts(), {.emission = 8});
+         ASSERT_NE(stated, nullptr);
+         stated->render(glowing(2));
+         EXPECT_FLOAT_EQ(stated->maps().emissiveStrength, 8);
+         const float dim =
+             pixelsOf(*stated, Role::Emissive).getColor4f(10, 10).fR;
+         const uint64_t before = stated->revision();
+         stated->render(glowing(6), 1.0 / 60.0);
+         EXPECT_EQ(stated->revision(), before + 1);
+         EXPECT_FLOAT_EQ(stated->maps().emissiveStrength, 8);
+         const float bright =
+             pixelsOf(*stated, Role::Emissive).getColor4f(10, 10).fR;
+         EXPECT_GT(bright, dim);
+         EXPECT_LT(bright, .97f) << "six of eight is not the map's white";
 
-TEST(ComposeSurfaceScene, AStatedRangeHoldsAnEmissionPastTheBrightestPainted) {
-  const auto glowing = [](float strength) {
-    return box().width(kWidth).height(kHeight).children(
-        {box()
-             .absolute()
-             .rect(0, 0, 64, 64)
-             .fill(material::from(material::Color{.2f, .2f, .2f, 1})
-                       .surface({.emission = {1, 1, 1, 1},
-                                 .emissionStrength = strength}))});
-  };
-  // Stated: the emissive map's white is eight from the first paint, so a
-  // strength that rises from two to six is read as itself, and the page
-  // paints once for each description rather than again for a reading.
-  const auto stated =
-      SurfaceScene::make({kWidth, kHeight}, fonts(), {.emission = 8});
-  ASSERT_NE(stated, nullptr);
-  stated->render(glowing(2));
-  EXPECT_FLOAT_EQ(stated->maps().emissiveStrength, 8);
-  const float dim = pixelsOf(*stated, Role::Emissive).getColor4f(10, 10).fR;
-  const uint64_t before = stated->revision();
-  stated->render(glowing(6), 1.0 / 60.0);
-  EXPECT_EQ(stated->revision(), before + 1);
-  EXPECT_FLOAT_EQ(stated->maps().emissiveStrength, 8);
-  const float bright = pixelsOf(*stated, Role::Emissive).getColor4f(10, 10).fR;
-  EXPECT_GT(bright, dim);
-  EXPECT_LT(bright, .97f) << "six of eight is not the map's white";
-
-  // Learned: the reading rises to the brightest painted, which is white.
-  const auto learned = SurfaceScene::make({kWidth, kHeight}, fonts());
-  ASSERT_NE(learned, nullptr);
-  learned->render(glowing(2));
-  learned->render(glowing(6), 1.0 / 60.0);
-  EXPECT_FLOAT_EQ(learned->maps().emissiveStrength, 6);
-  EXPECT_GT(pixelsOf(*learned, Role::Emissive).getColor4f(10, 10).fR, .99f);
+         // Learned: the reading rises to the brightest painted, which is white.
+         const auto learned = SurfaceScene::make({kWidth, kHeight}, fonts());
+         ASSERT_NE(learned, nullptr);
+         learned->render(glowing(2));
+         learned->render(glowing(6), 1.0 / 60.0);
+         EXPECT_FLOAT_EQ(learned->maps().emissiveStrength, 6);
+         EXPECT_GT(pixelsOf(*learned, Role::Emissive).getColor4f(10, 10).fR,
+                   .99f);
+       }},
+  });
 }

@@ -39,6 +39,7 @@
 
 #include "OnDevice.h"
 #include "support/Host.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -99,55 +100,7 @@ SkBitmap sampledRaster(const sigil::material::Texture& texture,
   return readFloat(surface->makeImageSnapshot());
 }
 
-TEST(ComposeTexture, FirstRenderPaintsAndVersionsFromOne) {
-  const std::shared_ptr<TextureScene> scene =
-      TextureScene::make({64, 48}, fonts());
-  EXPECT_EQ(scene->revision(), 0u);
-  EXPECT_EQ(scene->image(), nullptr);
-
-  scene->render(plate(SkColors::kRed));
-  EXPECT_EQ(scene->revision(), 1u);
-  ASSERT_NE(scene->image(), nullptr);
-  EXPECT_EQ(scene->image()->width(), 64);
-  EXPECT_EQ(scene->image()->height(), 48);
-}
-
-TEST(ComposeTexture, AStillTreeBumpsNothing) {
-  const std::shared_ptr<TextureScene> scene =
-      TextureScene::make({32, 32}, fonts());
-  const Element still = plate(SkColors::kBlue);
-  scene->render(still);
-  const uint64_t painted = scene->revision();
-  for (int frame = 0; frame < 8; ++frame)
-    scene->render(still, (double)(frame + 1) / 60.0);
-  EXPECT_EQ(scene->revision(), painted);
-  EXPECT_FALSE(scene->isRunning());
-}
-
-TEST(ComposeTexture, AScaleReadingMaterialLetsTheSceneSleep) {
-  // The scene's scale does not change between renders, so a material that
-  // reads it leaves the scene still: no revision, the same image.
-  auto [effect, err] = SkRuntimeEffect::MakeForShader(
-      SkString("uniform float uContentScale;"
-               "half4 main(float2 p) {"
-               "  return half4(uContentScale * 0.25, 0, 0, 1); }"));
-  ASSERT_TRUE(effect) << err.c_str();
-  const std::shared_ptr<TextureScene> scene =
-      TextureScene::make({32, 32}, fonts());
-  const Element still = box().width(32).height(32).fill(
-      sigil::material::skia::base(sigil::material::skia::sksl(effect)));
-  for (int frame = 0; frame < 4; ++frame)
-    scene->render(still, (double)frame / 60.0);
-  const uint64_t settled = scene->revision();
-  const sk_sp<SkImage> held = scene->image();
-  for (int frame = 4; frame < 12; ++frame)
-    scene->render(still, (double)frame / 60.0);
-  EXPECT_EQ(scene->revision(), settled);
-  EXPECT_EQ(scene->image(), held);
-  EXPECT_FALSE(scene->isRunning());
-}
-
-TEST(ComposeTexture, PictureWrappedGroupTakesOneFollowUpRenderThenSleeps) {
+TEST(ComposeTexture, AGroupUnderARecordingTakesOneMoreRenderThenSleeps) {
   const auto scene = TextureScene::make({64, 48}, fonts());
   const Element tree = box()
                            .width(64)
@@ -174,108 +127,164 @@ TEST(ComposeTexture, PictureWrappedGroupTakesOneFollowUpRenderThenSleeps) {
   EXPECT_FALSE(scene->isRunning());
 }
 
-TEST(ComposeTexture, EarlierReadingsDoNotBankExtraSceneTime) {
-  const auto scene = TextureScene::make({8, 8}, fonts());
-  double seconds = -1.0;
-  const Element clock =
-      custom("clock", [&](sigil::draw::Pen&, const PaintContext& context) {
-        seconds = context.elapsedSeconds;
-      }).cache(Cache::None);
-  scene->render(clock, 1.0);
-  EXPECT_DOUBLE_EQ(seconds, 1.0);
-  scene->render(clock, 0.5);
-  EXPECT_DOUBLE_EQ(seconds, 1.0);
-  scene->render(clock, 1.25);
-  EXPECT_DOUBLE_EQ(seconds, 1.25);
+TEST(ComposeTexture, TheSceneClockAdvancesOnlyToALaterFiniteReading) {
+  sigil::compose::test::checkRows({
+      {"AnEarlierReadingBanksNoTime",
+       [&] {
+         const auto scene = TextureScene::make({8, 8}, fonts());
+         double seconds = -1.0;
+         const Element clock =
+             custom("clock", [&](sigil::draw::Pen&,
+                                 const PaintContext& context) {
+               seconds = context.elapsedSeconds;
+             }).cache(Cache::None);
+         scene->render(clock, 1.0);
+         EXPECT_DOUBLE_EQ(seconds, 1.0);
+         scene->render(clock, 0.5);
+         EXPECT_DOUBLE_EQ(seconds, 1.0);
+         scene->render(clock, 1.25);
+         EXPECT_DOUBLE_EQ(seconds, 1.25);
+       }},
+      {"ANonFiniteReadingLeavesTheClock",
+       [&] {
+         const auto scene = TextureScene::make({8, 8}, fonts());
+         double seconds = -1.0;
+         const Element clock =
+             custom("clock", [&](sigil::draw::Pen&,
+                                 const PaintContext& context) {
+               seconds = context.elapsedSeconds;
+             }).cache(Cache::None);
+         scene->render(clock, 1.0);
+         scene->render(clock, std::numeric_limits<double>::infinity());
+         EXPECT_DOUBLE_EQ(seconds, 1.0);
+         scene->render(clock, std::numeric_limits<double>::quiet_NaN());
+         EXPECT_DOUBLE_EQ(seconds, 1.0);
+         scene->render(clock, 1.5);
+         EXPECT_DOUBLE_EQ(seconds, 1.5);
+       }},
+  });
 }
 
-TEST(ComposeTexture, NonFiniteReadingsDoNotPoisonTheSceneClock) {
-  const auto scene = TextureScene::make({8, 8}, fonts());
-  double seconds = -1.0;
-  const Element clock =
-      custom("clock", [&](sigil::draw::Pen&, const PaintContext& context) {
-        seconds = context.elapsedSeconds;
-      }).cache(Cache::None);
-  scene->render(clock, 1.0);
-  scene->render(clock, std::numeric_limits<double>::infinity());
-  EXPECT_DOUBLE_EQ(seconds, 1.0);
-  scene->render(clock, std::numeric_limits<double>::quiet_NaN());
-  EXPECT_DOUBLE_EQ(seconds, 1.0);
-  scene->render(clock, 1.5);
-  EXPECT_DOUBLE_EQ(seconds, 1.5);
+TEST(ComposeTexture, ASceneCountsAPaintOnlyWhenSomethingItPaintsChanged) {
+  sigil::compose::test::checkRows({
+      {"TheFirstRenderPaintsAndCountsOne",
+       [&] {
+         const std::shared_ptr<TextureScene> scene =
+             TextureScene::make({64, 48}, fonts());
+         EXPECT_EQ(scene->revision(), 0u);
+         EXPECT_EQ(scene->image(), nullptr);
+
+         scene->render(plate(SkColors::kRed));
+         EXPECT_EQ(scene->revision(), 1u);
+         ASSERT_NE(scene->image(), nullptr);
+         EXPECT_EQ(scene->image()->width(), 64);
+         EXPECT_EQ(scene->image()->height(), 48);
+       }},
+      {"AStillTreeCountsNothing",
+       [&] {
+         const std::shared_ptr<TextureScene> scene =
+             TextureScene::make({32, 32}, fonts());
+         const Element still = plate(SkColors::kBlue);
+         scene->render(still);
+         const uint64_t painted = scene->revision();
+         for (int frame = 0; frame < 8; ++frame)
+           scene->render(still, (double)(frame + 1) / 60.0);
+         EXPECT_EQ(scene->revision(), painted);
+         EXPECT_FALSE(scene->isRunning());
+       }},
+      {"AMaterialReadingAnUnchangedScaleLetsTheSceneSleep",
+       [&] {
+         // The scene's scale does not change between renders, so a material
+         // that reads it leaves the scene still: no revision, the same image.
+         auto [effect, err] = SkRuntimeEffect::MakeForShader(
+             SkString("uniform float uContentScale;"
+                      "half4 main(float2 p) {"
+                      "  return half4(uContentScale * 0.25, 0, 0, 1); }"));
+         ASSERT_TRUE(effect) << err.c_str();
+         const std::shared_ptr<TextureScene> scene =
+             TextureScene::make({32, 32}, fonts());
+         const Element still = box().width(32).height(32).fill(
+             sigil::material::skia::base(sigil::material::skia::sksl(effect)));
+         for (int frame = 0; frame < 4; ++frame)
+           scene->render(still, (double)frame / 60.0);
+         const uint64_t settled = scene->revision();
+         const sk_sp<SkImage> held = scene->image();
+         for (int frame = 4; frame < 12; ++frame)
+           scene->render(still, (double)frame / 60.0);
+         EXPECT_EQ(scene->revision(), settled);
+         EXPECT_EQ(scene->image(), held);
+         EXPECT_FALSE(scene->isRunning());
+       }},
+      {"AChangedDescriptionPaintsAgain",
+       [&] {
+         const std::shared_ptr<TextureScene> scene =
+             TextureScene::make({32, 32}, fonts());
+         scene->render(plate(SkColors::kBlue));
+         const uint64_t painted = scene->revision();
+         scene->render(plate(SkColors::kGreen));
+         EXPECT_EQ(scene->revision(), painted + 1);
+       }},
+      {"ABindingWhoseOutputMovesPaintsAgain",
+       [&] {
+         sigil::motion::Animatable<float> alpha =
+             sigil::motion::animatable(1.0f);
+         const std::shared_ptr<TextureScene> scene =
+             TextureScene::make({32, 32}, fonts());
+         const Element retained = plate(SkColors::kRed).opacity(alpha);
+
+         scene->render(retained);
+         const uint64_t painted = scene->revision();
+         ASSERT_TRUE(scene->isRunning());
+
+         alpha = 0.0f;
+         scene->render(retained, 1.0 / 60.0);
+         EXPECT_EQ(scene->revision(), painted + 1)
+             << "the unchanged description hid its moved binding";
+
+         SkBitmap read;
+         read.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
+         ASSERT_TRUE(scene->image()->readPixels(nullptr, read.pixmap(), 0, 0));
+         EXPECT_EQ(read.getColor(16, 16), SK_ColorTRANSPARENT);
+       }},
+  });
 }
 
-TEST(ComposeTexture, ADescriptionThatChangedPaintsAgain) {
-  const std::shared_ptr<TextureScene> scene =
-      TextureScene::make({32, 32}, fonts());
-  scene->render(plate(SkColors::kBlue));
-  const uint64_t painted = scene->revision();
-  scene->render(plate(SkColors::kGreen));
-  EXPECT_EQ(scene->revision(), painted + 1);
-}
+TEST(ComposeTexture, TheTextureIsTheSceneAtItsRevisionWithEveryDial) {
+  sigil::compose::test::checkRows({
+      {"EqualAcrossAStillFrameAndNotAfterAPaint",
+       [&] {
+         const std::shared_ptr<TextureScene> scene =
+             TextureScene::make({32, 32}, fonts());
+         const Element still = plate(SkColors::kYellow);
+         scene->render(still);
+         const sigil::material::Texture first = scene->texture();
+         scene->render(still, 1.0 / 60.0);
+         const sigil::material::Texture second = scene->texture();
+         EXPECT_TRUE(first == second);
 
-TEST(ComposeTexture, ARetainedBindingPaintsWhenItsOutputMoves) {
-  sigil::motion::Animatable<float> alpha = sigil::motion::animatable(1.0f);
-  const std::shared_ptr<TextureScene> scene =
-      TextureScene::make({32, 32}, fonts());
-  const Element retained = plate(SkColors::kRed).opacity(alpha);
+         scene->render(plate(SkColors::kMagenta), 2.0 / 60.0);
+         EXPECT_FALSE(first == scene->texture());
+       }},
+      {"EverySamplingDialIsPartOfTheValue",
+       [&] {
+         const std::shared_ptr<TextureScene> scene =
+             TextureScene::make({16, 16}, fonts());
+         scene->render(plate(SkColors::kWhite));
+         sigil::material::Texture tiled = scene->texture();
+         tiled.tile(sigil::material::Repeat::Repeat)
+             .sampling(sigil::material::Sampling::Nearest);
+         EXPECT_EQ(tiled.tileX(), sigil::material::Repeat::Repeat);
+         EXPECT_EQ(tiled.sampling(), sigil::material::Sampling::Nearest);
+         // A dial is part of the value, so a texture that differs only by one
+         // is a different texture.
+         EXPECT_FALSE(tiled == scene->texture());
 
-  scene->render(retained);
-  const uint64_t painted = scene->revision();
-  ASSERT_TRUE(scene->isRunning());
-
-  alpha = 0.0f;
-  scene->render(retained, 1.0 / 60.0);
-  EXPECT_EQ(scene->revision(), painted + 1)
-      << "the unchanged description hid its moved binding";
-
-  SkBitmap read;
-  read.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
-  ASSERT_TRUE(scene->image()->readPixels(nullptr, read.pixmap(), 0, 0));
-  EXPECT_EQ(read.getColor(16, 16), SK_ColorTRANSPARENT);
-}
-
-TEST(ComposeTexture, TheMaterialComparesEqualAcrossAStillFrame) {
-  const std::shared_ptr<TextureScene> scene =
-      TextureScene::make({32, 32}, fonts());
-  const Element still = plate(SkColors::kYellow);
-  scene->render(still);
-  const sigil::material::Texture first = scene->texture();
-  scene->render(still, 1.0 / 60.0);
-  const sigil::material::Texture second = scene->texture();
-  EXPECT_TRUE(first == second);
-
-  scene->render(plate(SkColors::kMagenta), 2.0 / 60.0);
-  EXPECT_FALSE(first == scene->texture());
-}
-
-TEST(ComposeTexture, EverySamplingDialRidesTheValue) {
-  const std::shared_ptr<TextureScene> scene =
-      TextureScene::make({16, 16}, fonts());
-  scene->render(plate(SkColors::kWhite));
-  sigil::material::Texture tiled = scene->texture();
-  tiled.tile(sigil::material::Repeat::Repeat)
-      .sampling(sigil::material::Sampling::Nearest);
-  EXPECT_EQ(tiled.tileX(), sigil::material::Repeat::Repeat);
-  EXPECT_EQ(tiled.sampling(), sigil::material::Sampling::Nearest);
-  // A dial is part of the value, so a texture that differs only by one
-  // is a different texture.
-  EXPECT_FALSE(tiled == scene->texture());
-
-  sigil::material::Texture cut = scene->texture();
-  cut.region({0, 0, 8, 8});
-  EXPECT_EQ(cut.size(), glm::ivec2(8, 8));
-  EXPECT_NE(sigil::material::skia::shader(cut), nullptr);
-}
-
-TEST(ComposeTexture, TheScenePaintsWhatTheTreeDescribed) {
-  const std::shared_ptr<TextureScene> scene =
-      TextureScene::make({8, 8}, fonts());
-  scene->render(plate(SkColors::kRed));
-  SkBitmap read;
-  read.allocPixels(SkImageInfo::MakeN32Premul(8, 8));
-  ASSERT_TRUE(scene->image()->readPixels(nullptr, read.pixmap(), 0, 0));
-  EXPECT_EQ(read.getColor(4, 4), SK_ColorRED);
+         sigil::material::Texture cut = scene->texture();
+         cut.region({0, 0, 8, 8});
+         EXPECT_EQ(cut.size(), glm::ivec2(8, 8));
+         EXPECT_NE(sigil::material::skia::shader(cut), nullptr);
+       }},
+  });
 }
 
 TEST(ComposeTexture, TheOneShotVerbHoldsItsOwnScene) {
@@ -295,7 +304,8 @@ TEST(ComposeTexture, TexturesPaintOncePerDistinctValue) {
   Textures maps(fonts());
   // Two trees built apart that describe the same thing are one map: the
   // second ask is handed the first texture and paints nothing.
-  const sigil::material::Texture red = maps.paint(plate(SkColors::kRed), {8, 8});
+  const sigil::material::Texture red =
+      maps.paint(plate(SkColors::kRed), {8, 8});
   const sigil::material::Texture again =
       maps.paint(plate(SkColors::kRed), {8, 8});
   EXPECT_EQ(maps.paints(), 1u);
@@ -323,120 +333,134 @@ TEST(ComposeTexture, TexturesPaintOncePerDistinctValue) {
   EXPECT_EQ(read.getColor(4, 4), SK_ColorBLUE);
 }
 
-TEST(ComposeTexture, TexturesPaintATreeTheyCannotCompareEveryTimeItIsAsked) {
-  Textures maps(fonts());
-  const auto programmed = [] {
-    // A paint program is a callable no comparison sees into.
-    return box().width(8).height(8).children(
-        {custom([](sigil::draw::Pen&, const PaintContext&) {})});
-  };
-  (void)maps.paint(programmed(), {8, 8});
-  (void)maps.paint(programmed(), {8, 8});
-  EXPECT_EQ(maps.paints(), 2u);
-  // The same value handed over again is the one picture it was, program
-  // and all, and is handed back unpainted.
-  const Element held = programmed();
-  const sigil::material::Texture first = maps.paint(held, {8, 8});
-  EXPECT_TRUE(maps.paint(held, {8, 8}) == first);
-  EXPECT_EQ(maps.paints(), 3u);
-}
-
 /** The colour at the middle of a texture the door handed out. */
 SkColor middleOf(const sigil::material::Texture& painted) {
   const sk_sp<SkImage> pixels = sigil::media::toSk(painted.frameAt({}).image);
   if (!pixels) return SK_ColorTRANSPARENT;
   SkBitmap read;
-  read.allocPixels(SkImageInfo::MakeN32Premul(pixels->width(),
-                                              pixels->height()));
+  read.allocPixels(
+      SkImageInfo::MakeN32Premul(pixels->width(), pixels->height()));
   if (!pixels->readPixels(nullptr, read.pixmap(), 0, 0))
     return SK_ColorTRANSPARENT;
   return read.getColor(pixels->width() / 2, pixels->height() / 2);
 }
 
-TEST(ComposeTexture, TexturesTellApartTwoProgramsDrawingThroughOneKey) {
-  Textures maps(fonts());
-  // Two maps built apart that draw through the same custom key: the
-  // reconciler takes the key as the program's name across one place's
-  // describes, but these share no place, so the door paints each.
-  const auto keyed = [](SkColor color) {
-    return box().width(8).height(8).children(
-        {custom("ground",
-                [color](sigil::draw::Pen& pen, const PaintContext&) {
-                  pen.canvas()->drawColor(color);
-                })
-             .width(8)
-             .height(8)});
-  };
-  const sigil::material::Texture red = maps.paint(keyed(SK_ColorRED), {8, 8});
-  const sigil::material::Texture blue =
-      maps.paint(keyed(SK_ColorBLUE), {8, 8});
-  EXPECT_EQ(maps.paints(), 2u);
-  EXPECT_FALSE(blue == red);
-  EXPECT_EQ(middleOf(red), SK_ColorRED);
-  EXPECT_EQ(middleOf(blue), SK_ColorBLUE);
-  // A keyed program shared by two trees built around it is one node, so
-  // the trees are one picture and the second is handed the first.
-  const Element ground =
-      custom("ground", [](sigil::draw::Pen& pen, const PaintContext&) {
-        pen.canvas()->drawColor(SK_ColorGREEN);
-      }).width(8).height(8);
-  const sigil::material::Texture green =
-      maps.paint(box().width(8).height(8).children({ground}), {8, 8});
-  const sigil::material::Texture greenAgain =
-      maps.paint(box().width(8).height(8).children({ground}), {8, 8});
-  EXPECT_EQ(maps.paints(), 3u);
-  EXPECT_TRUE(greenAgain == green);
-  EXPECT_EQ(middleOf(green), SK_ColorGREEN);
-}
+TEST(ComposeTexture,
+     TexturesPaintATreeHoldingAProgramAgainUnlessItIsTheSameValue) {
+  sigil::compose::test::checkRows({
+      {"AnUnkeyedProgram",
+       [&] {
+         Textures maps(fonts());
+         const auto programmed = [] {
+           // A paint program is a callable no comparison sees into.
+           return box().width(8).height(8).children(
+               {custom([](sigil::draw::Pen&, const PaintContext&) {})});
+         };
+         (void)maps.paint(programmed(), {8, 8});
+         (void)maps.paint(programmed(), {8, 8});
+         EXPECT_EQ(maps.paints(), 2u);
+         // The same value handed over again is the one picture it was, program
+         // and all, and is handed back unpainted.
+         const Element held = programmed();
+         const sigil::material::Texture first = maps.paint(held, {8, 8});
+         EXPECT_TRUE(maps.paint(held, {8, 8}) == first);
+         EXPECT_EQ(maps.paints(), 3u);
+       }},
+      {"ACustomNodesKey",
+       [&] {
+         Textures maps(fonts());
+         // Two maps built apart that draw through the same custom key: the
+         // reconciler takes the key as the program's name across one place's
+         // describes, but these share no place, so the door paints each.
+         const auto keyed = [](SkColor color) {
+           return box().width(8).height(8).children(
+               {custom("ground",
+                       [color](sigil::draw::Pen& pen, const PaintContext&) {
+                         pen.canvas()->drawColor(color);
+                       })
+                    .width(8)
+                    .height(8)});
+         };
+         const sigil::material::Texture red =
+             maps.paint(keyed(SK_ColorRED), {8, 8});
+         const sigil::material::Texture blue =
+             maps.paint(keyed(SK_ColorBLUE), {8, 8});
+         EXPECT_EQ(maps.paints(), 2u);
+         EXPECT_FALSE(blue == red);
+         EXPECT_EQ(middleOf(red), SK_ColorRED);
+         EXPECT_EQ(middleOf(blue), SK_ColorBLUE);
+         // A keyed program shared by two trees built around it is one node, so
+         // the trees are one picture and the second is handed the first.
+         const Element ground =
+             custom("ground",
+                    [](sigil::draw::Pen& pen, const PaintContext&) {
+                      pen.canvas()->drawColor(SK_ColorGREEN);
+                    })
+                 .width(8)
+                 .height(8);
+         const sigil::material::Texture green =
+             maps.paint(box().width(8).height(8).children({ground}), {8, 8});
+         const sigil::material::Texture greenAgain =
+             maps.paint(box().width(8).height(8).children({ground}), {8, 8});
+         EXPECT_EQ(maps.paints(), 3u);
+         EXPECT_TRUE(greenAgain == green);
+         EXPECT_EQ(middleOf(green), SK_ColorGREEN);
+       }},
+      {"AnOperatorsOrATextEffectsKey",
+       [&] {
+         // A keyed operator over a program and a keyed text effect over a body
+         // compare equal across the describes of one place on their author's
+         // word; trees built apart share no place, so the door paints each.
+         Textures maps(fonts());
+         const auto drawn = [](SkColor color) {
+           return box().width(8).height(8).operators({drawWith(
+               "ground", [color](sigil::draw::Pen& pen, const Scope&) {
+                 pen.canvas()->drawColor(color);
+               })});
+         };
+         const sigil::material::Texture red =
+             maps.paint(drawn(SK_ColorRED), {8, 8});
+         const sigil::material::Texture blue =
+             maps.paint(drawn(SK_ColorBLUE), {8, 8});
+         EXPECT_EQ(maps.paints(), 2u)
+             << "two drawWith programs under one key were handed one texture";
+         EXPECT_EQ(middleOf(red), SK_ColorRED);
+         EXPECT_EQ(middleOf(blue), SK_ColorBLUE);
 
-TEST(ComposeTexture, TexturesTellApartTwoProgramsBehindOneOperatorsKey) {
-  // A keyed operator over a program and a keyed text effect over a body
-  // compare equal across the describes of one place on their author's
-  // word; trees built apart share no place, so the door paints each.
-  Textures maps(fonts());
-  const auto drawn = [](SkColor color) {
-    return box().width(8).height(8).operators(
-        {drawWith("ground", [color](sigil::draw::Pen& pen, const Scope&) {
-          pen.canvas()->drawColor(color);
-        })});
-  };
-  const sigil::material::Texture red = maps.paint(drawn(SK_ColorRED), {8, 8});
-  const sigil::material::Texture blue = maps.paint(drawn(SK_ColorBLUE), {8, 8});
-  EXPECT_EQ(maps.paints(), 2u)
-      << "two drawWith programs under one key were handed one texture";
-  EXPECT_EQ(middleOf(red), SK_ColorRED);
-  EXPECT_EQ(middleOf(blue), SK_ColorBLUE);
+         const auto stamped = [](sigil::material::Color color) {
+           return box()
+               .width(8)
+               .height(8)
+               .children(
+                   {box().key("cell").width(8).height(8).attribute("cell", 1)})
+               .operators({stamp::ByLane{.lane = "cell",
+                                         .key = "ground",
+                                         .make = [color](const Scope::Node&) {
+                                           return box().width(8).height(8).fill(
+                                               Fill::color(color));
+                                         }}});
+         };
+         (void)maps.paint(stamped({1, 0, 0, 1}), {8, 8});
+         (void)maps.paint(stamped({0, 0, 1, 1}), {8, 8});
+         EXPECT_EQ(maps.paints(), 4u)
+             << "two stamp makers under one key were handed one texture";
 
-  const auto stamped = [](sigil::material::Color color) {
-    return box().width(8).height(8).children(
-        {box().key("cell").width(8).height(8).attribute("cell", 1)}).operators(
-        {stamp::ByLane{.lane = "cell",
-                       .key = "ground",
-                       .make = [color](const Scope::Node&) {
-                         return box().width(8).height(8).fill(
-                             Fill::color(color));
-                       }}});
-  };
-  (void)maps.paint(stamped({1, 0, 0, 1}), {8, 8});
-  (void)maps.paint(stamped({0, 0, 1, 1}), {8, 8});
-  EXPECT_EQ(maps.paints(), 4u)
-      << "two stamp makers under one key were handed one texture";
-
-  const auto moved = [](float dx) {
-    GlyphModifier shift;
-    shift.dx = dx;
-    return box().width(8).height(8).children(
-        {text(u8"H").textFx({.effect = textFx::effect(
-                                 "shift",
-                                 [shift](const GlyphInfo&, float,
-                                         sigil::core::noise::Mix64Stream&) {
-                                   return shift;
-                                 })})});
-  };
-  (void)maps.paint(moved(0), {8, 8});
-  (void)maps.paint(moved(4), {8, 8});
-  EXPECT_EQ(maps.paints(), 6u)
-      << "two text effect bodies under one key were handed one texture";
+         const auto moved = [](float dx) {
+           GlyphModifier shift;
+           shift.dx = dx;
+           return box().width(8).height(8).children({text(u8"H").textFx(
+               {.effect = textFx::effect(
+                    "shift", [shift](const GlyphInfo&, float,
+                                     sigil::core::noise::Mix64Stream&) {
+                      return shift;
+                    })})});
+         };
+         (void)maps.paint(moved(0), {8, 8});
+         (void)maps.paint(moved(4), {8, 8});
+         EXPECT_EQ(maps.paints(), 6u)
+             << "two text effect bodies under one key were handed one texture";
+       }},
+  });
 }
 
 TEST(ComposeTexture, TexturesKeepWhatASweepFoundAskedForAndLetTheRestGo) {
@@ -455,132 +479,148 @@ TEST(ComposeTexture, TexturesKeepWhatASweepFoundAskedForAndLetTheRestGo) {
   EXPECT_EQ(maps.paints(), 3u);
 }
 
+TEST(ComposeTexture, AFloatSceneKeepsValuesAboveOne) {
+  sigil::compose::test::checkRows({
+      {"ThroughItsBackground",
+       [&] {
+         for (const SkColorType type :
+              {kRGBA_F16_SkColorType, kRGBA_F32_SkColorType}) {
+           SCOPED_TRACE(static_cast<int>(type));
+           const auto scene = TextureScene::make(
+               SkImageInfo::Make(8, 8, type, kPremul_SkAlphaType), fonts(),
+               {4, 2, 1, .5f});
+           ASSERT_TRUE(scene);
+           scene->render(box().width(8).height(8));
+           ASSERT_TRUE(scene->image());
+           EXPECT_EQ(scene->image()->colorType(), type);
+           EXPECT_EQ(scene->image()->alphaType(), kPremul_SkAlphaType);
+           const auto pixels = readFloat(scene->image());
+           ASSERT_FALSE(pixels.isNull());
+           expectPremul(pixels, 4, 4, {2, 1, .5f, .5f});
+         }
+       }},
+      {"ThroughHeldLayersAndTextureSampling",
+       [&] {
+         for (const SkColorType type :
+              {kRGBA_F16_SkColorType, kRGBA_F32_SkColorType}) {
+           SCOPED_TRACE(static_cast<int>(type));
+           const auto scene = TextureScene::make(
+               SkImageInfo::Make(32, 24, type, kPremul_SkAlphaType), fonts());
+           ASSERT_TRUE(scene);
+           const Element tree = layeredHdr();
+           scene->render(tree);
+           scene->render(tree, 1.0 / 60.0);
+           ASSERT_FALSE(scene->isRunning());
+           const auto heldImage = scene->image();
+           const auto heldRevision = scene->revision();
+           const auto pixels = readFloat(heldImage);
+           ASSERT_FALSE(pixels.isNull());
+           expectPremul(pixels, 16, 12, {1.8125f, .9375f, .46875f, .5625f});
+           auto sampled = scene->texture();
+           const auto original = sampled;
+           sampled.region({4, 2, 16, 16})
+               .tile(sigil::material::Repeat::Repeat)
+               .sampling(sigil::material::Sampling::Nearest);
+           const auto sampledPixels = sampledRaster(sampled);
+           ASSERT_FALSE(sampledPixels.isNull());
+           expectPremul(sampledPixels, 8, 8,
+                        {1.8125f, .9375f, .46875f, .5625f});
+           EXPECT_NE(original, sampled);
+           EXPECT_EQ(original.region(), std::nullopt);
+           EXPECT_EQ(original.size(), glm::ivec2(32, 24));
+           EXPECT_EQ(sampled.size(), glm::ivec2(16, 16));
+           scene->render(tree, 2.0 / 60.0);
+           EXPECT_EQ(scene->revision(), heldRevision);
+           EXPECT_EQ(scene->image(), heldImage);
+           EXPECT_EQ(scene->texture(), original);
+         }
+       }},
+  });
+}
+
 TEST(ComposeTexture,
-     ExplicitFormatsRejectInvalidRequestsAndASizeAloneClampsToAnN32Pixel) {
-  EXPECT_EQ(TextureScene::make(SkImageInfo{}, fonts()), nullptr);
-  EXPECT_EQ(TextureScene::make(SkImageInfo::MakeN32Premul(0, 8), fonts()),
-            nullptr);
-  EXPECT_EQ(TextureScene::make(SkImageInfo::Make(8, 8, kRGBA_F16_SkColorType,
-                                                 kUnpremul_SkAlphaType),
-                               fonts()),
-            nullptr);
-  EXPECT_EQ(TextureScene::make(SkImageInfo::MakeA8(8, 8), fonts()), nullptr);
-  EXPECT_EQ(
-      TextureScene::make(SkImageInfo::Make(8, 8, kRGBA_F16Norm_SkColorType,
-                                           kPremul_SkAlphaType),
-                         fonts()),
-      nullptr);
-  EXPECT_FALSE(texture(plate(SkColors::kRed), SkImageInfo{}, fonts()).valid());
-  const auto sceneFromSizeAlone =
-      TextureScene::make(SkISize::Make(-4, 0), fonts());
-  ASSERT_TRUE(sceneFromSizeAlone);
-  EXPECT_EQ(sceneFromSizeAlone->size(), SkISize::Make(1, 1));
-  sceneFromSizeAlone->render(plate(SkColors::kRed));
-  ASSERT_TRUE(sceneFromSizeAlone->image());
-  EXPECT_EQ(sceneFromSizeAlone->image()->colorType(), kN32_SkColorType);
-  EXPECT_EQ(sceneFromSizeAlone->image()->colorSpace(), nullptr);
-}
-
-TEST(ComposeTexture, FloatBackgroundsKeepHdrAndPremultipliedAlpha) {
-  for (const SkColorType type :
-       {kRGBA_F16_SkColorType, kRGBA_F32_SkColorType}) {
-    SCOPED_TRACE(static_cast<int>(type));
-    const auto scene =
-        TextureScene::make(SkImageInfo::Make(8, 8, type, kPremul_SkAlphaType),
-                           fonts(), {4, 2, 1, .5f});
-    ASSERT_TRUE(scene);
-    scene->render(box().width(8).height(8));
-    ASSERT_TRUE(scene->image());
-    EXPECT_EQ(scene->image()->colorType(), type);
-    EXPECT_EQ(scene->image()->alphaType(), kPremul_SkAlphaType);
-    const auto pixels = readFloat(scene->image());
-    ASSERT_FALSE(pixels.isNull());
-    expectPremul(pixels, 4, 4, {2, 1, .5f, .5f});
-  }
-}
-
-TEST(ComposeTexture, ByteFormatsPreserveChannelOrderAndProfiles) {
-  for (const SkColorType type :
-       {kRGBA_8888_SkColorType, kBGRA_8888_SkColorType}) {
-    SCOPED_TRACE(static_cast<int>(type));
-    const auto profile = SkColorSpace::MakeSRGB();
-    const auto scene = TextureScene::make(
-        SkImageInfo::Make(8, 8, type, kPremul_SkAlphaType, profile), fonts());
-    ASSERT_TRUE(scene);
-    scene->render(plate({.25f, .5f, .75f, .5f}));
-    ASSERT_TRUE(scene->image());
-    EXPECT_EQ(scene->image()->colorType(), type);
-    EXPECT_TRUE(
-        SkColorSpace::Equals(scene->image()->colorSpace(), profile.get()));
-    const auto pixels = readFloat(scene->image());
-    ASSERT_FALSE(pixels.isNull());
-    expectPremul(pixels, 4, 4, {.125f, .25f, .375f, .5f}, 1.f / 255.f);
-  }
-}
-
-TEST(ComposeTexture, FloatLayersAndTextureSamplingKeepTheirRangeWhileHeld) {
-  for (const SkColorType type :
-       {kRGBA_F16_SkColorType, kRGBA_F32_SkColorType}) {
-    SCOPED_TRACE(static_cast<int>(type));
-    const auto scene = TextureScene::make(
-        SkImageInfo::Make(32, 24, type, kPremul_SkAlphaType), fonts());
-    ASSERT_TRUE(scene);
-    const Element tree = layeredHdr();
-    scene->render(tree);
-    scene->render(tree, 1.0 / 60.0);
-    ASSERT_FALSE(scene->isRunning());
-    const auto heldImage = scene->image();
-    const auto heldRevision = scene->revision();
-    const auto pixels = readFloat(heldImage);
-    ASSERT_FALSE(pixels.isNull());
-    expectPremul(pixels, 16, 12, {1.8125f, .9375f, .46875f, .5625f});
-    auto sampled = scene->texture();
-    const auto original = sampled;
-    sampled.region({4, 2, 16, 16})
-        .tile(sigil::material::Repeat::Repeat)
-        .sampling(sigil::material::Sampling::Nearest);
-    const auto sampledPixels = sampledRaster(sampled);
-    ASSERT_FALSE(sampledPixels.isNull());
-    expectPremul(sampledPixels, 8, 8, {1.8125f, .9375f, .46875f, .5625f});
-    EXPECT_NE(original, sampled);
-    EXPECT_EQ(original.region(), std::nullopt);
-    EXPECT_EQ(original.size(), glm::ivec2(32, 24));
-    EXPECT_EQ(sampled.size(), glm::ivec2(16, 16));
-    scene->render(tree, 2.0 / 60.0);
-    EXPECT_EQ(scene->revision(), heldRevision);
-    EXPECT_EQ(scene->image(), heldImage);
-    EXPECT_EQ(scene->texture(), original);
-  }
-}
-
-TEST(ComposeTexture, ExplicitProfilesMatchAnIndependentCanvasAndOneShotCopies) {
-  for (const auto profile :
-       {SkColorSpace::MakeSRGB(), SkColorSpace::MakeSRGBLinear()}) {
-    const SkImageInfo info = SkImageInfo::Make(16, 16, kRGBA_F32_SkColorType,
-                                               kPremul_SkAlphaType, profile);
-    const sigil::material::Color background{4, 2, 1, .5f};
-    const auto scene = TextureScene::make(info, fonts(), background);
-    ASSERT_TRUE(scene);
-    scene->render(box().width(16).height(16));
-    ASSERT_TRUE(scene->image());
-    EXPECT_TRUE(
-        SkColorSpace::Equals(scene->image()->colorSpace(), profile.get()));
-    const auto expected = SkSurfaces::Raster(info);
-    ASSERT_TRUE(expected);
-    expected->getCanvas()->clear(SkColor4f{4, 2, 1, .5f});
-    const auto reference = readFloat(expected->makeImageSnapshot());
-    const auto actual = readFloat(scene->image());
-    ASSERT_FALSE(reference.isNull());
-    ASSERT_FALSE(actual.isNull());
-    expectPremul(actual, 8, 8, premul(reference, 8, 8));
-    const auto held =
-        texture(box().width(16).height(16), info, fonts(), background);
-    const auto copy = held;
-    EXPECT_EQ(copy, held);
-    const auto sampled = sampledRaster(copy, profile);
-    ASSERT_FALSE(sampled.isNull());
-    expectPremul(sampled, 8, 8, premul(reference, 8, 8));
-  }
+     AnExplicitFormatAndProfileAreKeptAndAnUnsupportedOneRefused) {
+  sigil::compose::test::checkRows({
+      {"AnUnsupportedRequestIsRefusedAndASizeAloneClampsToOneN32Pixel",
+       [&] {
+         EXPECT_EQ(TextureScene::make(SkImageInfo{}, fonts()), nullptr);
+         EXPECT_EQ(
+             TextureScene::make(SkImageInfo::MakeN32Premul(0, 8), fonts()),
+             nullptr);
+         EXPECT_EQ(
+             TextureScene::make(SkImageInfo::Make(8, 8, kRGBA_F16_SkColorType,
+                                                  kUnpremul_SkAlphaType),
+                                fonts()),
+             nullptr);
+         EXPECT_EQ(TextureScene::make(SkImageInfo::MakeA8(8, 8), fonts()),
+                   nullptr);
+         EXPECT_EQ(TextureScene::make(
+                       SkImageInfo::Make(8, 8, kRGBA_F16Norm_SkColorType,
+                                         kPremul_SkAlphaType),
+                       fonts()),
+                   nullptr);
+         EXPECT_FALSE(
+             texture(plate(SkColors::kRed), SkImageInfo{}, fonts()).valid());
+         const auto sceneFromSizeAlone =
+             TextureScene::make(SkISize::Make(-4, 0), fonts());
+         ASSERT_TRUE(sceneFromSizeAlone);
+         EXPECT_EQ(sceneFromSizeAlone->size(), SkISize::Make(1, 1));
+         sceneFromSizeAlone->render(plate(SkColors::kRed));
+         ASSERT_TRUE(sceneFromSizeAlone->image());
+         EXPECT_EQ(sceneFromSizeAlone->image()->colorType(), kN32_SkColorType);
+         EXPECT_EQ(sceneFromSizeAlone->image()->colorSpace(), nullptr);
+       }},
+      {"ByteFormatsKeepChannelOrderAndProfile",
+       [&] {
+         for (const SkColorType type :
+              {kRGBA_8888_SkColorType, kBGRA_8888_SkColorType}) {
+           SCOPED_TRACE(static_cast<int>(type));
+           const auto profile = SkColorSpace::MakeSRGB();
+           const auto scene = TextureScene::make(
+               SkImageInfo::Make(8, 8, type, kPremul_SkAlphaType, profile),
+               fonts());
+           ASSERT_TRUE(scene);
+           scene->render(plate({.25f, .5f, .75f, .5f}));
+           ASSERT_TRUE(scene->image());
+           EXPECT_EQ(scene->image()->colorType(), type);
+           EXPECT_TRUE(SkColorSpace::Equals(scene->image()->colorSpace(),
+                                            profile.get()));
+           const auto pixels = readFloat(scene->image());
+           ASSERT_FALSE(pixels.isNull());
+           expectPremul(pixels, 4, 4, {.125f, .25f, .375f, .5f}, 1.f / 255.f);
+         }
+       }},
+      {"AnExplicitProfileMatchesAnIndependentCanvas",
+       [&] {
+         for (const auto profile :
+              {SkColorSpace::MakeSRGB(), SkColorSpace::MakeSRGBLinear()}) {
+           const SkImageInfo info = SkImageInfo::Make(
+               16, 16, kRGBA_F32_SkColorType, kPremul_SkAlphaType, profile);
+           const sigil::material::Color background{4, 2, 1, .5f};
+           const auto scene = TextureScene::make(info, fonts(), background);
+           ASSERT_TRUE(scene);
+           scene->render(box().width(16).height(16));
+           ASSERT_TRUE(scene->image());
+           EXPECT_TRUE(SkColorSpace::Equals(scene->image()->colorSpace(),
+                                            profile.get()));
+           const auto expected = SkSurfaces::Raster(info);
+           ASSERT_TRUE(expected);
+           expected->getCanvas()->clear(SkColor4f{4, 2, 1, .5f});
+           const auto reference = readFloat(expected->makeImageSnapshot());
+           const auto actual = readFloat(scene->image());
+           ASSERT_FALSE(reference.isNull());
+           ASSERT_FALSE(actual.isNull());
+           expectPremul(actual, 8, 8, premul(reference, 8, 8));
+           const auto held =
+               texture(box().width(16).height(16), info, fonts(), background);
+           const auto copy = held;
+           EXPECT_EQ(copy, held);
+           const auto sampled = sampledRaster(copy, profile);
+           ASSERT_FALSE(sampled.isNull());
+           expectPremul(sampled, 8, 8, premul(reference, 8, 8));
+         }
+       }},
+  });
 }
 
 TEST(ComposeTexture, ASourceReadsLatestPixelsAndKeepsItsCapturedRevision) {
@@ -695,7 +735,7 @@ void expectDevicePrecision(sigil::core::hardware::GpuDevice& device,
 }
 
 TEST(ComposeTexture,
-     HalfFloatMetalKeepsHdrProfilesAndRefusesF32WithoutStateLoss) {
+     HalfFloatOnAnOwnedDeviceKeepsHdrProfilesAndRefusesF32WithoutStateLoss) {
   std::string error;
   auto made = sigil::core::hardware::GpuDevice::createOwned();
   if (!made) GTEST_SKIP() << made.error().message;
@@ -791,7 +831,8 @@ TEST(ComposeTexture, AStackOfMaskedLayersPaintsOnTheSharedDeviceAsOnTheCpu) {
                   .mask = {depth, ColorChannel::Red, 0, .5f, true}})
           .layer(material::Color{.3f, .3f, .9f, 1},
                  {.opacity = .6f, .mask = {depth, ColorChannel::Blue, 0, 1}});
-  const Element tree = box().width(percent(100)).height(percent(100)).fill(stack);
+  const Element tree =
+      box().width(percent(100)).height(percent(100)).fill(stack);
 
   const auto centreOf = [](const sk_sp<SkImage>& image) {
     SkBitmap pixels;

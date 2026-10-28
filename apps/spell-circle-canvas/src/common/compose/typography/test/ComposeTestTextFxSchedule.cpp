@@ -7,6 +7,7 @@
 #include <sigilmotion/ease/Ease.h>
 
 #include "DressedTypeProbes.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -50,431 +51,482 @@ struct BeatRing {
 
 }  // namespace
 
-TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
-  // THE FLAGSHIP DEFECT. Two tracks split one paragraph — a track on the
-  // words' initials and a track on their bodies — and the initials track
-  // additionally spares the first word. Under the default numbering each
-  // track counts only the units ITS OWN selector resolved, so the two lists
-  // are three long and four long and every word after the first has its
-  // initial on one beat and its body on another. Under beats::Text both
-  // count the paragraph's words, so word three is beat three in both.
-  const auto beatsUnder = [](Beats numbering) {
-    Host host(400, 120);
-    host.composer.render(box().padding(6).children(
-        {text(u8"AA BB CC DD", whiteStyle(16))
-             .key("p")
-             .width(360)
-             .textFx(
-                 {.where =
-                      sigil::weave::selectors::each(sigil::weave::Unit::Word)
-                          .take(1) &
-                      sigil::weave::selectors::words(1, 4),
-                  .effect = textFx::enter(textFx::rise(6)),
-                  .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
+TEST(ComposeTextFx, BeatsAreNumberedOverTheListTheTrackChose) {
+  sigil::compose::test::checkRows({
+      {"PartitioningTracksShareOneClockOnlyUnderBeatsText",
+       [&] {
+         // THE FLAGSHIP DEFECT. Two tracks split one paragraph — a track on the
+         // words' initials and a track on their bodies — and the initials track
+         // additionally spares the first word. Under the default numbering each
+         // track counts only the units ITS OWN selector resolved, so the two
+         // lists are three long and four long and every word after the first
+         // has its initial on one beat and its body on another. Under
+         // beats::Text both count the paragraph's words, so word three is beat
+         // three in both.
+         const auto beatsUnder = [](Beats numbering) {
+           Host host(400, 120);
+           host.composer.render(box().padding(6).children(
+               {text(u8"AA BB CC DD", whiteStyle(16))
+                    .key("p")
+                    .width(360)
+                    .textFx({.where = sigil::weave::selectors::each(
+                                          sigil::weave::Unit::Word)
+                                          .take(1) &
+                                      sigil::weave::selectors::words(1, 4),
+                             .effect = textFx::enter(textFx::rise(6)),
+                             .tween = {.duration = 100ms,
+                                       .delay = motion::stagger(100ms)},
+                             .unit = sigil::weave::Unit::Word,
+                             .beatsOver = numbering})
+                    .textFx({
+                        .where = sigil::weave::selectors::each(
+                                     sigil::weave::Unit::Word)
+                                     .drop(1),
+                        .effect = textFx::enter(textFx::rise(6)),
+                        .tween = {.duration = 100ms,
+                                  .delay = motion::stagger(100ms)},
+                    })}));
+           host.frame();
+           return std::pair(host.composer.beatsOf("p", 0),
+                            host.composer.beatsOf("p", 1));
+         };
+
+         const auto [initialsText, bodiesText] = beatsUnder(beats::Text);
+         ASSERT_EQ(initialsText.size(), 3u)
+             << "three words carry a spared initial";
+         ASSERT_EQ(bodiesText.size(), 4u) << "four words carry a body";
+         // The paragraph numbers the beats, so the initial of word k and the
+         // body of word k open together — for every word the two tracks share.
+         for (uint32_t word = 1; word <= 3; ++word)
+           EXPECT_FLOAT_EQ(startOfUnit(initialsText, word),
+                           startOfUnit(bodiesText, word))
+               << "word " << word << " arrives in two pieces under beats::Text";
+         EXPECT_FLOAT_EQ(startOfUnit(bodiesText, 3), 300.0f);
+
+         // …and the default really is the other thing, or the setting is inert.
+         const auto [initialsSel, bodiesSel] = beatsUnder(beats::Selection);
+         ASSERT_EQ(initialsSel.size(), 3u);
+         ASSERT_EQ(bodiesSel.size(), 4u);
+         // The initials track renumbered its three words from zero: its LAST
+         // beat is word three's and opens at 200 ms, while word three's body
+         // opens at 300 ms. That hundred milliseconds is the defect, stated.
+         EXPECT_FLOAT_EQ(inMilliseconds(initialsSel.back().start), 200.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(bodiesSel.back().start), 300.0f);
+         EXPECT_NE(initialsSel.back().start, bodiesSel.back().start)
+             << "the two numberings produced the same schedule, so beats::Text "
+                "is "
+                "not doing anything";
+       }},
+      {"ASelectionUnitBeatsOncePerExtentUnderEitherNumbering",
+       [&] {
+         // A cascade at weave::Unit::Selection beats over the extents the
+         // SELECTOR named rather than over a size the text is divided into: one
+         // beat per occurrence, and a compound the breaker would divide is
+         // still one of them. The two numberings differ here as they do
+         // everywhere else — the default counts the occurrences alone, and the
+         // paragraph's own numbering runs across the whole walk, so the
+         // stretches BETWEEN the occurrences take beats of their own and each
+         // match falls where the text puts it.
+         const auto beatsUnder = [](Beats numbering) {
+           Host host(500, 120);
+           host.composer.render(box().padding(6).children(
+               {text(u8"AA BB AA BB AA", whiteStyle(16))
+                    .key("p")
+                    .width(460)
+                    .textFx({.where = sigil::weave::selectors::text(u8"AA"),
+                             .effect = textFx::enter(textFx::rise(6)),
+                             .tween = {.duration = 100ms,
+                                       .delay = motion::stagger(100ms)},
+                             .unit = sigil::weave::Unit::Selection,
+                             .beatsOver = numbering})}));
+           host.frame();
+           return host.composer.beatsOf("p", 0);
+         };
+
+         const std::vector<Beat> own = beatsUnder(beats::Selection);
+         ASSERT_EQ(own.size(), 3u) << "three occurrences, three beats";
+         EXPECT_FLOAT_EQ(startOfUnit(own, 0), 0.0f);
+         EXPECT_FLOAT_EQ(startOfUnit(own, 1), 100.0f);
+         EXPECT_FLOAT_EQ(startOfUnit(own, 2), 200.0f);
+
+         // Under the paragraph's numbering the gaps are units too, so the
+         // matches are units 0, 2 and 4 and open twice as far apart.
+         const std::vector<Beat> text = beatsUnder(beats::Text);
+         ASSERT_EQ(text.size(), 3u)
+             << "three occurrences still report three beats";
+         EXPECT_FLOAT_EQ(startOfUnit(text, 0), 0.0f);
+         EXPECT_FLOAT_EQ(startOfUnit(text, 2), 200.0f);
+         EXPECT_FLOAT_EQ(startOfUnit(text, 4), 400.0f);
+       }},
+  });
+}
+
+TEST(ComposeTextFx, ACueTableStartsEachUnitAtItsOwnTime) {
+  sigil::compose::test::checkRows({
+      {"UnitKStartsAtItsOwnCue",
+       [&] {
+         // Real caption timing is a table cut against a recording, not a
+         // spacing. weave::Unit k starts at table[k], exactly, and no step
+         // between units survives beside it.
+         const std::vector<motion::Duration> table{0ms, 340ms, 720ms, 1180ms};
+         Host host(400, 120);
+         host.composer.render(box().padding(6).children(
+             {text(u8"AA BB CC DD", whiteStyle(16))
+                  .key("p")
+                  .width(360)
+                  .textFx({.effect = textFx::enter(textFx::rise(6)),
+                           .tween = {.duration = 180ms,
+                                     .delay = motion::cues(table)},
+                           .unit = sigil::weave::Unit::Word})}));
+         host.frame();
+         const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+         ASSERT_EQ(beats.size(), table.size());
+         for (size_t k = 0; k < table.size(); ++k) {
+           EXPECT_EQ(beats[k].unitIndex, (uint32_t)k);
+           EXPECT_FLOAT_EQ(inMilliseconds(beats[k].start),
+                           inMilliseconds(table[k]))
+               << "unit " << k << " did not start at its own cue";
+         }
+         // cues() answers a staggered delay, so it compares like one — and a
+         // different table is a different schedule, or a re-described track
+         // would prune onto the old schedule and keep singing the previous
+         // line's timing.
+         EXPECT_TRUE(motion::cues(table) == motion::cues(table));
+         EXPECT_FALSE(motion::cues(table) == motion::cues({0ms, 340ms, 720ms}));
+         EXPECT_FALSE((motion::Timing{.delay = motion::cues(table)}) ==
+                      motion::Timing{});
+       }},
+      {"AShortTableWarnsOnceAndReachesTheTailPile",
+       [&] {
+         // A table that does not have one time per unit is a table cut against
+         // the wrong text. The tail holds on the last cue — visible as a pile,
+         // rather than times its author never wrote — and it says so once.
+         ::testing::internal::CaptureStderr();
+         Host host(400, 120);
+         host.composer.render(box().padding(6).children(
+             {text(u8"AA BB CC DD", whiteStyle(16))
+                  .key("p")
+                  .width(360)
+                  .textFx({.effect = textFx::enter(textFx::rise(6)),
+                           .tween = {.duration = 100ms,
+                                     .delay = motion::cues({0ms, 200ms})},
+                           .unit = sigil::weave::Unit::Word})}));
+         host.frame();
+         const std::string log = ::testing::internal::GetCapturedStderr();
+         EXPECT_NE(log.find("cue table"), std::string::npos) << log;
+         EXPECT_NE(log.find("last time"), std::string::npos) << log;
+
+         const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+         ASSERT_EQ(beats.size(), 4u);
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[0].start), 0.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[1].start), 200.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[2].start), 200.0f)
+             << "the tail must hold, not run on";
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[3].start), 200.0f);
+
+         // Once per shape: the same mismatch again is silent.
+         ::testing::internal::CaptureStderr();
+         host.frame();
+         EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+             << "the cue-table warning is not once per shape";
+       }},
+  });
+}
+
+TEST(ComposeTextFx, BeatsOfReportsTheScheduleTheGlyphsRun) {
+  sigil::compose::test::checkRows({
+      {"RectsFollowThePlacementAndProgressIsWhatTheGlyphsRead",
+       [&] {
+         // The read-back has to agree with the placement, not with a second
+         // measurement: cross-check every beat's rect against the glyphs the
+         // layout placed, over a paragraph that WRAPS and carries two sizes,
+         // where a re-measured line would land in the wrong place twice over.
+         Host host(240, 240);
+         motion::Animatable<float> progress = motion::animatable(0.5f);
+         sigil::weave::RichText copy = sigil::weave::rich(whiteStyle(15));
+         copy.add(u8"alpha bravo ")
+             .add(u8"charlie", whiteStyle(24))
+             .add(u8" delta");
+         host.composer.render(
+             box().padding(10).children({text(copy).key("p").width(120).textFx(
+                 {.effect = textFx::enter(textFx::rise(8)),
+                  .tween = {.duration = 200ms, .delay = motion::stagger(100ms)},
                   .unit = sigil::weave::Unit::Word,
-                  .beatsOver = numbering})
-             .textFx({
-                 .where =
-                     sigil::weave::selectors::each(sigil::weave::Unit::Word)
-                         .drop(1),
-                 .effect = textFx::enter(textFx::rise(6)),
-                 .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
-             })}));
-    host.frame();
-    return std::pair(host.composer.beatsOf("p", 0),
-                     host.composer.beatsOf("p", 1));
-  };
+                  .progress = progress})}));
+         host.frame();
 
-  const auto [initialsText, bodiesText] = beatsUnder(beats::Text);
-  ASSERT_EQ(initialsText.size(), 3u) << "three words carry a spared initial";
-  ASSERT_EQ(bodiesText.size(), 4u) << "four words carry a body";
-  // The paragraph numbers the beats, so the initial of word k and the body
-  // of word k open together — for every word the two tracks share.
-  for (uint32_t word = 1; word <= 3; ++word)
-    EXPECT_FLOAT_EQ(startOfUnit(initialsText, word),
-                    startOfUnit(bodiesText, word))
-        << "word " << word << " arrives in two pieces under beats::Text";
-  EXPECT_FLOAT_EQ(startOfUnit(bodiesText, 3), 300.0f);
+         const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+         ASSERT_EQ(beats.size(), 4u) << "one beat per word of the paragraph";
+         const sigil::weave::ParagraphLayout* layout =
+             host.composer.paragraphLayout("p");
+         ASSERT_NE(layout, nullptr);
+         const std::optional<geometry::path::Rect> box_ =
+             host.composer.bounds("p");
+         ASSERT_TRUE(box_.has_value());
 
-  // …and the default really is the other thing, or the setting is inert.
-  const auto [initialsSel, bodiesSel] = beatsUnder(beats::Selection);
-  ASSERT_EQ(initialsSel.size(), 3u);
-  ASSERT_EQ(bodiesSel.size(), 4u);
-  // The initials track renumbered its three words from zero: its LAST beat
-  // is word three's and opens at 200 ms, while word three's body opens at
-  // 300 ms. That hundred milliseconds is the defect, stated.
-  EXPECT_FLOAT_EQ(inMilliseconds(initialsSel.back().start), 200.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(bodiesSel.back().start), 300.0f);
-  EXPECT_NE(initialsSel.back().start, bodiesSel.back().start)
-      << "the two numberings produced the same schedule, so beats::Text is "
-         "not doing anything";
+         const std::vector<SkRect> placed =
+             wordExtents(*layout, beats.size(), {box_->left(), box_->top()});
+         bool wrapped = false;
+         for (size_t i = 1; i < beats.size(); ++i)
+           if (beats[i].rect.centre().y > beats[i - 1].rect.centre().y + 4)
+             wrapped = true;
+         EXPECT_TRUE(wrapped)
+             << "the paragraph never wrapped: nothing is proven";
+         for (size_t i = 0; i < beats.size(); ++i) {
+           ASSERT_FALSE(placed[i].isEmpty())
+               << "word " << i << " was never placed";
+           EXPECT_NEAR(beats[i].rect.left(), placed[i].left(), 1.0f)
+               << "word " << i;
+           EXPECT_GE(beats[i].rect.right(), placed[i].right() - 2.0f)
+               << "word " << i << "'s beat stops short of its own last letter";
+           EXPECT_LE(beats[i].rect.top(), placed[i].centerY()) << "word " << i;
+           EXPECT_GE(beats[i].rect.bottom(), placed[i].centerY())
+               << "word " << i;
+         }
+         EXPECT_GT(beats[2].rect.height(), beats[0].rect.height())
+             << "the 24 px run's beat is no taller than the 15 px runs', so "
+                "the "
+                "rect is not reading the placement";
+
+         // …and the LOCAL PROGRESS is the number the glyphs are being handed.
+         // The schedule spans 200 + 100·3 = 500 ms of virtual time, so at
+         // master 0.5 the front stands at 250 ms: word 0 is done, word 1 is
+         // three quarters through its own 200 ms beat, word 2 has just started
+         // and word 3 has not opened at all.
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[0].start), 0.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[3].start), 300.0f);
+         EXPECT_FLOAT_EQ(beats[0].localProgress, 1.0f);
+         EXPECT_FLOAT_EQ(beats[1].localProgress, 0.75f);
+         EXPECT_FLOAT_EQ(beats[2].localProgress, 0.25f);
+         EXPECT_FLOAT_EQ(beats[3].localProgress, 0.0f);
+         EXPECT_FALSE(beats[0].running) << "a finished beat is not running";
+         EXPECT_TRUE(beats[1].running);
+         EXPECT_TRUE(beats[2].running);
+         EXPECT_FALSE(beats[3].running)
+             << "a beat that has not opened is not running";
+       }},
+      {"RectsFollowAPathBaseline",
+       [&] {
+         // A path run's letters are not on the node's straight baseline at all,
+         // and a mark placed from anything but the placement would sit in the
+         // node's box while the type rides a circle beside it.
+         Host host(300, 200);
+         host.composer.render(box().children(
+             {text(u8"CIRCVMFERENTIA", whiteStyle(18))
+                  .key("ring")
+                  .width(100)
+                  .height(100)
+                  .textOnPath({.path = BeatRing{}})
+                  .textFx({.effect = textFx::enter(textFx::rise(4)),
+                           .unit = sigil::weave::Unit::Cluster})}));
+         host.frame();
+         const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
+         ASSERT_GT(beats.size(), 8u);
+         // The ring is centred at (200, 100) with radius 60, and the node's box
+         // is the 100x100 at the origin: every beat must be OUT there, on the
+         // curve.
+         SkRect union_ = SkRect::MakeEmpty();
+         for (const Beat& beat : beats) {
+           const float radius = std::hypot(beat.rect.centre().x - 200.0f,
+                                           beat.rect.centre().y - 100.0f);
+           EXPECT_NEAR(radius, 60.0f, 14.0f)
+               << "a beat left the baseline it was supposed to be reading";
+           union_.join(geometry::path::toSk(beat.rect));
+         }
+         EXPECT_GT(union_.right(), 200.0f)
+             << "every beat stayed inside the node's box, so the rects are the "
+                "straight baseline's rather than the curve's";
+         // …and they go ROUND the ring rather than piling at its entry point:
+         // the run sweeps a real arc, which only a rect read off the curve can
+         // show.
+         const auto angleOf = [](const Beat& beat) {
+           return std::atan2(beat.rect.centre().y - 100.0f,
+                             beat.rect.centre().x - 200.0f);
+         };
+         float swept = 0;
+         for (size_t i = 1; i < beats.size(); ++i) {
+           float step = angleOf(beats[i]) - angleOf(beats[i - 1]);
+           while (step > 3.14159265f) step -= 6.2831853f;
+           while (step < -3.14159265f) step += 6.2831853f;
+           swept += std::abs(step);
+         }
+         EXPECT_GT(swept, 1.0f) << "the beats never went round the ring";
+       }},
+      {"ANestedScheduleReportsCompoundedStarts",
+       [&] {
+         // A nested beat lasts exactly as long as its inner ladder needs, so no
+         // author can restate the start
+         // times. Word w's letter i opens at w·delay + i·within, and the
+         // read-back is the only place that is true without being retyped.
+         Host host(400, 120);
+         host.composer.render(box().padding(6).children(
+             {text(u8"AB CD", whiteStyle(16))
+                  .key("p")
+                  .width(360)
+                  .textFx({.effect = textFx::enter(textFx::rise(6)),
+                           .tween = {.duration = 100ms,
+                                     .delay = motion::stagger(300ms)},
+                           .within = motion::stagger(40ms),
+                           .unit = sigil::weave::Unit::Word,
+                           .innerUnit = sigil::weave::Unit::Cluster})}));
+         host.frame();
+         const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+         ASSERT_EQ(beats.size(), 4u)
+             << "one beat per letter, two letters per word";
+         // Two beats per outer unit, each carrying its own compounded start.
+         EXPECT_EQ(beats[0].unitIndex, 0u);
+         EXPECT_EQ(beats[1].unitIndex, 0u);
+         EXPECT_EQ(beats[2].unitIndex, 1u);
+         EXPECT_EQ(beats[3].unitIndex, 1u);
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[0].start), 0.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[1].start), 40.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[2].start), 300.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(beats[3].start), 340.0f);
+       }},
+      {"AnUnknownKeyOrTrackResolvesEmpty",
+       [&] {
+         Host host(200, 120);
+         host.composer.render(box().padding(6).children(
+             {text(u8"AA BB", whiteStyle(16))
+                  .key("p")
+                  .textFx({.effect = textFx::enter(textFx::rise(6)),
+                           .unit = sigil::weave::Unit::Word})}));
+         host.frame();
+         EXPECT_FALSE(host.composer.beatsOf("p", 0).empty());
+         EXPECT_TRUE(host.composer.beatsOf("typo", 0).empty()) << "unknown key";
+         EXPECT_TRUE(host.composer.beatsOf("p", 7).empty()) << "no such track";
+       }},
+  });
 }
 
-TEST(ComposeTextFx, ATrackOverTheSelectionBeatsOnceForEachExtentItNamed) {
-  // A cascade at weave::Unit::Selection beats over the extents the
-  // SELECTOR named rather than over a size the text is divided into: one
-  // beat per occurrence, and a compound the breaker would divide is still
-  // one of them. The two numberings differ here as they do everywhere
-  // else — the default counts the occurrences alone, and the paragraph's
-  // own numbering runs across the whole walk, so the stretches BETWEEN
-  // the occurrences take beats of their own and each match falls where
-  // the text puts it.
-  const auto beatsUnder = [](Beats numbering) {
-    Host host(500, 120);
-    host.composer.render(box().padding(6).children(
-        {text(u8"AA BB AA BB AA", whiteStyle(16))
-             .key("p")
-             .width(460)
-             .textFx(
-                 {.where = sigil::weave::selectors::text(u8"AA"),
-                  .effect = textFx::enter(textFx::rise(6)),
-                  .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
-                  .unit = sigil::weave::Unit::Selection,
-                  .beatsOver = numbering})}));
-    host.frame();
-    return host.composer.beatsOf("p", 0);
-  };
+TEST(ComposeTextFx, ScheduleSpanIsTheTimeTheMasterProgressMapsOnto) {
+  sigil::compose::test::checkRows({
+      {"ASteppedOrSpreadStaggerSpansItsLastBeat",
+       [&] {
+         // The one number beatsOf does not carry: a beat says when it OPENS,
+         // and nothing else says when the whole schedule is OVER. The span is
+         // the last beat's start plus one beat's own duration — checked against
+         // the beats themselves, so the two read-backs cannot drift apart — and
+         // the declare-time form answers the same number from the counts alone.
+         const motion::Timing timing{.delay = motion::stagger(100ms),
+                                     .duration = 200ms};
+         Host host(400, 120);
+         host.composer.render(box().padding(6).children(
+             {text(u8"AA BB CC DD", whiteStyle(16))
+                  .key("p")
+                  .width(360)
+                  .textFx({.effect = textFx::enter(textFx::rise(6)),
+                           .tween = {.duration = timing.duration,
+                                     .delay = timing.delay},
+                           .unit = sigil::weave::Unit::Word})}));
+         host.frame();
+         const float span = inMilliseconds(host.composer.scheduleSpan("p", 0));
+         EXPECT_FLOAT_EQ(span, 500.0f) << "duration + step·(N−1) over 4 words";
+         const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+         ASSERT_FALSE(beats.empty());
+         float latest = 0;
+         for (const Beat& beat : beats)
+           latest = std::max(latest, inMilliseconds(beat.start));
+         EXPECT_FLOAT_EQ(span, latest + 200.0f)
+             << "the span disagrees with the beats about when the last one "
+                "closes";
+         EXPECT_FLOAT_EQ(inMilliseconds(timing.span(4)), span)
+             << "the declare-time form and the mounted one answer differently "
+                "for "
+                "the same cascade and count";
 
-  const std::vector<Beat> own = beatsUnder(beats::Selection);
-  ASSERT_EQ(own.size(), 3u) << "three occurrences, three beats";
-  EXPECT_FLOAT_EQ(startOfUnit(own, 0), 0.0f);
-  EXPECT_FLOAT_EQ(startOfUnit(own, 1), 100.0f);
-  EXPECT_FLOAT_EQ(startOfUnit(own, 2), 200.0f);
+         // A range is count-independent past one unit — the first-to-last range
+         // IS the spread — and one unit (or none) is a bare beat.
+         const motion::Timing range{.delay = motion::stagger({0ms, 700ms}),
+                                    .duration = 420ms};
+         EXPECT_FLOAT_EQ(inMilliseconds(range.span(2)), 1120.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(range.span(9)), 1120.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(range.span(1)), 420.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(range.span(0)), 420.0f);
+       }},
+      {"ANestedScheduleCompoundsAndACueTableSpansItsLatestTime",
+       [&] {
+         // Nested: a beat lasts exactly as long as its inner ladder needs, so
+         // the span compounds — the latest outer start, plus the latest inner
+         // start, plus one duration, which under `within` is the inner unit's.
+         const motion::Timing nested{.delay = motion::stagger(300ms),
+                                     .duration = 100ms,
+                                     .within = motion::stagger(40ms)};
+         {
+           Host host(400, 120);
+           host.composer.render(box().padding(6).children(
+               {text(u8"AB CD", whiteStyle(16))
+                    .key("p")
+                    .width(360)
+                    .textFx({.effect = textFx::enter(textFx::rise(6)),
+                             .tween = {.duration = nested.duration,
+                                       .delay = nested.delay},
+                             .within = nested.within,
+                             .unit = sigil::weave::Unit::Word,
+                             .innerUnit = sigil::weave::Unit::Cluster})}));
+           host.frame();
+           const float span =
+               inMilliseconds(host.composer.scheduleSpan("p", 0));
+           EXPECT_FLOAT_EQ(span, 440.0f) << "300·1 + 40·1 + 100";
+           const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+           ASSERT_EQ(beats.size(), 4u);
+           EXPECT_FLOAT_EQ(span, inMilliseconds(beats.back().start) + 100.0f);
+           EXPECT_FLOAT_EQ(inMilliseconds(nested.span(2, 2)), span)
+               << "the declare-time form must take the inner count per beat";
+         }
 
-  // Under the paragraph's numbering the gaps are units too, so the
-  // matches are units 0, 2 and 4 and open twice as far apart.
-  const std::vector<Beat> text = beatsUnder(beats::Text);
-  ASSERT_EQ(text.size(), 3u) << "three occurrences still report three beats";
-  EXPECT_FLOAT_EQ(startOfUnit(text, 0), 0.0f);
-  EXPECT_FLOAT_EQ(startOfUnit(text, 2), 200.0f);
-  EXPECT_FLOAT_EQ(startOfUnit(text, 4), 400.0f);
-}
-
-TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
-  // Real caption timing is a table cut against a recording, not a spacing.
-  // weave::Unit k starts at table[k], exactly, and no step between units
-  // survives beside it.
-  const std::vector<motion::Duration> table{0ms, 340ms, 720ms, 1180ms};
-  Host host(400, 120);
-  host.composer.render(box().padding(6).children(
-      {text(u8"AA BB CC DD", whiteStyle(16))
-           .key("p")
-           .width(360)
-           .textFx({.effect = textFx::enter(textFx::rise(6)),
-                    .tween = {.duration = 180ms, .delay = motion::cues(table)},
-                    .unit = sigil::weave::Unit::Word})}));
-  host.frame();
-  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
-  ASSERT_EQ(beats.size(), table.size());
-  for (size_t k = 0; k < table.size(); ++k) {
-    EXPECT_EQ(beats[k].unitIndex, (uint32_t)k);
-    EXPECT_FLOAT_EQ(inMilliseconds(beats[k].start), inMilliseconds(table[k]))
-        << "unit " << k << " did not start at its own cue";
-  }
-  // cues() answers a staggered delay, so it compares like one — and a
-  // different table is a different schedule, or a re-described track would
-  // prune onto the old schedule and keep singing the previous line's timing.
-  EXPECT_TRUE(motion::cues(table) == motion::cues(table));
-  EXPECT_FALSE(motion::cues(table) == motion::cues({0ms, 340ms, 720ms}));
-  EXPECT_FALSE((motion::Timing{.delay = motion::cues(table)}) ==
-               motion::Timing{});
-}
-
-TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
-  // A table that does not have one time per unit is a table cut against the
-  // wrong text. The tail holds on the last cue — visible as a pile, rather
-  // than times its author never wrote — and it says so once.
-  ::testing::internal::CaptureStderr();
-  Host host(400, 120);
-  host.composer.render(box().padding(6).children(
-      {text(u8"AA BB CC DD", whiteStyle(16))
-           .key("p")
-           .width(360)
-           .textFx({.effect = textFx::enter(textFx::rise(6)),
-                    .tween = {.duration = 100ms,
-                              .delay = motion::cues({0ms, 200ms})},
-                    .unit = sigil::weave::Unit::Word})}));
-  host.frame();
-  const std::string log = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(log.find("cue table"), std::string::npos) << log;
-  EXPECT_NE(log.find("last time"), std::string::npos) << log;
-
-  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
-  ASSERT_EQ(beats.size(), 4u);
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[0].start), 0.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[1].start), 200.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[2].start), 200.0f)
-      << "the tail must hold, not run on";
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[3].start), 200.0f);
-
-  // Once per shape: the same mismatch again is silent.
-  ::testing::internal::CaptureStderr();
-  host.frame();
-  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
-      << "the cue-table warning is not once per shape";
-}
-
-TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
-  // The read-back has to agree with the placement, not with a second
-  // measurement: cross-check every beat's rect against the glyphs the
-  // layout placed, over a paragraph that WRAPS and carries two sizes, where
-  // a re-measured line would land in the wrong place twice over.
-  Host host(240, 240);
-  motion::Animatable<float> progress = motion::animatable(0.5f);
-  sigil::weave::RichText copy = sigil::weave::rich(whiteStyle(15));
-  copy.add(u8"alpha bravo ").add(u8"charlie", whiteStyle(24)).add(u8" delta");
-  host.composer.render(
-      box().padding(10).children({text(copy).key("p").width(120).textFx(
-          {.effect = textFx::enter(textFx::rise(8)),
-           .tween = {.duration = 200ms, .delay = motion::stagger(100ms)},
-           .unit = sigil::weave::Unit::Word,
-           .progress = progress})}));
-  host.frame();
-
-  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
-  ASSERT_EQ(beats.size(), 4u) << "one beat per word of the paragraph";
-  const sigil::weave::ParagraphLayout* layout =
-      host.composer.paragraphLayout("p");
-  ASSERT_NE(layout, nullptr);
-  const std::optional<geometry::path::Rect> box_ = host.composer.bounds("p");
-  ASSERT_TRUE(box_.has_value());
-
-  const std::vector<SkRect> placed =
-      wordExtents(*layout, beats.size(), {box_->left(), box_->top()});
-  bool wrapped = false;
-  for (size_t i = 1; i < beats.size(); ++i)
-    if (beats[i].rect.centre().y > beats[i - 1].rect.centre().y + 4)
-      wrapped = true;
-  EXPECT_TRUE(wrapped) << "the paragraph never wrapped: nothing is proven";
-  for (size_t i = 0; i < beats.size(); ++i) {
-    ASSERT_FALSE(placed[i].isEmpty()) << "word " << i << " was never placed";
-    EXPECT_NEAR(beats[i].rect.left(), placed[i].left(), 1.0f) << "word " << i;
-    EXPECT_GE(beats[i].rect.right(), placed[i].right() - 2.0f)
-        << "word " << i << "'s beat stops short of its own last letter";
-    EXPECT_LE(beats[i].rect.top(), placed[i].centerY()) << "word " << i;
-    EXPECT_GE(beats[i].rect.bottom(), placed[i].centerY()) << "word " << i;
-  }
-  EXPECT_GT(beats[2].rect.height(), beats[0].rect.height())
-      << "the 24 px run's beat is no taller than the 15 px runs', so the "
-         "rect is not reading the placement";
-
-  // …and the LOCAL PROGRESS is the number the glyphs are being handed. The
-  // schedule spans 200 + 100·3 = 500 ms of virtual time, so at master 0.5
-  // the front stands at 250 ms: word 0 is done, word 1 is three quarters
-  // through its own 200 ms beat, word 2 has just started and word 3 has not
-  // opened at all.
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[0].start), 0.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[3].start), 300.0f);
-  EXPECT_FLOAT_EQ(beats[0].localProgress, 1.0f);
-  EXPECT_FLOAT_EQ(beats[1].localProgress, 0.75f);
-  EXPECT_FLOAT_EQ(beats[2].localProgress, 0.25f);
-  EXPECT_FLOAT_EQ(beats[3].localProgress, 0.0f);
-  EXPECT_FALSE(beats[0].running) << "a finished beat is not running";
-  EXPECT_TRUE(beats[1].running);
-  EXPECT_TRUE(beats[2].running);
-  EXPECT_FALSE(beats[3].running) << "a beat that has not opened is not running";
-}
-
-TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
-  // A path run's letters are not on the node's straight baseline at all,
-  // and a mark placed from anything but the placement would sit in the
-  // node's box while the type rides a circle beside it.
-  Host host(300, 200);
-  host.composer.render(
-      box().children({text(u8"CIRCVMFERENTIA", whiteStyle(18))
-                          .key("ring")
-                          .width(100)
-                          .height(100)
-                          .textOnPath({.path = BeatRing{}})
-                          .textFx({.effect = textFx::enter(textFx::rise(4)),
-                                   .unit = sigil::weave::Unit::Cluster})}));
-  host.frame();
-  const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
-  ASSERT_GT(beats.size(), 8u);
-  // The ring is centred at (200, 100) with radius 60, and the node's box is
-  // the 100x100 at the origin: every beat must be OUT there, on the curve.
-  SkRect union_ = SkRect::MakeEmpty();
-  for (const Beat& beat : beats) {
-    const float radius = std::hypot(beat.rect.centre().x - 200.0f,
-                                    beat.rect.centre().y - 100.0f);
-    EXPECT_NEAR(radius, 60.0f, 14.0f)
-        << "a beat left the baseline it was supposed to be reading";
-    union_.join(geometry::path::toSk(beat.rect));
-  }
-  EXPECT_GT(union_.right(), 200.0f)
-      << "every beat stayed inside the node's box, so the rects are the "
-         "straight baseline's rather than the curve's";
-  // …and they go ROUND the ring rather than piling at its entry point: the
-  // run sweeps a real arc, which only a rect read off the curve can show.
-  const auto angleOf = [](const Beat& beat) {
-    return std::atan2(beat.rect.centre().y - 100.0f,
-                      beat.rect.centre().x - 200.0f);
-  };
-  float swept = 0;
-  for (size_t i = 1; i < beats.size(); ++i) {
-    float step = angleOf(beats[i]) - angleOf(beats[i - 1]);
-    while (step > 3.14159265f) step -= 6.2831853f;
-    while (step < -3.14159265f) step += 6.2831853f;
-    swept += std::abs(step);
-  }
-  EXPECT_GT(swept, 1.0f) << "the beats never went round the ring";
-}
-
-TEST(ComposeTextFx, BeatsOfCompoundsANestedSchedule) {
-  // A nested beat lasts exactly as long as its inner ladder needs, so no
-  // author can restate the start
-  // times. Word w's letter i opens at w·delay + i·within, and the
-  // read-back is the only place that is true without being retyped.
-  Host host(400, 120);
-  host.composer.render(box().padding(6).children(
-      {text(u8"AB CD", whiteStyle(16))
-           .key("p")
-           .width(360)
-           .textFx(
-               {.effect = textFx::enter(textFx::rise(6)),
-                .tween = {.duration = 100ms, .delay = motion::stagger(300ms)},
-                .within = motion::stagger(40ms),
-                .unit = sigil::weave::Unit::Word,
-                .innerUnit = sigil::weave::Unit::Cluster})}));
-  host.frame();
-  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
-  ASSERT_EQ(beats.size(), 4u) << "one beat per letter, two letters per word";
-  // Two beats per outer unit, each carrying its own compounded start.
-  EXPECT_EQ(beats[0].unitIndex, 0u);
-  EXPECT_EQ(beats[1].unitIndex, 0u);
-  EXPECT_EQ(beats[2].unitIndex, 1u);
-  EXPECT_EQ(beats[3].unitIndex, 1u);
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[0].start), 0.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[1].start), 40.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[2].start), 300.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(beats[3].start), 340.0f);
-}
-
-TEST(ComposeTextFx, BeatsOfResolvesEmptyRatherThanGuessing) {
-  Host host(200, 120);
-  host.composer.render(box().padding(6).children(
-      {text(u8"AA BB", whiteStyle(16))
-           .key("p")
-           .textFx({.effect = textFx::enter(textFx::rise(6)),
-                    .unit = sigil::weave::Unit::Word})}));
-  host.frame();
-  EXPECT_FALSE(host.composer.beatsOf("p", 0).empty());
-  EXPECT_TRUE(host.composer.beatsOf("typo", 0).empty()) << "unknown key";
-  EXPECT_TRUE(host.composer.beatsOf("p", 7).empty()) << "no such track";
-}
-
-TEST(ComposeTextFx, ScheduleSpanIsWhatTheMasterProgressMapsOnto) {
-  // The one number beatsOf does not carry: a beat says when it OPENS, and
-  // nothing else says when the whole schedule is OVER. The span is the
-  // last beat's start plus one beat's own duration — checked against the
-  // beats themselves, so the two read-backs cannot drift apart — and the
-  // declare-time form answers the same number from the counts alone.
-  const motion::Timing timing{.delay = motion::stagger(100ms),
-                              .duration = 200ms};
-  Host host(400, 120);
-  host.composer.render(box().padding(6).children(
-      {text(u8"AA BB CC DD", whiteStyle(16))
-           .key("p")
-           .width(360)
-           .textFx(
-               {.effect = textFx::enter(textFx::rise(6)),
-                .tween = {.duration = timing.duration, .delay = timing.delay},
-                .unit = sigil::weave::Unit::Word})}));
-  host.frame();
-  const float span = inMilliseconds(host.composer.scheduleSpan("p", 0));
-  EXPECT_FLOAT_EQ(span, 500.0f) << "duration + step·(N−1) over 4 words";
-  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
-  ASSERT_FALSE(beats.empty());
-  float latest = 0;
-  for (const Beat& beat : beats)
-    latest = std::max(latest, inMilliseconds(beat.start));
-  EXPECT_FLOAT_EQ(span, latest + 200.0f)
-      << "the span disagrees with the beats about when the last one closes";
-  EXPECT_FLOAT_EQ(inMilliseconds(timing.span(4)), span)
-      << "the declare-time form and the mounted one answer differently for "
-         "the same cascade and count";
-
-  // A range is count-independent past one unit — the first-to-last range
-  // IS the spread — and one unit (or none) is a bare beat.
-  const motion::Timing range{.delay = motion::stagger({0ms, 700ms}),
-                             .duration = 420ms};
-  EXPECT_FLOAT_EQ(inMilliseconds(range.span(2)), 1120.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(range.span(9)), 1120.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(range.span(1)), 420.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(range.span(0)), 420.0f);
-}
-
-TEST(ComposeTextFx, ScheduleSpanCompoundsNestingAndReadsTheTable) {
-  // Nested: a beat lasts exactly as long as its inner ladder needs, so the
-  // span compounds — the latest outer start, plus the latest inner start,
-  // plus one duration, which under `within` is the inner unit's.
-  const motion::Timing nested{.delay = motion::stagger(300ms),
-                              .duration = 100ms,
-                              .within = motion::stagger(40ms)};
-  {
-    Host host(400, 120);
-    host.composer.render(box().padding(6).children(
-        {text(u8"AB CD", whiteStyle(16))
-             .key("p")
-             .width(360)
-             .textFx(
-                 {.effect = textFx::enter(textFx::rise(6)),
-                  .tween = {.duration = nested.duration, .delay = nested.delay},
-                  .within = nested.within,
-                  .unit = sigil::weave::Unit::Word,
-                  .innerUnit = sigil::weave::Unit::Cluster})}));
-    host.frame();
-    const float span = inMilliseconds(host.composer.scheduleSpan("p", 0));
-    EXPECT_FLOAT_EQ(span, 440.0f) << "300·1 + 40·1 + 100";
-    const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
-    ASSERT_EQ(beats.size(), 4u);
-    EXPECT_FLOAT_EQ(span, inMilliseconds(beats.back().start) + 100.0f);
-    EXPECT_FLOAT_EQ(inMilliseconds(nested.span(2, 2)), span)
-        << "the declare-time form must take the inner count per beat";
-  }
-
-  // A cue table's extent is the table's own: the LATEST time any unit
-  // reads plus the duration — a max, not the final entry, because a table
-  // is not required to ascend.
-  const motion::Timing cued{.delay = motion::cues({0ms, 340ms, 720ms, 1180ms}),
-                            .duration = 180ms};
-  {
-    Host host(400, 120);
-    host.composer.render(box().padding(6).children(
-        {text(u8"AA BB CC DD", whiteStyle(16))
-             .key("p")
-             .width(360)
-             .textFx({.effect = textFx::enter(textFx::rise(6)),
-                      .tween = {.duration = cued.duration, .delay = cued.delay},
-                      .unit = sigil::weave::Unit::Word})}));
-    host.frame();
-    const float span = inMilliseconds(host.composer.scheduleSpan("p", 0));
-    EXPECT_FLOAT_EQ(span, 1360.0f) << "the table's last time plus one beat";
-    EXPECT_FLOAT_EQ(inMilliseconds(cued.span(4)), span);
-  }
-  EXPECT_FLOAT_EQ(
-      inMilliseconds(motion::Timing{.delay = motion::cues({0ms, 900ms, 300ms}),
-                                    .duration = 100ms}
-                         .span(3)),
-      1000.0f)
-      << "an out-of-order table spans to its LATEST time, not its last entry";
-}
-
-TEST(ComposeTextFx, ScheduleSpanResolvesZeroRatherThanGuessing) {
-  Host host(200, 120);
-  host.composer.render(box().padding(6).key("b").children(
-      {text(u8"AA BB", whiteStyle(16))
-           .key("p")
-           .textFx({.effect = textFx::enter(textFx::rise(6)),
-                    .unit = sigil::weave::Unit::Word})}));
-  host.frame();
-  EXPECT_GT(inMilliseconds(host.composer.scheduleSpan("p", 0)), 0.0f);
-  EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("typo", 0)), 0.0f)
-      << "unknown key";
-  EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("p", 7)), 0.0f)
-      << "no such track";
-  EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("b", 0)), 0.0f)
-      << "a node that is not text";
+         // A cue table's extent is the table's own: the LATEST time any unit
+         // reads plus the duration — a max, not the final entry, because a
+         // table is not required to ascend.
+         const motion::Timing cued{
+             .delay = motion::cues({0ms, 340ms, 720ms, 1180ms}),
+             .duration = 180ms};
+         {
+           Host host(400, 120);
+           host.composer.render(box().padding(6).children(
+               {text(u8"AA BB CC DD", whiteStyle(16))
+                    .key("p")
+                    .width(360)
+                    .textFx({.effect = textFx::enter(textFx::rise(6)),
+                             .tween = {.duration = cued.duration,
+                                       .delay = cued.delay},
+                             .unit = sigil::weave::Unit::Word})}));
+           host.frame();
+           const float span =
+               inMilliseconds(host.composer.scheduleSpan("p", 0));
+           EXPECT_FLOAT_EQ(span, 1360.0f)
+               << "the table's last time plus one beat";
+           EXPECT_FLOAT_EQ(inMilliseconds(cued.span(4)), span);
+         }
+         EXPECT_FLOAT_EQ(
+             inMilliseconds(motion::Timing{
+                 .delay = motion::cues({0ms, 900ms, 300ms}), .duration = 100ms}
+                                .span(3)),
+             1000.0f)
+             << "an out-of-order table spans to its LATEST time, not its last "
+                "entry";
+       }},
+      {"AnUnknownKeyTrackOrNodeResolvesZero",
+       [&] {
+         Host host(200, 120);
+         host.composer.render(box().padding(6).key("b").children(
+             {text(u8"AA BB", whiteStyle(16))
+                  .key("p")
+                  .textFx({.effect = textFx::enter(textFx::rise(6)),
+                           .unit = sigil::weave::Unit::Word})}));
+         host.frame();
+         EXPECT_GT(inMilliseconds(host.composer.scheduleSpan("p", 0)), 0.0f);
+         EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("typo", 0)),
+                         0.0f)
+             << "unknown key";
+         EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("p", 7)),
+                         0.0f)
+             << "no such track";
+         EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("b", 0)),
+                         0.0f)
+             << "a node that is not text";
+       }},
+  });
 }
 
 namespace {
@@ -501,124 +553,136 @@ std::vector<Beat> loopBeatsAt(Host& host, float master) {
 }  // namespace
 
 TEST(ComposeTextFx, ALoopingScheduleReopensEachUnitOnItsOwnCycle) {
-  Host host(400, 120);
-  // Master 0.25 of a 400ms period is virtual 100: the first word is
-  // halfway through its 200ms beat, the second opens this instant, and the
-  // third — 100ms short of its start in one-shot terms — is MID-CYCLE at
-  // elapsed 300, resting at 1. The fold leaves no unit waiting.
-  {
-    const std::vector<Beat> beats = loopBeatsAt(host, 0.25f);
-    ASSERT_EQ(beats.size(), 3u);
-    EXPECT_FLOAT_EQ(beats[0].localProgress, 0.5f);
-    EXPECT_FLOAT_EQ(beats[1].localProgress, 0.0f);
-    EXPECT_FLOAT_EQ(beats[2].localProgress, 1.0f)
-        << "a unit short of its start must rest at 1 mid-cycle, not wait "
-           "at 0";
-    EXPECT_TRUE(beats[0].running);
-    EXPECT_FALSE(beats[2].running) << "resting between beats is not active";
-  }
-  // Three quarters on: the ladder has rolled through — the tail is now the
-  // one mid-beat.
-  {
-    const std::vector<Beat> beats = loopBeatsAt(host, 0.75f);
-    ASSERT_EQ(beats.size(), 3u);
-    EXPECT_FLOAT_EQ(beats[0].localProgress, 1.0f);
-    EXPECT_FLOAT_EQ(beats[1].localProgress, 1.0f);
-    EXPECT_FLOAT_EQ(beats[2].localProgress, 0.5f);
-  }
-  // THE SEAM: master 0 and master 1 are the same instant of the cycle, so
-  // a wrapping bound phase crosses its own wrap with no jump — every beat
-  // answers identically at both ends.
-  {
-    const std::vector<Beat> low = loopBeatsAt(host, 0.0f);
-    const std::vector<Beat> high = loopBeatsAt(host, 1.0f);
-    ASSERT_EQ(low.size(), high.size());
-    for (size_t i = 0; i < low.size(); ++i)
-      EXPECT_FLOAT_EQ(low[i].localProgress, high[i].localProgress)
-          << "beat " << i << " jumps across the master's wrap";
-  }
-  // The period is what the master maps onto, so the span queries answer it
-  // — mounted and at declare time alike.
-  EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("p", 0)), 400.0f);
-  const motion::Timing looping{.delay = motion::stagger(100ms),
-                               .duration = 200ms,
-                               .loop = true,
-                               .loopDelay = 400ms - 200ms};
-  EXPECT_FLOAT_EQ(inMilliseconds(looping.span(3)), 400.0f);
+  sigil::compose::test::checkRows({
+      {"EachUnitReopensOnItsOwnCycleAcrossTheWrap",
+       [&] {
+         Host host(400, 120);
+         // Master 0.25 of a 400ms period is virtual 100: the first word is
+         // halfway through its 200ms beat, the second opens this instant, and
+         // the third — 100ms short of its start in one-shot terms — is
+         // MID-CYCLE at elapsed 300, resting at 1. The fold leaves no unit
+         // waiting.
+         {
+           const std::vector<Beat> beats = loopBeatsAt(host, 0.25f);
+           ASSERT_EQ(beats.size(), 3u);
+           EXPECT_FLOAT_EQ(beats[0].localProgress, 0.5f);
+           EXPECT_FLOAT_EQ(beats[1].localProgress, 0.0f);
+           EXPECT_FLOAT_EQ(beats[2].localProgress, 1.0f)
+               << "a unit short of its start must rest at 1 mid-cycle, not "
+                  "wait "
+                  "at 0";
+           EXPECT_TRUE(beats[0].running);
+           EXPECT_FALSE(beats[2].running)
+               << "resting between beats is not active";
+         }
+         // Three quarters on: the ladder has rolled through — the tail is now
+         // the one mid-beat.
+         {
+           const std::vector<Beat> beats = loopBeatsAt(host, 0.75f);
+           ASSERT_EQ(beats.size(), 3u);
+           EXPECT_FLOAT_EQ(beats[0].localProgress, 1.0f);
+           EXPECT_FLOAT_EQ(beats[1].localProgress, 1.0f);
+           EXPECT_FLOAT_EQ(beats[2].localProgress, 0.5f);
+         }
+         // THE SEAM: master 0 and master 1 are the same instant of the cycle,
+         // so a wrapping bound phase crosses its own wrap with no jump — every
+         // beat answers identically at both ends.
+         {
+           const std::vector<Beat> low = loopBeatsAt(host, 0.0f);
+           const std::vector<Beat> high = loopBeatsAt(host, 1.0f);
+           ASSERT_EQ(low.size(), high.size());
+           for (size_t i = 0; i < low.size(); ++i)
+             EXPECT_FLOAT_EQ(low[i].localProgress, high[i].localProgress)
+                 << "beat " << i << " jumps across the master's wrap";
+         }
+         // The period is what the master maps onto, so the span queries answer
+         // it — mounted and at declare time alike.
+         EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("p", 0)),
+                         400.0f);
+         const motion::Timing looping{.delay = motion::stagger(100ms),
+                                      .duration = 200ms,
+                                      .loop = true,
+                                      .loopDelay = 400ms - 200ms};
+         EXPECT_FLOAT_EQ(inMilliseconds(looping.span(3)), 400.0f);
 
-  // A start PAST the period folds mod it — the beat still re-opens once
-  // per cycle — while Beat::start keeps reporting the authored delay.
-  {
-    host.composer.render(box().padding(6).children(
-        {text(u8"AA BB CC", whiteStyle(16))
-             .key("p")
-             .width(360)
-             .textFx({.effect = textFx::enter(textFx::rise(6)),
-                      .tween = {.duration = 200ms,
-                                .delay = motion::stagger(300ms),
-                                .loop = -1,
-                                .loopDelay = 400ms - 200ms},
-                      .unit = sigil::weave::Unit::Word,
-                      .progress = 0.75f})}));  // virtual 300
-    host.frame();
-    const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
-    ASSERT_EQ(beats.size(), 3u);
-    EXPECT_FLOAT_EQ(inMilliseconds(beats[2].start), 600.0f)
-        << "the schedule stays authored; only the clock folds";
-    // Elapsed mod 400 of (300 − 600) is 100: halfway through a 200ms beat.
-    EXPECT_FLOAT_EQ(beats[2].localProgress, 0.5f);
-  }
+         // A start PAST the period folds mod it — the beat still re-opens once
+         // per cycle — while Beat::start keeps reporting the authored delay.
+         {
+           host.composer.render(box().padding(6).children(
+               {text(u8"AA BB CC", whiteStyle(16))
+                    .key("p")
+                    .width(360)
+                    .textFx({.effect = textFx::enter(textFx::rise(6)),
+                             .tween = {.duration = 200ms,
+                                       .delay = motion::stagger(300ms),
+                                       .loop = -1,
+                                       .loopDelay = 400ms - 200ms},
+                             .unit = sigil::weave::Unit::Word,
+                             .progress = 0.75f})}));  // virtual 300
+           host.frame();
+           const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+           ASSERT_EQ(beats.size(), 3u);
+           EXPECT_FLOAT_EQ(inMilliseconds(beats[2].start), 600.0f)
+               << "the schedule stays authored; only the clock folds";
+           // Elapsed mod 400 of (300 − 600) is 100: halfway through a 200ms
+           // beat.
+           EXPECT_FLOAT_EQ(beats[2].localProgress, 0.5f);
+         }
+       }},
+      {"AZeroLoopIsTheOneShotSchedule",
+       [&] {
+         // 0 — the default — is the one-shot path: a spelled-out zero is the
+         // same value, the same schedule and the same bytes as never mentioning
+         // it, and a unit short of its start WAITS at 0 rather than resting
+         // at 1.
+         const motion::Timing defaultedTiming{.delay = motion::stagger(100ms),
+                                              .duration = 200ms};
+         const motion::Timing spelledTiming{
+             .delay = motion::stagger(100ms), .duration = 200ms, .loop = false};
+         EXPECT_TRUE(defaultedTiming == spelledTiming);
+         EXPECT_FALSE(defaultedTiming ==
+                      (motion::Timing{.delay = motion::stagger(100ms),
+                                      .duration = 200ms,
+                                      .loop = true,
+                                      .loopDelay = 400ms - 200ms}));
+
+         const auto render = [](const motion::Timing& timing) {
+           Host host(400, 120);
+           host.composer.render(box().padding(6).children(
+               {text(u8"AA BB CC", whiteStyle(16))
+                    .key("p")
+                    .width(360)
+                    .textFx({.effect = textFx::enter(textFx::rise(6)),
+                             .tween = {.duration = timing.duration,
+                                       .delay = timing.delay,
+                                       .loop = timing.loop ? -1 : 0,
+                                       .loopDelay = timing.loopDelay,
+                                       .alternate = timing.alternate},
+                             .unit = sigil::weave::Unit::Word,
+                             .progress = 0.25f})}));
+           host.frame();
+           return std::pair(host.composer.beatsOf("p", 0),
+                            surfaceBytes(host, 400, 120));
+         };
+         const auto [defaulted, defaultedBytes] = render(defaultedTiming);
+         const auto [spelled, spelledBytes] = render(spelledTiming);
+         EXPECT_EQ(defaultedBytes, spelledBytes);
+         ASSERT_EQ(defaulted.size(), 3u);
+         ASSERT_EQ(spelled.size(), 3u);
+         // One-shot semantics, for contrast with the fold: span 400 covers the
+         // ladder, so master 0.25 is virtual 100 here too — but the un-started
+         // tail reads 0, where the loop above rests it at 1.
+         EXPECT_FLOAT_EQ(defaulted[2].localProgress, 0.0f);
+         for (size_t i = 0; i < defaulted.size(); ++i) {
+           EXPECT_FLOAT_EQ(defaulted[i].localProgress,
+                           spelled[i].localProgress);
+           EXPECT_EQ(defaulted[i].start, spelled[i].start);
+         }
+       }},
+  });
 }
 
-TEST(ComposeTextFx, AZeroLoopIsTheOneShotSchedule) {
-  // 0 — the default — is the one-shot path: a spelled-out zero is the same
-  // value, the same schedule and the same bytes as never mentioning it,
-  // and a unit short of its start WAITS at 0 rather than resting at 1.
-  const motion::Timing defaultedTiming{.delay = motion::stagger(100ms),
-                                       .duration = 200ms};
-  const motion::Timing spelledTiming{
-      .delay = motion::stagger(100ms), .duration = 200ms, .loop = false};
-  EXPECT_TRUE(defaultedTiming == spelledTiming);
-  EXPECT_FALSE(defaultedTiming ==
-               (motion::Timing{.delay = motion::stagger(100ms),
-                               .duration = 200ms,
-                               .loop = true,
-                               .loopDelay = 400ms - 200ms}));
-
-  const auto render = [](const motion::Timing& timing) {
-    Host host(400, 120);
-    host.composer.render(box().padding(6).children(
-        {text(u8"AA BB CC", whiteStyle(16))
-             .key("p")
-             .width(360)
-             .textFx({.effect = textFx::enter(textFx::rise(6)),
-                      .tween = {.duration = timing.duration,
-                                .delay = timing.delay,
-                                .loop = timing.loop ? -1 : 0,
-                                .loopDelay = timing.loopDelay,
-                                .alternate = timing.alternate},
-                      .unit = sigil::weave::Unit::Word,
-                      .progress = 0.25f})}));
-    host.frame();
-    return std::pair(host.composer.beatsOf("p", 0),
-                     surfaceBytes(host, 400, 120));
-  };
-  const auto [defaulted, defaultedBytes] = render(defaultedTiming);
-  const auto [spelled, spelledBytes] = render(spelledTiming);
-  EXPECT_EQ(defaultedBytes, spelledBytes);
-  ASSERT_EQ(defaulted.size(), 3u);
-  ASSERT_EQ(spelled.size(), 3u);
-  // One-shot semantics, for contrast with the fold: span 400 covers the
-  // ladder, so master 0.25 is virtual 100 here too — but the un-started
-  // tail reads 0, where the loop above rests it at 1.
-  EXPECT_FLOAT_EQ(defaulted[2].localProgress, 0.0f);
-  for (size_t i = 0; i < defaulted.size(); ++i) {
-    EXPECT_FLOAT_EQ(defaulted[i].localProgress, spelled[i].localProgress);
-    EXPECT_EQ(defaulted[i].start, spelled[i].start);
-  }
-}
-
-TEST(ComposeTextFx, AHeldEffectOnALoopingCascadeHasNothingLeftToVeto) {
+TEST(ComposeTextFx, AHoldOnALoopingCascadeHasNothingToVeto) {
   // textFx::hold blanks a unit whose beat has not opened — and a looping
   // cascade HAS no such unit: the fold keeps every beat somewhere in its
   // cycle, so the word a one-shot hold still withholds paints under a
@@ -714,91 +778,103 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
          "settled";
 }
 
-TEST(ComposeTextFx, ABareEntrancePlaysOnceWhenItsLeafMounts) {
-  // An entrance whose track states no progress runs its whole schedule from
-  // the start when the leaf mounts, straight over the track's span: the
-  // first frame finds every beat short of home and the first one as far in
-  // as the clock has gone, the last beat lands as the span closes, and
-  // nothing moves after that.
-  Host host;
-  host.composer.render(box().padding(20).children(
-      {text(u8"RISE", whiteStyle(24))
-           .key("title")
-           .textFx(textFx::entrance(textFx::rise(20)))}));
-  host.frame(1.0 / 60.0);
-  const std::vector<Beat> first = host.composer.beatsOf("title", 0);
-  ASSERT_EQ(first.size(), 4u);
-  for (const Beat& beat : first) EXPECT_LT(beat.localProgress, 1.0f);
-  EXPECT_NEAR(first.front().localProgress, (1000.0f / 60.0f) / 450.0f, 1e-3f)
-      << "the run counts from the mount, not from the first layout";
-  EXPECT_TRUE(host.composer.isRunning());
+TEST(ComposeTextFx,
+     AnEntrancePlaysOnceFromItsMountUnlessItsTrackStatesAProgress) {
+  sigil::compose::test::checkRows({
+      {"ABareEntrancePlaysOnceFromTheMount",
+       [&] {
+         // An entrance whose track states no progress runs its whole schedule
+         // from the start when the leaf mounts, straight over the track's span:
+         // the first frame finds every beat short of home and the first one as
+         // far in as the clock has gone, the last beat lands as the span
+         // closes, and nothing moves after that.
+         Host host;
+         host.composer.render(box().padding(20).children(
+             {text(u8"RISE", whiteStyle(24))
+                  .key("title")
+                  .textFx(textFx::entrance(textFx::rise(20)))}));
+         host.frame(1.0 / 60.0);
+         const std::vector<Beat> first = host.composer.beatsOf("title", 0);
+         ASSERT_EQ(first.size(), 4u);
+         for (const Beat& beat : first) EXPECT_LT(beat.localProgress, 1.0f);
+         EXPECT_NEAR(first.front().localProgress, (1000.0f / 60.0f) / 450.0f,
+                     1e-3f)
+             << "the run counts from the mount, not from the first layout";
+         EXPECT_TRUE(host.composer.isRunning());
 
-  const float span = inMilliseconds(host.composer.scheduleSpan("title", 0));
-  EXPECT_FLOAT_EQ(span, 540.0f) << "450 + 30·3 over four letters";
-  host.frame((span - 20.0f) / 1000.0f - 1.0 / 60.0);  // 20ms short of it
-  const std::vector<Beat> late = host.composer.beatsOf("title", 0);
-  ASSERT_EQ(late.size(), 4u);
-  EXPECT_FLOAT_EQ(late.front().localProgress, 1.0f);
-  EXPECT_LT(late.back().localProgress, 1.0f)
-      << "the last beat closes with the span, not before it";
+         const float span =
+             inMilliseconds(host.composer.scheduleSpan("title", 0));
+         EXPECT_FLOAT_EQ(span, 540.0f) << "450 + 30·3 over four letters";
+         host.frame((span - 20.0f) / 1000.0f - 1.0 / 60.0);  // 20ms short of it
+         const std::vector<Beat> late = host.composer.beatsOf("title", 0);
+         ASSERT_EQ(late.size(), 4u);
+         EXPECT_FLOAT_EQ(late.front().localProgress, 1.0f);
+         EXPECT_LT(late.back().localProgress, 1.0f)
+             << "the last beat closes with the span, not before it";
 
-  host.frame(0.03);  // past the span
-  for (const Beat& beat : host.composer.beatsOf("title", 0))
-    EXPECT_FLOAT_EQ(beat.localProgress, 1.0f);
-  host.frame(1.0 / 60.0);
-  EXPECT_FALSE(host.composer.isRunning());
-}
+         host.frame(0.03);  // past the span
+         for (const Beat& beat : host.composer.beatsOf("title", 0))
+           EXPECT_FLOAT_EQ(beat.localProgress, 1.0f);
+         host.frame(1.0 / 60.0);
+         EXPECT_FALSE(host.composer.isRunning());
+       }},
+      {"AStatedProgressStandsAsWritten",
+       [&] {
+         // Left at its default, the progress is the entrance's own run over the
+         // span; stated, it stands as written — a constant holds the glyphs
+         // where it puts them, and a motion keeps its own duration.
+         const Track bare = textFx::entrance(textFx::rise(20));
+         EXPECT_TRUE(bare.progressOverSpan);
+         const motion::Tween<float>* run = bare.progress.described();
+         ASSERT_NE(run, nullptr);
+         EXPECT_TRUE(run->isEntrance());
+         EXPECT_FLOAT_EQ(run->start(), 0.0f);
+         EXPECT_FLOAT_EQ(run->rest(), 1.0f);
 
-TEST(ComposeTextFx, AnEntranceKeepsTheProgressItsTrackStates) {
-  // Left at its default, the progress is the entrance's own run over the
-  // span; stated, it stands as written — a constant holds the glyphs where
-  // it puts them, and a motion keeps its own duration.
-  const Track bare = textFx::entrance(textFx::rise(20));
-  EXPECT_TRUE(bare.progressOverSpan);
-  const motion::Tween<float>* run = bare.progress.described();
-  ASSERT_NE(run, nullptr);
-  EXPECT_TRUE(run->isEntrance());
-  EXPECT_FLOAT_EQ(run->start(), 0.0f);
-  EXPECT_FLOAT_EQ(run->rest(), 1.0f);
+         const Track held =
+             textFx::entrance(textFx::rise(20), {.progress = 0.5f});
+         EXPECT_FALSE(held.progressOverSpan);
+         ASSERT_NE(held.progress.constant(), nullptr);
+         EXPECT_FLOAT_EQ(*held.progress.constant(), 0.5f);
 
-  const Track held = textFx::entrance(textFx::rise(20), {.progress = 0.5f});
-  EXPECT_FALSE(held.progressOverSpan);
-  ASSERT_NE(held.progress.constant(), nullptr);
-  EXPECT_FLOAT_EQ(*held.progress.constant(), 0.5f);
+         const auto driven = [] {
+           return textFx::entrance(
+               textFx::rise(20),
+               {.progress = motion::animate({.from = 0.0f,
+                                             .to = 1.0f,
+                                             .duration = 2s,
+                                             .ease = motion::ease::linear})});
+         };
+         EXPECT_FALSE(driven().progressOverSpan);
 
-  const auto driven = [] {
-    return textFx::entrance(
-        textFx::rise(20),
-        {.progress = motion::animate({.from = 0.0f,
-                                      .to = 1.0f,
-                                      .duration = 2s,
-                                      .ease = motion::ease::linear})});
-  };
-  EXPECT_FALSE(driven().progressOverSpan);
-
-  Host host(200, 160);
-  host.composer.render(box().padding(20).children(
-      {text(u8"HOLD", whiteStyle(24))
-           .key("held")
-           .textFx(textFx::entrance(textFx::rise(20), {.progress = 0.5f})),
-       text(u8"MOVE", whiteStyle(24)).key("driven").textFx(driven())}));
-  host.frame(1.0 / 60.0);
-  const std::vector<Beat> before = host.composer.beatsOf("held", 0);
-  host.frame(0.6);  // past the 540ms span an entrance of its own would take
-  const std::vector<Beat> after = host.composer.beatsOf("held", 0);
-  ASSERT_EQ(after.size(), 4u);
-  ASSERT_EQ(before.size(), after.size());
-  for (size_t index = 0; index < after.size(); ++index)
-    EXPECT_FLOAT_EQ(after[index].localProgress, before[index].localProgress);
-  // Master 0.5 is 270ms into the 540ms schedule: the first letter is
-  // 270ms into its 450ms beat and the last, opening at 90ms, 180ms in.
-  EXPECT_FLOAT_EQ(after.front().localProgress, 0.6f);
-  EXPECT_FLOAT_EQ(after.back().localProgress, 0.4f);
-  const std::vector<Beat> moving = host.composer.beatsOf("driven", 0);
-  ASSERT_EQ(moving.size(), 4u);
-  EXPECT_LT(moving.back().localProgress, 1.0f)
-      << "a motion the track states keeps its own two seconds";
-  host.frame(1.5);
-  for (const Beat& beat : host.composer.beatsOf("driven", 0))
-    EXPECT_FLOAT_EQ(beat.localProgress, 1.0f);
+         Host host(200, 160);
+         host.composer.render(box().padding(20).children(
+             {text(u8"HOLD", whiteStyle(24))
+                  .key("held")
+                  .textFx(
+                      textFx::entrance(textFx::rise(20), {.progress = 0.5f})),
+              text(u8"MOVE", whiteStyle(24)).key("driven").textFx(driven())}));
+         host.frame(1.0 / 60.0);
+         const std::vector<Beat> before = host.composer.beatsOf("held", 0);
+         host.frame(
+             0.6);  // past the 540ms span an entrance of its own would take
+         const std::vector<Beat> after = host.composer.beatsOf("held", 0);
+         ASSERT_EQ(after.size(), 4u);
+         ASSERT_EQ(before.size(), after.size());
+         for (size_t index = 0; index < after.size(); ++index)
+           EXPECT_FLOAT_EQ(after[index].localProgress,
+                           before[index].localProgress);
+         // Master 0.5 is 270ms into the 540ms schedule: the first letter is
+         // 270ms into its 450ms beat and the last, opening at 90ms, 180ms in.
+         EXPECT_FLOAT_EQ(after.front().localProgress, 0.6f);
+         EXPECT_FLOAT_EQ(after.back().localProgress, 0.4f);
+         const std::vector<Beat> moving = host.composer.beatsOf("driven", 0);
+         ASSERT_EQ(moving.size(), 4u);
+         EXPECT_LT(moving.back().localProgress, 1.0f)
+             << "a motion the track states keeps its own two seconds";
+         host.frame(1.5);
+         for (const Beat& beat : host.composer.beatsOf("driven", 0))
+           EXPECT_FLOAT_EQ(beat.localProgress, 1.0f);
+       }},
+  });
 }

@@ -1,7 +1,7 @@
 // The paragraph setting in force: what a text leaf's blocks are set in when
 // the leaf says nothing about them — leading, alignment, writing mode and the
 // rest a passage inherits — flowing down the tree beside the font and the ink.
-// Each case asserts one thing the headers promise.
+// Each test states one promise, with its instances as named rows.
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
@@ -15,6 +15,10 @@
 #include <string_view>
 
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
+
+using sigil::compose::test::checkRows;
+using sigil::compose::test::forEachRow;
 
 namespace {
 
@@ -49,131 +53,166 @@ Text leaf() {
 
 }  // namespace
 
-TEST(ComposeParagraphLane, ALeafIsSetInTheLeadingInForce) {
-  // Double leading on an ancestor: the same three lines take about twice
-  // the height, through a box that says nothing.
-  Host plain, open;
-  plain.composer.render(box().padding(10).children({box().children({leaf()})}));
-  ParagraphBlock wide;
-  wide.lineHeight = LineHeight::multiple(2.0f);
-  open.composer.render(
-      box().padding(10).paragraph(wide).children({box().children({leaf()})}));
-  const float single = boxOf(plain, "t").height();
-  const float doubled = boxOf(open, "t").height();
-  EXPECT_GT(doubled, single * 1.6f);
-  EXPECT_LT(doubled, single * 2.4f);
-}
-
-TEST(ComposeParagraphLane, APartialOverlaysTheInheritedBlockFieldByField) {
-  // The parent sets the leading, the child names the alignment: the
-  // child's lines are centred AND double-leaded.
-  ParagraphBlock wide;
-  wide.lineHeight = LineHeight::multiple(2.0f);
-  ParagraphBlock centred;
-  centred.alignment = TextAlignment::kCenter;
-  Host start, both;
-  start.composer.render(box().padding(10).paragraph(wide).children({leaf()}));
-  both.composer.render(box().padding(10).paragraph(wide).children(
-      {box().paragraph(centred).children({leaf()})}));
-  const SkRect a = boxOf(start, "t");
-  const SkRect b = boxOf(both, "t");
-  EXPECT_NEAR(a.height(), b.height(), 0.5f) << "the leading still inherits";
-  EXPECT_GT(inkStartIn(both, b), inkStartIn(start, a) + 4)
-      << "the last, short line is centred";
-}
-
-TEST(ComposeParagraphLane, AWholeParagraphStyleInheritsNothing) {
-  ParagraphBlock wide;
-  wide.lineHeight = LineHeight::multiple(2.0f);
-  Host plain, whole;
-  plain.composer.render(box().padding(10).children({leaf()}));
-  whole.composer.render(box().padding(10).paragraph(wide).children(
-      {leaf().paragraphStyles({sigil::weave::ParagraphStyle{}})}));
-  EXPECT_NEAR(boxOf(plain, "t").height(), boxOf(whole, "t").height(), 0.5f);
-}
-
-TEST(ComposeParagraphLane, AClassCarriesBothHalves) {
-  // One name in both sheets: the text half sets the size, the paragraph half
-  // the leading, and styleClass folds both.
-  ParagraphBlock wide;
-  wide.lineHeight = LineHeight::multiple(2.0f);
-  // One class, both halves: the type half and the paragraph half under one
-  // name.
-  const sigil::compose::StyleSheet look{
-      sigil::compose::rule(".body").font({.size = 24.0f}),
-      sigil::compose::rule(".body").paragraph(wide)};
-  Host plain, classed;
-  plain.composer.render(box().padding(10).children({leaf()}));
-  // The leaf states no size of its own: a node's own font stands over its
-  // classes, so the size here is the class's to give.
-  classed.composer.render(box().padding(10).applyStyleSheet(look).children(
-      {text(kLines)
-           .font({.face = sigil::test::instrument::sans()})
-           .ink({1, 1, 1, 1})
-           .width(240.0f)
-           .key("t")
-           .styleClass("body")}));
-  const SkRect a = boxOf(plain, "t");
-  const SkRect b = boxOf(classed, "t");
-  EXPECT_GT(b.height(), a.height() * 2.5f)
-      << "twice the size and twice the leading over the same three lines";
-}
-
-TEST(ComposeParagraphLane, ANamedBlockIsLaidOverTheBlockInForce) {
-  // paragraphStyles({"lead"}) under double leading: the named block takes its
-  // alignment from the name and its leading from the lane.
-  ParagraphBlock centred;
-  centred.alignment = TextAlignment::kCenter;
-  const sigil::compose::StyleSheet blocks{
-      sigil::compose::rule(".lead").paragraph(centred)};
-  ParagraphBlock wide;
-  wide.lineHeight = LineHeight::multiple(2.0f);
-  Host start, named;
-  start.composer.render(box().padding(10).paragraph(wide).children({leaf()}));
-  const std::array<std::string_view, 1> names{"lead"};
-  named.composer.render(
-      box().padding(10).paragraph(wide).applyStyleSheet(blocks).children(
-          {leaf().paragraphStyles(names)}));
-  const SkRect a = boxOf(start, "t");
-  const SkRect b = boxOf(named, "t");
-  EXPECT_NEAR(a.height(), b.height(), 0.5f);
-  EXPECT_GT(inkStartIn(named, b), inkStartIn(start, a) + 4);
-}
-
-TEST(ComposeParagraphLane, TheWritingModeInForceSetsALeafVertical) {
-  ParagraphBlock vertical;
-  vertical.writingMode = sigil::weave::WritingMode::kVerticalRL;
-  Host across, down;
-  across.composer.render(box().padding(10).children(
-      {text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")}));
-  down.composer.render(box().padding(10).paragraph(vertical).children(
-      {text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")}));
-  const SkRect a = boxOf(across, "t");
-  const SkRect b = boxOf(down, "t");
-  EXPECT_GT(a.width(), a.height());
-  EXPECT_GT(b.height(), b.width());
-}
-
-TEST(ComposeParagraphLane, TheTextVerbsAreTheLanesSpellings) {
-  // textAlign on a box that is not text: every leaf under it is centred,
-  // through a box that says nothing — the verb is paragraph({.alignment}).
-  Host start, centred, vertical;
-  start.composer.render(box().padding(10).children({box().children({leaf()})}));
-  centred.composer.render(box()
-                              .padding(10)
-                              .paragraph({.alignment = TextAlignment::kCenter})
-                              .children({box().children({leaf()})}));
-  const SkRect a = boxOf(start, "t");
-  const SkRect b = boxOf(centred, "t");
-  EXPECT_GT(inkStartIn(centred, b), inkStartIn(start, a) + 4);
-  vertical.composer.render(
-      box()
-          .padding(10)
-          .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-          .children(
-              {text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")}));
-  const SkRect c = boxOf(vertical, "t");
-  EXPECT_GT(c.height(), c.width());
+TEST(ComposeParagraphLane, ALeafSetsItsBlocksInTheParagraphSettingInForce) {
+  checkRows({
+      {"ALeafIsSetInTheLeadingInForce",
+       [] {
+         // Double leading on an ancestor: the same three lines take about twice
+         // the height, through a box that says nothing.
+         Host plain, open;
+         plain.composer.render(
+             box().padding(10).children({box().children({leaf()})}));
+         ParagraphBlock wide;
+         wide.lineHeight = LineHeight::multiple(2.0f);
+         open.composer.render(box().padding(10).paragraph(wide).children(
+             {box().children({leaf()})}));
+         const float single = boxOf(plain, "t").height();
+         const float doubled = boxOf(open, "t").height();
+         EXPECT_GT(doubled, single * 1.6f);
+         EXPECT_LT(doubled, single * 2.4f);
+       }},
+      {"APartialOverlaysTheInheritedBlockFieldByField",
+       [] {
+         // The parent sets the leading, the child names the alignment: the
+         // child's lines are centred AND double-leaded.
+         ParagraphBlock wide;
+         wide.lineHeight = LineHeight::multiple(2.0f);
+         ParagraphBlock centred;
+         centred.alignment = TextAlignment::kCenter;
+         Host start, both;
+         start.composer.render(
+             box().padding(10).paragraph(wide).children({leaf()}));
+         both.composer.render(box().padding(10).paragraph(wide).children(
+             {box().paragraph(centred).children({leaf()})}));
+         const SkRect a = boxOf(start, "t");
+         const SkRect b = boxOf(both, "t");
+         EXPECT_NEAR(a.height(), b.height(), 0.5f)
+             << "the leading still inherits";
+         EXPECT_GT(inkStartIn(both, b), inkStartIn(start, a) + 4)
+             << "the last, short line is centred";
+       }},
+      {"AWholeParagraphStyleInheritsNothing",
+       [] {
+         ParagraphBlock wide;
+         wide.lineHeight = LineHeight::multiple(2.0f);
+         Host plain, whole;
+         plain.composer.render(box().padding(10).children({leaf()}));
+         whole.composer.render(box().padding(10).paragraph(wide).children(
+             {leaf().paragraphStyles({sigil::weave::ParagraphStyle{}})}));
+         EXPECT_NEAR(boxOf(plain, "t").height(), boxOf(whole, "t").height(),
+                     0.5f);
+       }},
+      {"AClassCarriesBothHalves",
+       [] {
+         // One name in both sheets: the text half sets the size, the paragraph
+         // half the leading, and styleClass folds both.
+         ParagraphBlock wide;
+         wide.lineHeight = LineHeight::multiple(2.0f);
+         // One class, both halves: the type half and the paragraph half under
+         // one name.
+         const sigil::compose::StyleSheet look{
+             sigil::compose::rule(".body").font({.size = 24.0f}),
+             sigil::compose::rule(".body").paragraph(wide)};
+         Host plain, classed;
+         plain.composer.render(box().padding(10).children({leaf()}));
+         // The leaf states no size of its own: a node's own font stands over
+         // its classes, so the size here is the class's to give.
+         classed.composer.render(
+             box().padding(10).applyStyleSheet(look).children(
+                 {text(kLines)
+                      .font({.face = sigil::test::instrument::sans()})
+                      .ink({1, 1, 1, 1})
+                      .width(240.0f)
+                      .key("t")
+                      .styleClass("body")}));
+         const SkRect a = boxOf(plain, "t");
+         const SkRect b = boxOf(classed, "t");
+         EXPECT_GT(b.height(), a.height() * 2.5f)
+             << "twice the size and twice the leading over the same three "
+                "lines";
+       }},
+      {"ANamedBlockIsLaidOverTheBlockInForce",
+       [] {
+         // paragraphStyles({"lead"}) under double leading: the named block
+         // takes its alignment from the name and its leading from the lane.
+         ParagraphBlock centred;
+         centred.alignment = TextAlignment::kCenter;
+         const sigil::compose::StyleSheet blocks{
+             sigil::compose::rule(".lead").paragraph(centred)};
+         ParagraphBlock wide;
+         wide.lineHeight = LineHeight::multiple(2.0f);
+         Host start, named;
+         start.composer.render(
+             box().padding(10).paragraph(wide).children({leaf()}));
+         const std::array<std::string_view, 1> names{"lead"};
+         named.composer.render(
+             box().padding(10).paragraph(wide).applyStyleSheet(blocks).children(
+                 {leaf().paragraphStyles(names)}));
+         const SkRect a = boxOf(start, "t");
+         const SkRect b = boxOf(named, "t");
+         EXPECT_NEAR(a.height(), b.height(), 0.5f);
+         EXPECT_GT(inkStartIn(named, b), inkStartIn(start, a) + 4);
+       }},
+      {"TheWritingModeInForceSetsALeafVertical",
+       [] {
+         ParagraphBlock vertical;
+         vertical.writingMode = sigil::weave::WritingMode::kVerticalRL;
+         Host across, down;
+         across.composer.render(box().padding(10).children(
+             {text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")}));
+         down.composer.render(box().padding(10).paragraph(vertical).children(
+             {text(u8"AAAA").font({.size = 12}).ink({1, 1, 1, 1}).key("t")}));
+         const SkRect a = boxOf(across, "t");
+         const SkRect b = boxOf(down, "t");
+         EXPECT_GT(a.width(), a.height());
+         EXPECT_GT(b.height(), b.width());
+       }},
+      {"TheTextVerbsAreTheLanesSpellings",
+       [] {
+         // textAlign on a box that is not text: every leaf under it is centred,
+         // through a box that says nothing — the verb is
+         // paragraph({.alignment}).
+         Host start, centred, vertical;
+         start.composer.render(
+             box().padding(10).children({box().children({leaf()})}));
+         centred.composer.render(
+             box()
+                 .padding(10)
+                 .paragraph({.alignment = TextAlignment::kCenter})
+                 .children({box().children({leaf()})}));
+         const SkRect a = boxOf(start, "t");
+         const SkRect b = boxOf(centred, "t");
+         EXPECT_GT(inkStartIn(centred, b), inkStartIn(start, a) + 4);
+         vertical.composer.render(
+             box()
+                 .padding(10)
+                 .paragraph(
+                     {.writingMode = sigil::weave::WritingMode::kVerticalRL})
+                 .children({text(u8"AAAA")
+                                .font({.size = 12})
+                                .ink({1, 1, 1, 1})
+                                .key("t")}));
+         const SkRect c = boxOf(vertical, "t");
+         EXPECT_GT(c.height(), c.width());
+       }},
+      {"AChangedAncestorBlockRelaysOutTheLeavesUnderIt",
+       [] {
+         Host host;
+         const auto page = [](float factor) {
+           ParagraphBlock lead;
+           lead.lineHeight = LineHeight::multiple(factor);
+           return box().padding(10).paragraph(lead).children(
+               {box().children({leaf()})});
+         };
+         host.composer.render(page(1.0f));
+         const float single = boxOf(host, "t").height();
+         host.composer.render(page(2.0f));
+         const float doubled = boxOf(host, "t").height();
+         EXPECT_GT(doubled, single * 1.6f);
+         host.composer.render(page(1.0f));
+         EXPECT_NEAR(boxOf(host, "t").height(), single, 0.5f);
+       }},
+  });
 }
 
 TEST(ComposeParagraphLane, ImageSamplingSetOnAnAncestorReachesTheImageUnderIt) {
@@ -210,21 +249,4 @@ TEST(ComposeParagraphLane, ImageSamplingSetOnAnAncestorReachesTheImageUnderIt) {
                 {box().children({picture()})})),
             1)
       << "on an ancestor, through a box that says nothing";
-}
-
-TEST(ComposeParagraphLane, AChangedAncestorBlockRelaysOutTheLeavesUnderIt) {
-  Host host;
-  const auto page = [](float factor) {
-    ParagraphBlock lead;
-    lead.lineHeight = LineHeight::multiple(factor);
-    return box().padding(10).paragraph(lead).children(
-        {box().children({leaf()})});
-  };
-  host.composer.render(page(1.0f));
-  const float single = boxOf(host, "t").height();
-  host.composer.render(page(2.0f));
-  const float doubled = boxOf(host, "t").height();
-  EXPECT_GT(doubled, single * 1.6f);
-  host.composer.render(page(1.0f));
-  EXPECT_NEAR(boxOf(host, "t").height(), single, 0.5f);
 }

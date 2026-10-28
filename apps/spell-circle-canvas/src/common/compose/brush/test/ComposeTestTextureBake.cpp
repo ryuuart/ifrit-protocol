@@ -10,23 +10,24 @@
 #include <stdexcept>
 
 #include "support/BrushTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
 /** 196×33 of 1 px hairlines: content that a bake at the wrong resolution
  *  cannot fake. This library's entire output is hairlines at 1×. */
 Element hairlinePill() {
-  Element p =
+  Element pill =
       box().width(196).height(33).fill(Fill::color({0.85f, 0.86f, 0.9f, 1}));
-  for (int i = 0; i < 46; ++i)
-    p.children({box()
-                    .absolute()
-                    .left(4 + (float)i * 4)
-                    .top(5)
-                    .width(1)
-                    .height(23)
-                    .fill(Fill::color({0.05f, 0.06f, 0.08f, 1}))});
-  return p;
+  for (int index = 0; index < 46; ++index)
+    pill.children({box()
+                       .absolute()
+                       .left(4 + (float)index * 4)
+                       .top(5)
+                       .width(1)
+                       .height(23)
+                       .fill(Fill::color({0.05f, 0.06f, 0.08f, 1}))});
+  return pill;
 }
 
 /** Cache::None on the wrapper, and NOT as a convenience: a device-space
@@ -38,9 +39,9 @@ Element hairlinePill() {
  *  wrapper would therefore paint this node exactly once, into its parent's
  *  recording, and measure the path this test is not about. */
 Element rotatedPill(float degrees, bool cached) {
-  Element p = hairlinePill().absolute().left(52).top(133).rotate(degrees);
-  if (cached) p.cache(Cache::Texture);
-  return box().cache(Cache::None).children({std::move(p)});
+  Element pill = hairlinePill().absolute().left(52).top(133).rotate(degrees);
+  if (cached) pill.cache(Cache::Texture);
+  return box().cache(Cache::None).children({std::move(pill)});
 }
 
 /** Pixels that differ at all, and the mean |Δ| over ink — the count is the
@@ -57,27 +58,31 @@ BakeError bakeErrorAt(float degrees) {
   // Three frames: the bake must be taken on the first (the gate reads the
   // node's declared transform, not paint history) AND still be the same
   // pixels on the third, which is what catches a bake mode that oscillates.
-  for (int i = 0; i < 3; ++i) {
+  for (int index = 0; index < 3; ++index) {
     plain.frame();
     baked.frame();
   }
-  SkBitmap ba, bb;
-  ba.allocPixels(SkImageInfo::MakeN32Premul(300, 300));
-  bb.allocPixels(SkImageInfo::MakeN32Premul(300, 300));
-  plain.surface->readPixels(ba.pixmap(), 0, 0);
-  baked.surface->readPixels(bb.pixmap(), 0, 0);
+  SkBitmap plainPixels, bakedPixels;
+  plainPixels.allocPixels(SkImageInfo::MakeN32Premul(300, 300));
+  bakedPixels.allocPixels(SkImageInfo::MakeN32Premul(300, 300));
+  plain.surface->readPixels(plainPixels.pixmap(), 0, 0);
+  baked.surface->readPixels(bakedPixels.pixmap(), 0, 0);
   BakeError out;
   double total = 0;
   size_t ink = 0;
   for (int y = 0; y < 300; ++y)
     for (int x = 0; x < 300; ++x) {
-      const SkColor pa = ba.getColor(x, y), pb = bb.getColor(x, y);
-      if (pa != pb) ++out.differing;
-      if (pa == SK_ColorBLACK && pb == SK_ColorBLACK) continue;
+      const SkColor plainColor = plainPixels.getColor(x, y),
+                    bakedColor = bakedPixels.getColor(x, y);
+      if (plainColor != bakedColor) ++out.differing;
+      if (plainColor == SK_ColorBLACK && bakedColor == SK_ColorBLACK) continue;
       ++ink;
-      total += (std::abs((int)SkColorGetR(pa) - (int)SkColorGetR(pb)) +
-                std::abs((int)SkColorGetG(pa) - (int)SkColorGetG(pb)) +
-                std::abs((int)SkColorGetB(pa) - (int)SkColorGetB(pb))) /
+      total += (std::abs((int)SkColorGetR(plainColor) -
+                         (int)SkColorGetR(bakedColor)) +
+                std::abs((int)SkColorGetG(plainColor) -
+                         (int)SkColorGetG(bakedColor)) +
+                std::abs((int)SkColorGetB(plainColor) -
+                         (int)SkColorGetB(bakedColor))) /
                3.0;
     }
   out.meanInk = ink ? total / (double)ink : 0.0;
@@ -86,68 +91,78 @@ BakeError bakeErrorAt(float degrees) {
 
 }  // namespace
 
-TEST(ComposeCache, TextureBakeSurvivesAQuarterTurn) {
-  // A settled bake is taken in DEVICE space, snapped out to whole device
-  // pixels and blitted with the matrix reset, so it is a literal copy of
-  // the pixels the uncached draw would have produced — at ANY angle, not
-  // merely close at the convenient ones.
-  //
-  // Two independent things have to be right, and getting only the first
-  // leaves a picture that still looks nearly correct at every angle:
-  //
-  //  - the bake RESOLUTION, which must come from the matrix's singular
-  //    values rather than its diagonal (a quarter turn puts the whole scale
-  //    in the skew terms, so the diagonal reads zero and the bake clamps to
-  //    the ladder's floor); and
-  //  - the bake SPACE, which must be device space. A bake held in LOCAL
-  //    space is resampled by whatever transform blits it, so its texel grid
-  //    lands off the device grid and softens every hairline.
-  //
-  // Correct resolution alone is necessary and not sufficient, which is why
-  // the assertion is exact pixel equality at every angle rather than a
-  // tolerance.
-  for (float degrees : {0.0f, 90.0f, -90.0f, 180.0f, 45.0f}) {
-    const BakeError e = bakeErrorAt(degrees);
-    EXPECT_EQ(e.differing, 0u)
-        << "rotate(" << degrees << "): " << e.differing
-        << " pixels differ from the uncached render (mean |delta| over ink "
-        << e.meanInk << ") — the bake is being resampled, not copied";
-  }
-}
-
-TEST(ComposeCache, ATextureBakeCompositesThroughItsOwnLayer) {
-  // The exact bake blits with the matrix RESET, and an opacity/blend node
-  // is already inside a saveLayer when it does. That is only correct
-  // because an identity CTM is global canvas space even inside a layer —
-  // the layer device carries its own origin. If that were wrong the image
-  // would land somewhere else entirely, so it is worth an assertion rather
-  // than an argument.
-  const auto pill = [](bool cached, bool rotate) {
-    Element p = hairlinePill()
-                    .absolute()
-                    .left(52)
-                    .top(133)
-                    .rotate(rotate ? -90.0f : 0.0f)
-                    .opacity(0.5f)
-                    .blendMode(material::BlendMode::Screen);
-    if (cached) p.cache(Cache::Texture);
-    return box().cache(Cache::None).children({std::move(p)});
-  };
-  for (bool rotate : {false, true}) {
-    Host plain(300, 300), baked(300, 300);
-    plain.composer.render(pill(false, rotate));
-    baked.composer.render(pill(true, rotate));
-    for (int i = 0; i < 3; ++i) {
-      plain.frame();
-      baked.frame();
-    }
-    // Not "roughly where it should be" — the layer receives exactly the
-    // pixels paintContent would have drawn into it, so the composite is
-    // the same composite.
-    EXPECT_TRUE(identicalPixels(plain, baked, 300, 300))
-        << "a cached node at opacity/blend" << (rotate ? " + rotate(-90)" : "")
-        << " did not composite the same as the uncached one";
-  }
+// A settled texture bake is the live paint's pixels at every angle and
+// through a layer of its own.
+TEST(ComposeCache, ADeviceTextureBakeIsACopyOfTheLivePaint) {
+  sigil::compose::test::checkRows({
+      {"TextureBakeSurvivesAQuarterTurn",
+       [] {
+         // A settled bake is taken in DEVICE space, snapped out to whole device
+         // pixels and blitted with the matrix reset, so it is a literal copy of
+         // the pixels the uncached draw would have produced — at ANY angle, not
+         // merely close at the convenient ones.
+         //
+         // Two independent things have to be right, and getting only the first
+         // leaves a picture that still looks nearly correct at every angle:
+         //
+         //  - the bake RESOLUTION, which must come from the matrix's singular
+         //    values rather than its diagonal (a quarter turn puts the whole
+         //    scale in the skew terms, so the diagonal reads zero and the bake
+         //    clamps to the ladder's floor); and
+         //  - the bake SPACE, which must be device space. A bake held in LOCAL
+         //    space is resampled by whatever transform blits it, so its texel
+         //    grid lands off the device grid and softens every hairline.
+         //
+         // Correct resolution alone is necessary and not sufficient, which is
+         // why the assertion is exact pixel equality at every angle rather than
+         // a tolerance.
+         for (float degrees : {0.0f, 90.0f, -90.0f, 180.0f, 45.0f}) {
+           const BakeError error = bakeErrorAt(degrees);
+           EXPECT_EQ(error.differing, 0u)
+               << "rotate(" << degrees << "): " << error.differing
+               << " pixels differ from the uncached render (mean |delta| over "
+                  "ink "
+               << error.meanInk
+               << ") — the bake is being resampled, not copied";
+         }
+       }},
+      {"ATextureBakeCompositesThroughItsOwnLayer",
+       [] {
+         // The exact bake blits with the matrix RESET, and an opacity/blend
+         // node is already inside a saveLayer when it does. That is only
+         // correct because an identity CTM is global canvas space even inside a
+         // layer — the layer device carries its own origin. If that were wrong
+         // the image would land somewhere else entirely, so it is worth an
+         // assertion rather than an argument.
+         const auto pill = [](bool cached, bool rotate) {
+           Element pill = hairlinePill()
+                              .absolute()
+                              .left(52)
+                              .top(133)
+                              .rotate(rotate ? -90.0f : 0.0f)
+                              .opacity(0.5f)
+                              .blendMode(material::BlendMode::Screen);
+           if (cached) pill.cache(Cache::Texture);
+           return box().cache(Cache::None).children({std::move(pill)});
+         };
+         for (bool rotate : {false, true}) {
+           Host plain(300, 300), baked(300, 300);
+           plain.composer.render(pill(false, rotate));
+           baked.composer.render(pill(true, rotate));
+           for (int index = 0; index < 3; ++index) {
+             plain.frame();
+             baked.frame();
+           }
+           // Not "roughly where it should be" — the layer receives exactly the
+           // pixels paintContent would have drawn into it, so the composite is
+           // the same composite.
+           EXPECT_TRUE(identicalPixels(plain, baked, 300, 300))
+               << "a cached node at opacity/blend"
+               << (rotate ? " + rotate(-90)" : "")
+               << " did not composite the same as the uncached one";
+         }
+       }},
+  });
 }
 
 namespace {
@@ -159,40 +174,44 @@ namespace {
  *  refuse it for the skew alone, and this test would pass even with the
  *  perspective clause removed. This matrix is upright by every other test
  *  the gate makes — scale 1, skew 0 — so only `hasPerspective()` says no. */
-SkMatrix hostCamera(float p) {
-  SkMatrix m = SkMatrix::I();
-  m.setPerspY(p);
-  return m;
+SkMatrix hostCamera(float perspective) {
+  SkMatrix matrix = SkMatrix::I();
+  matrix.setPerspY(perspective);
+  return matrix;
 }
 
 /** Host::frame, under a host concat — the camera compose never sees. */
-void frameUnder(Host& h, const SkMatrix& camera) {
-  SkCanvas* canvas = h.surface->getCanvas();
+void frameUnder(Host& host, const SkMatrix& camera) {
+  SkCanvas* canvas = host.surface->getCanvas();
   canvas->clear(SK_ColorBLACK);
   canvas->save();
   canvas->concat(camera);
-  h.composer.draw(*canvas);
+  host.composer.draw(*canvas);
   canvas->restore();
 }
 
 /** Mean |Δ| over ink between two hosts — bakeErrorAt's meter, reusable
  *  for frames drawn under a camera. */
-double meanInkDiff(Host& a, Host& b, int w, int h) {
-  SkBitmap ba, bb;
-  ba.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  bb.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  a.surface->readPixels(ba.pixmap(), 0, 0);
-  b.surface->readPixels(bb.pixmap(), 0, 0);
+double meanInkDiff(Host& first, Host& second, int width, int height) {
+  SkBitmap firstPixels, secondPixels;
+  firstPixels.allocPixels(SkImageInfo::MakeN32Premul(width, height));
+  secondPixels.allocPixels(SkImageInfo::MakeN32Premul(width, height));
+  first.surface->readPixels(firstPixels.pixmap(), 0, 0);
+  second.surface->readPixels(secondPixels.pixmap(), 0, 0);
   double total = 0;
   size_t ink = 0;
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) {
-      const SkColor pa = ba.getColor(x, y), pb = bb.getColor(x, y);
-      if (pa == SK_ColorBLACK && pb == SK_ColorBLACK) continue;
+  for (int y = 0; y < height; ++y)
+    for (int x = 0; x < width; ++x) {
+      const SkColor firstColor = firstPixels.getColor(x, y),
+                    secondColor = secondPixels.getColor(x, y);
+      if (firstColor == SK_ColorBLACK && secondColor == SK_ColorBLACK) continue;
       ++ink;
-      total += (std::abs((int)SkColorGetR(pa) - (int)SkColorGetR(pb)) +
-                std::abs((int)SkColorGetG(pa) - (int)SkColorGetG(pb)) +
-                std::abs((int)SkColorGetB(pa) - (int)SkColorGetB(pb))) /
+      total += (std::abs((int)SkColorGetR(firstColor) -
+                         (int)SkColorGetR(secondColor)) +
+                std::abs((int)SkColorGetG(firstColor) -
+                         (int)SkColorGetG(secondColor)) +
+                std::abs((int)SkColorGetB(firstColor) -
+                         (int)SkColorGetB(secondColor))) /
                3.0;
     }
   return ink ? total / (double)ink : 0.0;
@@ -208,20 +227,20 @@ namespace {
  *  byte equality (that is the device bake's claim, and the device bake
  *  is exactly what perspective refuses). */
 Element rampPanel(bool cached) {
-  Element p = box().width(180).height(120).absolute().left(60).top(90).fill(
+  Element panel = box().width(180).height(120).absolute().left(60).top(90).fill(
       material::linearGradient(
           {0, 0}, {1, 1},
           {{0.0f, {0.9f, 0.3f, 0.1f, 1}}, {1.0f, {0.1f, 0.4f, 0.9f, 1}}}));
-  for (int i = 0; i < 4; ++i)
-    p.children({box()
-                    .absolute()
-                    .left(15 + (float)i * 42)
-                    .top(18)
-                    .width(18)
-                    .height(84)
-                    .fill(Fill::color({0.92f, 0.93f, 0.95f, 1}))});
-  if (cached) p.cache(Cache::Texture);
-  return box().cache(Cache::None).children({std::move(p)});
+  for (int index = 0; index < 4; ++index)
+    panel.children({box()
+                        .absolute()
+                        .left(15 + (float)index * 42)
+                        .top(18)
+                        .width(18)
+                        .height(84)
+                        .fill(Fill::color({0.92f, 0.93f, 0.95f, 1}))});
+  if (cached) panel.cache(Cache::Texture);
+  return box().cache(Cache::None).children({std::move(panel)});
 }
 
 }  // namespace
@@ -239,7 +258,7 @@ TEST(ComposeCache, ATextureBakeUnderPerspectiveTracksTheCamera) {
   baked.composer.render(rampPanel(true));
   const SkMatrix before = hostCamera(0.0008f);
   size_t bakes = 0;
-  for (int i = 0; i < 3; ++i) {
+  for (int index = 0; index < 3; ++index) {
     frameUnder(plain, before);
     frameUnder(baked, before);
     bakes += baked.composer.stats().texturesBaked;
@@ -277,229 +296,258 @@ TEST(ComposeCache, ATextureBakeUnderPerspectiveTracksTheCamera) {
          "holding one local bake";
 }
 
-TEST(ComposeCache, SparseFurnitureSurvivesAFractionalCaptureScale) {
-  const auto scene = [](Cache cache) {
-    auto furniture = box().inset(0).cache(cache);
-    furniture.children(
-        {box()
-             .left(72)
-             .top(58)
-             .width(1296)
-             .height(936)
-             .fill(Fill::none())
-             .foreground(decorations::border(7, Fill::color({1, 1, 1, 1})))});
-    furniture.children(
-        {box()
-             .left(442)
-             .top(311)
-             .width(556)
-             .height(556)
-             .shape(geometry::shapes::circle())
-             .fill(Fill::none())
-             .foreground(decorations::border(5, Fill::color({1, 1, 1, 1})))});
-    return box()
-        .inset(0)
-        .cache(Cache::None)
-        .filter(material::skia::filter(SkImageFilters::Blur(1, 1, nullptr)))
-        .children({std::move(furniture)});
-  };
-  Host cached(1440, 1052), plain(1440, 1052);
-  cached.composer.render(scene(Cache::Texture));
-  plain.composer.render(scene(Cache::None));
-  for (int i = 0; i < 3; ++i) cached.frame();
-  for (Host* host : {&cached, &plain}) {
-    host->surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2400, 1754));
-    host->surface->getCanvas()->scale(5.0f / 3.0f, 5.0f / 3.0f);
-    host->frame();
-  }
-  SkBitmap expected, actual;
-  expected.allocPixels(SkImageInfo::MakeN32Premul(2400, 1754));
-  actual.allocPixels(expected.info());
-  plain.surface->readPixels(expected.pixmap(), 0, 0);
-  cached.surface->readPixels(actual.pixmap(), 0, 0);
-  int lit = 0, lost = 0;
-  for (int y = 0; y < 1754; ++y)
-    for (int x = 0; x < 2400; ++x) {
-      if (SkColorGetR(expected.getColor(x, y)) < 200) continue;
-      ++lit;
-      if (SkColorGetR(actual.getColor(x, y)) < 100) ++lost;
-    }
-  EXPECT_GT(lit, 10000);
-  EXPECT_EQ(lost, 0);
+// A bake that cannot be taken, or that throws, leaves the node painted live
+// and the next bake to be taken.
+TEST(ComposeCache, ABakeThatCannotBeTakenPaintsLive) {
+  sigil::compose::test::checkRows({
+      {"AnOversizedLocalBakeReplacesADeviceBakeWithLivePaint",
+       [] {
+         const auto scene = [](Cache cache) {
+           return box()
+               .cache(Cache::None)
+               .children(
+                   {box()
+                        .key("large")
+                        .absolute()
+                        .left(30)
+                        .top(30)
+                        .width(5000)
+                        .height(5000)
+                        .fill(red())
+                        .opacity(0.6f)
+                        .cache(cache)
+                        .children({box().width(12).height(12).fill(blue())})});
+         };
+         Host plain, cached;
+         cached.composer.setProfiling(true);
+         plain.composer.render(scene(Cache::None));
+         cached.composer.render(scene(Cache::Texture));
+         plain.frame();
+         cached.frame();
+         ASSERT_EQ(cached.composer.stats().texturesBaked, 1u);
+
+         // The device bake holds only the clipped portion of the large node.
+         // Perspective requires a local bake of the whole node, beyond its area
+         // ceiling. Reusing the device image as local pixels would move its
+         // ink.
+         const SkMatrix camera = hostCamera(0.00001f);
+         frameUnder(plain, camera);
+         frameUnder(cached, camera);
+         EXPECT_TRUE(identicalPixels(plain, cached, 200, 200));
+         EXPECT_EQ(cached.composer.stats().texturesBaked, 0u);
+         const Composer::NodeCost* row = requireRow(cached.composer, "large");
+         ASSERT_NE(row, nullptr);
+         EXPECT_EQ(row->cacheState, Composer::CacheState::Live);
+       }},
+      {"UnrepresentableBakeDimensionsPaintLive",
+       [] {
+         for (Cache cache : {Cache::Texture, Cache::Group}) {
+           Host host;
+           auto scale = motion::animatable(1.0f);
+           host.composer.setBakeDensity(std::numeric_limits<float>::max());
+           host.composer.render(box()
+                                    .cache(Cache::None)
+                                    .children({box()
+                                                   .absolute()
+                                                   .left(30)
+                                                   .top(30)
+                                                   .width(48)
+                                                   .height(48)
+                                                   .fill(red())
+                                                   .scale(motion::bind(scale))
+                                                   .cache(cache)}));
+           for (int index = 0; index < 3; ++index) {
+             host.frame();
+             EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+             EXPECT_EQ(host.pixel(20, 40), SK_ColorBLACK);
+             EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
+           }
+         }
+       }},
+      {"ABakeExceptionLeavesTheNextBakeToBeTaken",
+       [] {
+         for (Cache cache : {Cache::Texture, Cache::Picture}) {
+           Host host;
+           auto scale = motion::animatable(1.0f);
+           host.composer.setProfiling(true);
+           Element failing =
+               custom([] { throw std::runtime_error("paint failed"); })
+                   .width(80)
+                   .height(80)
+                   .cache(cache);
+           if (cache == Cache::Picture) failing.scale(motion::bind(scale));
+           host.composer.render(failing);
+           {
+             const SkAutoCanvasRestore restore(host.surface->getCanvas(), true);
+             EXPECT_THROW(host.frame(), std::runtime_error);
+           }
+
+           host.composer.render(box()
+                                    .cache(Cache::None)
+                                    .children({box()
+                                                   .key("recovered")
+                                                   .width(80)
+                                                   .height(80)
+                                                   .fill(red())
+                                                   .cache(Cache::Texture)}));
+           host.frame();
+           const Composer::NodeCost* row =
+               requireRow(host.composer, "recovered");
+           ASSERT_NE(row, nullptr);
+           EXPECT_EQ(row->cacheState, Composer::CacheState::Texture);
+           EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+         }
+       }},
+      {"ACoverageExceptionRetriesTheTraceAndLeavesTheNextBake",
+       [] {
+         Host host;
+         bool fail = false;
+         int paintRuns = 0;
+         host.composer.render(
+             custom([&](sigil::draw::Pen& pen) {
+               ++paintRuns;
+               if (fail) {
+                 fail = false;
+                 throw std::runtime_error("paint failed");
+               }
+               SkPaint paint;
+               paint.setColor(SK_ColorRED);
+               pen.canvas()->drawRect(SkRect::MakeLTRB(12, 12, 36, 36), paint);
+             })
+                 .width(80)
+                 .height(80)
+                 .decorationOutline(Boundary::Coverage)
+                 .foreground(decorations::border(2, Fill::color({1, 1, 1, 1})))
+                 .cache(Cache::Texture));
+         host.frame();
+         fail = true;
+         host.surface->getCanvas()->scale(2, 2);
+         EXPECT_THROW(host.frame(), std::runtime_error);
+         const int beforeRetry = paintRuns;
+         EXPECT_NO_THROW(host.frame());
+         EXPECT_EQ(paintRuns, beforeRetry + 2);
+         EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB(20, 32, 28, 64)));
+
+         host.composer.setProfiling(true);
+         host.composer.render(box()
+                                  .cache(Cache::None)
+                                  .children({box()
+                                                 .key("recovered")
+                                                 .width(80)
+                                                 .height(80)
+                                                 .fill(red())
+                                                 .cache(Cache::Texture)}));
+         host.frame();
+         const Composer::NodeCost* row = requireRow(host.composer, "recovered");
+         ASSERT_NE(row, nullptr);
+         EXPECT_EQ(row->cacheState, Composer::CacheState::Texture);
+         EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+       }},
+  });
 }
 
-TEST(ComposeCache, AnOversizedLocalBakeReplacesADeviceBakeWithLivePaint) {
-  const auto scene = [](Cache cache) {
-    return box()
-        .cache(Cache::None)
-        .children({box()
-                       .key("large")
-                       .absolute()
-                       .left(30)
-                       .top(30)
-                       .width(5000)
-                       .height(5000)
-                       .fill(red())
-                       .opacity(0.6f)
-                       .cache(cache)
-                       .children({box().width(12).height(12).fill(blue())})});
-  };
-  Host plain, cached;
-  cached.composer.setProfiling(true);
-  plain.composer.render(scene(Cache::None));
-  cached.composer.render(scene(Cache::Texture));
-  plain.frame();
-  cached.frame();
-  ASSERT_EQ(cached.composer.stats().texturesBaked, 1u);
-
-  // The device bake holds only the clipped portion of the large node.
-  // Perspective requires a local bake of the whole node, beyond its area
-  // ceiling. Reusing the device image as local pixels would move its ink.
-  const SkMatrix camera = hostCamera(0.00001f);
-  frameUnder(plain, camera);
-  frameUnder(cached, camera);
-  EXPECT_TRUE(identicalPixels(plain, cached, 200, 200));
-  EXPECT_EQ(cached.composer.stats().texturesBaked, 0u);
-  const Composer::NodeCost* row = requireRow(cached.composer, "large");
-  ASSERT_NE(row, nullptr);
-  EXPECT_EQ(row->cacheState, Composer::CacheState::Live);
-}
-
-TEST(ComposeCache, UnrepresentableBakeDimensionsPaintLive) {
-  for (Cache cache : {Cache::Texture, Cache::Group}) {
-    Host host;
-    auto scale = motion::animatable(1.0f);
-    host.composer.setBakeDensity(std::numeric_limits<float>::max());
-    host.composer.render(box()
-                             .cache(Cache::None)
-                             .children({box()
-                                            .absolute()
-                                            .left(30)
-                                            .top(30)
-                                            .width(48)
-                                            .height(48)
-                                            .fill(red())
-                                            .scale(motion::bind(scale))
-                                            .cache(cache)}));
-    for (int i = 0; i < 3; ++i) {
-      host.frame();
-      EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
-      EXPECT_EQ(host.pixel(20, 40), SK_ColorBLACK);
-      EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
-    }
-  }
-}
-
-TEST(ComposeCache, ABakeExceptionLeavesTheNextBakeToBeTaken) {
-  for (Cache cache : {Cache::Texture, Cache::Picture}) {
-    Host host;
-    auto scale = motion::animatable(1.0f);
-    host.composer.setProfiling(true);
-    Element failing = custom([] { throw std::runtime_error("paint failed"); })
-                          .width(80)
-                          .height(80)
-                          .cache(cache);
-    if (cache == Cache::Picture) failing.scale(motion::bind(scale));
-    host.composer.render(failing);
-    {
-      const SkAutoCanvasRestore restore(host.surface->getCanvas(), true);
-      EXPECT_THROW(host.frame(), std::runtime_error);
-    }
-
-    host.composer.render(box()
-                             .cache(Cache::None)
-                             .children({box()
-                                            .key("recovered")
-                                            .width(80)
-                                            .height(80)
-                                            .fill(red())
-                                            .cache(Cache::Texture)}));
-    host.frame();
-    const Composer::NodeCost* row = requireRow(host.composer, "recovered");
-    ASSERT_NE(row, nullptr);
-    EXPECT_EQ(row->cacheState, Composer::CacheState::Texture);
-    EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
-  }
-}
-
-TEST(ComposeCache, ACoverageExceptionRetriesTheTraceAndLeavesTheNextBake) {
-  Host host;
-  bool fail = false;
-  int paintRuns = 0;
-  host.composer.render(
-      custom([&](sigil::draw::Pen& pen) {
-        ++paintRuns;
-        if (fail) {
-          fail = false;
-          throw std::runtime_error("paint failed");
-        }
-        SkPaint paint;
-        paint.setColor(SK_ColorRED);
-        pen.canvas()->drawRect(SkRect::MakeLTRB(12, 12, 36, 36), paint);
-      })
-          .width(80)
-          .height(80)
-          .decorationOutline(Boundary::Coverage)
-          .foreground(decorations::border(2, Fill::color({1, 1, 1, 1})))
-          .cache(Cache::Texture));
-  host.frame();
-  fail = true;
-  host.surface->getCanvas()->scale(2, 2);
-  EXPECT_THROW(host.frame(), std::runtime_error);
-  const int beforeRetry = paintRuns;
-  EXPECT_NO_THROW(host.frame());
-  EXPECT_EQ(paintRuns, beforeRetry + 2);
-  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB(20, 32, 28, 64)));
-
-  host.composer.setProfiling(true);
-  host.composer.render(box()
-                           .cache(Cache::None)
-                           .children({box()
-                                          .key("recovered")
-                                          .width(80)
-                                          .height(80)
-                                          .fill(red())
-                                          .cache(Cache::Texture)}));
-  host.frame();
-  const Composer::NodeCost* row = requireRow(host.composer, "recovered");
-  ASSERT_NE(row, nullptr);
-  EXPECT_EQ(row->cacheState, Composer::CacheState::Texture);
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
-}
-
-TEST(ComposeCache, AnAddedWireSurvivesParentCaching) {
-  // A wire is mounted by an operator AFTER the parent has been described,
-  // and it reaches across the whole span between the nodes it joins. The
-  // parent's recording cull has to account for it, or the wire is drawn on
-  // the first frame and clipped away by every cached replay after it.
-  Host host;
-  host.composer.render(
-      box()
-          .children(
-              {box().absolute().inset(90, 160, 90, 20).fill(red()).key("a"),
-               box().absolute().inset(90, 20, 90, 160).fill(red()).key("b")})
-          .operators({connect::Between{
-              .from = "a", .to = "b", .wire = stroke(4, green())}}));
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the wire, mid-span
-  host.frame();                                    // cached replay
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
-}
-
-TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
-  // A texture bake must cover the node's PAINT bounds, not its box: a
-  // decoration that bleeds outside the box (here a shadow offset well past
-  // it) is silently cropped away by a bake sized to the node.
-  Host host;
-  host.composer.render(box().children(
-      {box()
-           .absolute()
-           .inset(70)
-           .cache(Cache::Texture)
-           .background(Shadow{.offset = {30, 0}, .color = Fill::color({0, 1, 0, 1})})
-           .fill(red())}));
-  host.frame();
-  EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // shadow past the box
+// A wire, a shadow's bleed and sparse furniture outside the box survive the
+// recording or bake that holds them.
+TEST(ComposeCache, WhatANodePaintsOutsideItsBoxSurvivesItsCache) {
+  sigil::compose::test::checkRows({
+      {"AnAddedWireSurvivesParentCaching",
+       [] {
+         // A wire is mounted by an operator AFTER the parent has been
+         // described, and it reaches across the whole span between the nodes it
+         // joins. The parent's recording cull has to account for it, or the
+         // wire is drawn on the first frame and clipped away by every cached
+         // replay after it.
+         Host host;
+         host.composer.render(
+             box()
+                 .children({box()
+                                .absolute()
+                                .inset(90, 160, 90, 20)
+                                .fill(red())
+                                .key("a"),
+                            box()
+                                .absolute()
+                                .inset(90, 20, 90, 160)
+                                .fill(red())
+                                .key("b")})
+                 .operators({connect::Between{
+                     .from = "a", .to = "b", .wire = stroke(4, green())}}));
+         host.frame();
+         EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the wire, mid-span
+         host.frame();                                    // cached replay
+         EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
+       }},
+      {"TextureBakeKeepsBleedAndOverflow",
+       [] {
+         // A texture bake must cover the node's PAINT bounds, not its box: a
+         // decoration that bleeds outside the box (here a shadow offset well
+         // past it) is silently cropped away by a bake sized to the node.
+         Host host;
+         host.composer.render(box().children(
+             {box()
+                  .absolute()
+                  .inset(70)
+                  .cache(Cache::Texture)
+                  .background(Shadow{.offset = {30, 0},
+                                     .color = Fill::color({0, 1, 0, 1})})
+                  .fill(red())}));
+         host.frame();
+         EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // shadow past the box
+       }},
+      {"SparseFurnitureSurvivesAFractionalCaptureScale",
+       [] {
+         const auto scene = [](Cache cache) {
+           auto furniture = box().inset(0).cache(cache);
+           furniture.children({box()
+                                   .left(72)
+                                   .top(58)
+                                   .width(1296)
+                                   .height(936)
+                                   .fill(Fill::none())
+                                   .foreground(decorations::border(
+                                       7, Fill::color({1, 1, 1, 1})))});
+           furniture.children({box()
+                                   .left(442)
+                                   .top(311)
+                                   .width(556)
+                                   .height(556)
+                                   .shape(geometry::shapes::circle())
+                                   .fill(Fill::none())
+                                   .foreground(decorations::border(
+                                       5, Fill::color({1, 1, 1, 1})))});
+           return box()
+               .inset(0)
+               .cache(Cache::None)
+               .filter(
+                   material::skia::filter(SkImageFilters::Blur(1, 1, nullptr)))
+               .children({std::move(furniture)});
+         };
+         Host cached(1440, 1052), plain(1440, 1052);
+         cached.composer.render(scene(Cache::Texture));
+         plain.composer.render(scene(Cache::None));
+         for (int index = 0; index < 3; ++index) cached.frame();
+         for (Host* host : {&cached, &plain}) {
+           host->surface =
+               SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2400, 1754));
+           host->surface->getCanvas()->scale(5.0f / 3.0f, 5.0f / 3.0f);
+           host->frame();
+         }
+         SkBitmap expected, actual;
+         expected.allocPixels(SkImageInfo::MakeN32Premul(2400, 1754));
+         actual.allocPixels(expected.info());
+         plain.surface->readPixels(expected.pixmap(), 0, 0);
+         cached.surface->readPixels(actual.pixmap(), 0, 0);
+         int lit = 0, lost = 0;
+         for (int y = 0; y < 1754; ++y)
+           for (int x = 0; x < 2400; ++x) {
+             if (SkColorGetR(expected.getColor(x, y)) < 200) continue;
+             ++lit;
+             if (SkColorGetR(actual.getColor(x, y)) < 100) ++lost;
+           }
+         EXPECT_GT(lit, 10000);
+         EXPECT_EQ(lost, 0);
+       }},
+  });
 }
 
 TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
@@ -509,12 +557,12 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
   // strength. The second frame() draws only from caches, which is where a
   // missed re-bake shows up.
   Host host;
-  auto tree = [](motion::Animatable<float> op) {
+  auto tree = [](motion::Animatable<float> opacity) {
     return box().children({box()
                                .width(80)
                                .height(80)
                                .fill(Fill::color({1, 0, 0, 1}))
-                               .opacity(std::move(op))});
+                               .opacity(std::move(opacity))});
   };
   host.composer.render(tree(1.0f));
   host.frame();
@@ -524,6 +572,6 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
                             .ease = motion::ease::linear})));
   host.frame(0.5);  // settled at 0.4
   host.frame();     // draw again from caches
-  const SkColor c = host.pixel(40, 40);
-  EXPECT_NEAR(SkColorGetR(c), 102, 12);  // 0.4 · 255 on black
+  const SkColor color = host.pixel(40, 40);
+  EXPECT_NEAR(SkColorGetR(color), 102, 12);  // 0.4 · 255 on black
 }

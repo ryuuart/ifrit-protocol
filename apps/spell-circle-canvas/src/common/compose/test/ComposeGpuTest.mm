@@ -12,6 +12,7 @@
 
 #include "paint/HeldCoverage.h"
 #include "support/GpuTestSupport.h"
+#include "support/Rows.h"
 
 using namespace sigil::compose::graphiteTesting;
 
@@ -143,100 +144,106 @@ int countNear(const SkBitmap &bitmap, SkColor color, int tolerance) {
 
 }  // namespace
 
-// A batched glyph's blurred underlay must composite BENEATH its stroked
-// foreground on Graphite exactly as it does on the CPU: the stroke keeps
-// its colour, and the two backends agree pixel for pixel within blur and
-// AA tolerance.
-TEST(ComposeGpu, BatchedBlurredUnderlayStaysBeneathForeground) {
-  REQUIRE_GPU();
-  using namespace sigil::weave;
-  FontContext &fontContext = fonts();
-  Paragraph paragraph = hollowParagraph();
-  ParagraphLayout layout = layoutSingleLine(fontContext, paragraph, {40, 120});
-  GlyphRSXformBatches batches = batchAtRest(layout, paragraph);
-  ASSERT_EQ(batches.batches.size(), 2u) << "underlay pass + foreground pass";
+TEST(ComposeGpu, ATextPassesBlurredUnderlayStaysBeneathItsForeground) {
+  sigil::compose::test::checkRows({
+      // A batched glyph's blurred underlay must composite BENEATH its stroked
+      // foreground on Graphite exactly as it does on the CPU: the stroke keeps
+      // its colour, and the two backends agree pixel for pixel within blur and
+      // AA tolerance.
+      {"Batched",
+       [&] {
+         REQUIRE_GPU();
+         using namespace sigil::weave;
+         FontContext &fontContext = fonts();
+         Paragraph paragraph = hollowParagraph();
+         ParagraphLayout layout = layoutSingleLine(fontContext, paragraph, {40, 120});
+         GlyphRSXformBatches batches = batchAtRest(layout, paragraph);
+         ASSERT_EQ(batches.batches.size(), 2u) << "underlay pass + foreground pass";
 
-  const SkImageInfo info = SkImageInfo::MakeN32Premul(180, 160);
+         const SkImageInfo info = SkImageInfo::MakeN32Premul(180, 160);
 
-  sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
-  raster->getCanvas()->clear(SK_ColorBLACK);
-  batches.draw(raster->getCanvas());
-  SkBitmap cpu;
-  cpu.allocPixels(info);
-  ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
+         sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
+         raster->getCanvas()->clear(SK_ColorBLACK);
+         batches.draw(raster->getCanvas());
+         SkBitmap cpu;
+         cpu.allocPixels(info);
+         ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
 
-  sigil::skia::GraphiteContext *context = graphite();
-  sk_sp<SkSurface> gpuSurface = SkSurfaces::RenderTarget(context->recorder(), info);
-  ASSERT_TRUE(gpuSurface);
-  gpuSurface->getCanvas()->clear(SK_ColorBLACK);
-  batches.draw(gpuSurface->getCanvas());
-  SkBitmap gpu = readbackGpu(*context, *gpuSurface, info);
-  ASSERT_FALSE(gpu.empty());
+         sigil::skia::GraphiteContext *context = graphite();
+         sk_sp<SkSurface> gpuSurface = SkSurfaces::RenderTarget(context->recorder(), info);
+         ASSERT_TRUE(gpuSurface);
+         gpuSurface->getCanvas()->clear(SK_ColorBLACK);
+         batches.draw(gpuSurface->getCanvas());
+         SkBitmap gpu = readbackGpu(*context, *gpuSurface, info);
+         ASSERT_FALSE(gpu.empty());
 
-  // The foreground stroke keeps its colour on both backends. A dimmed
-  // stroke (the underlay compositing over it) leaves ZERO pixels near the
-  // foreground colour, so a generous AA tolerance still separates the two.
-  const int cpuStroke = countNear(cpu, kHollowForeground, 24);
-  const int gpuStroke = countNear(gpu, kHollowForeground, 24);
-  ASSERT_GT(cpuStroke, 100) << "the CPU render must show the hollow stroke";
-  EXPECT_GT(gpuStroke, cpuStroke / 2)
-      << "foreground stroke lost its colour on Graphite: the blurred "
-         "underlay composited over it";
-}
+         // The foreground stroke keeps its colour on both backends. A dimmed
+         // stroke (the underlay compositing over it) leaves ZERO pixels near the
+         // foreground colour, so a generous AA tolerance still separates the two.
+         const int cpuStroke = countNear(cpu, kHollowForeground, 24);
+         const int gpuStroke = countNear(gpu, kHollowForeground, 24);
+         ASSERT_GT(cpuStroke, 100) << "the CPU render must show the hollow stroke";
+         EXPECT_GT(gpuStroke, cpuStroke / 2)
+             << "foreground stroke lost its colour on Graphite: the blurred "
+                "underlay composited over it";
+       }},
+      // The same guarantee through the textFx track path: a text node whose style
+      // carries the blurred underlay, drawn mid-cascade (per-glyph scale and
+      // fade in flight), must composite underlay -> foreground identically on
+      // both backends.
+      {"UnderATextFxTrack",
+       [&] {
+         REQUIRE_GPU();
+         using namespace sigil::weave;
+         TextStyle style;
+         style.shaping.fontSize = 64.0f;
+         style.paint.foreground.setAntiAlias(true);
+         style.paint.foreground.setStyle(SkPaint::kStroke_Style);
+         style.paint.foreground.setStrokeWidth(3.0f);
+         style.paint.foreground.setColor(kHollowForeground);
+         SkPaint halo;
+         halo.setAntiAlias(true);
+         halo.setStyle(SkPaint::kStroke_Style);
+         halo.setStrokeWidth(7.0f);
+         halo.setColor(0xA6000000);
+         style.paint.underlays.push_back(PaintLayer::blurred(halo, 3.5f));
 
-// The same guarantee through the textFx track path: a text node whose style
-// carries the blurred underlay, drawn mid-cascade (per-glyph scale and
-// fade in flight), must composite underlay -> foreground identically on
-// both backends.
-TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
-  REQUIRE_GPU();
-  using namespace sigil::weave;
-  TextStyle style;
-  style.shaping.fontSize = 64.0f;
-  style.paint.foreground.setAntiAlias(true);
-  style.paint.foreground.setStyle(SkPaint::kStroke_Style);
-  style.paint.foreground.setStrokeWidth(3.0f);
-  style.paint.foreground.setColor(kHollowForeground);
-  SkPaint halo;
-  halo.setAntiAlias(true);
-  halo.setStyle(SkPaint::kStroke_Style);
-  halo.setStrokeWidth(7.0f);
-  halo.setColor(0xA6000000);
-  style.paint.underlays.push_back(PaintLayer::blurred(halo, 3.5f));
+         const int width = 420, height = 160;
+         auto tree = [&] {
+           return box().padding(20).children(
+               {text(u8"VERTIGO", style)
+                    .key("word")
+                    .textFx(
+                        {.effect = textFx::enter(textFx::pop()),
+                         .tween = {.duration = std::chrono::milliseconds(480),
+                                   .delay = sigil::motion::stagger(std::chrono::milliseconds(30))},
+                         .progress = 0.55f})});
+         };
 
-  const int width = 420, height = 160;
-  auto tree = [&] {
-    return box().padding(20).children(
-        {text(u8"VERTIGO", style)
-             .key("word")
-             .textFx({.effect = textFx::enter(textFx::pop()),
-                      .tween = {.duration = std::chrono::milliseconds(480),
-                                .delay = sigil::motion::stagger(std::chrono::milliseconds(30))},
-                      .progress = 0.55f})});
-  };
+         sigil::motion::Engine engine;
+         Composer composer(engine, fonts());
+         composer.setSize({(float)width, (float)height});
+         composer.render(tree());
 
-  sigil::motion::Engine engine;
-  Composer composer(engine, fonts());
-  composer.setSize({(float)width, (float)height});
-  composer.render(tree());
+         const SkImageInfo info = SkImageInfo::MakeN32Premul(width, height);
+         sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
+         raster->getCanvas()->clear(SK_ColorBLACK);
+         composer.draw(*raster->getCanvas());
+         SkBitmap cpu;
+         cpu.allocPixels(info);
+         ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
 
-  const SkImageInfo info = SkImageInfo::MakeN32Premul(width, height);
-  sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
-  raster->getCanvas()->clear(SK_ColorBLACK);
-  composer.draw(*raster->getCanvas());
-  SkBitmap cpu;
-  cpu.allocPixels(info);
-  ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
+         SkBitmap gpu = drawOnGpu(composer, width, height);
+         ASSERT_FALSE(gpu.empty());
 
-  SkBitmap gpu = drawOnGpu(composer, width, height);
-  ASSERT_FALSE(gpu.empty());
-
-  const int cpuStroke = countNear(cpu, kHollowForeground, 24);
-  const int gpuStroke = countNear(gpu, kHollowForeground, 24);
-  ASSERT_GT(cpuStroke, 100) << "the CPU render must show the hollow stroke";
-  EXPECT_GT(gpuStroke, cpuStroke / 2)
-      << "foreground stroke lost its colour on Graphite: the blurred "
-         "underlay composited over it";
+         const int cpuStroke = countNear(cpu, kHollowForeground, 24);
+         const int gpuStroke = countNear(gpu, kHollowForeground, 24);
+         ASSERT_GT(cpuStroke, 100) << "the CPU render must show the hollow stroke";
+         EXPECT_GT(gpuStroke, cpuStroke / 2)
+             << "foreground stroke lost its colour on Graphite: the blurred "
+                "underlay composited over it";
+       }},
+  });
 }
 
 // `Track::reach` on an textFx::pass grows the pass's painted bounds and
@@ -245,7 +252,7 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
 // the CPU claim alone does not cover it: the layer's pixels must land
 // exactly where the glyphs were placed, and the band beyond the box must
 // hold the lifted glyph tops a zero reach clips at the box edge.
-TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
+TEST(ComposeGpu, ATextPassesReachGrowsItsBoundsAndNothingElse) {
   REQUIRE_GPU();
   sigil::weave::TextStyle style;
   style.shaping.fontSize = 34.0f;
@@ -481,74 +488,82 @@ SkBitmap panelOnGpu(const std::optional<sigil::material::Filter> &filter, float 
 
 }  // namespace
 
-TEST(ComposeGpu, AFilterGivesOnePictureWhateverTheBleedInsideIt) {
-  REQUIRE_GPU();
-  using sigil::material::Filter;
-  const std::pair<const char *, std::optional<Filter>> filters[] = {
-      {"no filter", std::nullopt},
-      {"blur 3", Filter::blur(3)},
-      {"blur 14", Filter::blur(14)},
-      {"blur 44", Filter::blur(44)},
-      {"glow 7", Filter::glow({1, 0.6f, 0.2f, 0.8f}, 7)},
-      {"directional blur", Filter::directionalBlur(18, 90, 12)},
-      {"bloom", Filter::bloom({.sigma = 2.5f,
-                               .strength = 0.5f,
-                               .spread = 2.2f,
-                               .tail = 0.3f,
-                               .threshold = 0.12f,
-                               .knee = 0.18f,
-                               .softness = 0.85f,
-                               .whitening = 0.2f,
-                               .dilation = 1.0f,
-                               .deepening = 2.0f})},
-      {"phosphor bloom", Filter::phosphorBloom(9)},
-      {"a program sampling the layer", Filter::of(sigil::material::field::ripple(10, 60), 12)},
-      {"a bloom then a program", Filter::bloom({.sigma = 2.5f, .spread = 2.2f})
-                                     .then(Filter::of(sigil::material::field::ripple(4, 90), 6))},
-  };
-  for (const Cache cache : {Cache::None, Cache::Texture})
-    for (const float degrees : {0.0f, 7.0f})
-      for (const float scale : {1.0f, 2.0f})
-        for (const auto &[name, filter] : filters) {
-          const SkBitmap narrow = panelOnGpu(filter, 1, scale, cache, degrees);
-          ASSERT_FALSE(narrow.empty());
-          for (const float bleed : {4.2426f, 10.0f}) {
-            const SkBitmap wide = panelOnGpu(filter, bleed, scale, cache, degrees);
-            ASSERT_FALSE(wide.empty());
-            EXPECT_EQ(mismatchedPixels(narrow, wide), 0u)
-                << name << (cache == Cache::Texture ? ", baked" : ", live") << ", turned "
-                << degrees << " degrees, at scale " << scale
-                << ": another picture over a keyline stating a bleed of " << bleed
-                << " than over one stating a bleed of one";
-          }
-        }
-}
-
-TEST(ComposeGpu, AFilterGivesOnePictureWhenTheBleedCrossesAGridLine) {
-  // The panel's edges stand five units short of a line of the filter
-  // grid, so a keyline stating a bleed of ten reaches past the line: the
-  // extent the filter reads stands about the panel's box grown by the
-  // filter's reach, whatever the keyline states inside that reach.
-  REQUIRE_GPU();
-  using sigil::material::Filter;
-  const SkSize shortOfALine{315, 187};
-  const std::pair<const char *, Filter> filters[] = {
-      {"blur 3", Filter::blur(3)},
-      {"blur 14", Filter::blur(14)},
-      {"blur 44", Filter::blur(44)},
-      {"glow 7", Filter::glow({1, 0.6f, 0.2f, 0.8f}, 7)},
-      {"directional blur", Filter::directionalBlur(18, 90, 12)},
-  };
-  for (const Cache cache : {Cache::None, Cache::Texture})
-    for (const float degrees : {0.0f, 7.0f})
-      for (const auto &[name, filter] : filters) {
-        const SkBitmap narrow = panelOnGpu(filter, 1, 1, cache, degrees, shortOfALine);
-        ASSERT_FALSE(narrow.empty());
-        const SkBitmap wide = panelOnGpu(filter, 10, 1, cache, degrees, shortOfALine);
-        ASSERT_FALSE(wide.empty());
-        EXPECT_EQ(mismatchedPixels(narrow, wide), 0u)
-            << name << (cache == Cache::Texture ? ", baked" : ", live") << ", turned " << degrees
-            << " degrees: another picture over a keyline stating a bleed of "
-               "ten than over one stating a bleed of one";
-      }
+TEST(ComposeGpu, AFilterTakesTheBoxWhateverTheBleedInsideIt) {
+  sigil::compose::test::checkRows({
+      {"WhateverTheBleed",
+       [&] {
+         REQUIRE_GPU();
+         using sigil::material::Filter;
+         const std::pair<const char *, std::optional<Filter>> filters[] = {
+             {"no filter", std::nullopt},
+             {"blur 3", Filter::blur(3)},
+             {"blur 14", Filter::blur(14)},
+             {"blur 44", Filter::blur(44)},
+             {"glow 7", Filter::glow({1, 0.6f, 0.2f, 0.8f}, 7)},
+             {"directional blur", Filter::directionalBlur(18, 90, 12)},
+             {"bloom", Filter::bloom({.sigma = 2.5f,
+                                      .strength = 0.5f,
+                                      .spread = 2.2f,
+                                      .tail = 0.3f,
+                                      .threshold = 0.12f,
+                                      .knee = 0.18f,
+                                      .softness = 0.85f,
+                                      .whitening = 0.2f,
+                                      .dilation = 1.0f,
+                                      .deepening = 2.0f})},
+             {"phosphor bloom", Filter::phosphorBloom(9)},
+             {"a program sampling the layer",
+              Filter::of(sigil::material::field::ripple(10, 60), 12)},
+             {"a bloom then a program",
+              Filter::bloom({.sigma = 2.5f, .spread = 2.2f})
+                  .then(Filter::of(sigil::material::field::ripple(4, 90), 6))},
+         };
+         for (const Cache cache : {Cache::None, Cache::Texture})
+           for (const float degrees : {0.0f, 7.0f})
+             for (const float scale : {1.0f, 2.0f})
+               for (const auto &[name, filter] : filters) {
+                 const SkBitmap narrow = panelOnGpu(filter, 1, scale, cache, degrees);
+                 ASSERT_FALSE(narrow.empty());
+                 for (const float bleed : {4.2426f, 10.0f}) {
+                   const SkBitmap wide = panelOnGpu(filter, bleed, scale, cache, degrees);
+                   ASSERT_FALSE(wide.empty());
+                   EXPECT_EQ(mismatchedPixels(narrow, wide), 0u)
+                       << name << (cache == Cache::Texture ? ", baked" : ", live") << ", turned "
+                       << degrees << " degrees, at scale " << scale
+                       << ": another picture over a keyline stating a bleed of " << bleed
+                       << " than over one stating a bleed of one";
+                 }
+               }
+       }},
+      {"WhenTheBleedCrossesAGridLine",
+       [&] {
+         // The panel's edges stand five units short of a line of the filter
+         // grid, so a keyline stating a bleed of ten reaches past the line: the
+         // extent the filter reads stands about the panel's box grown by the
+         // filter's reach, whatever the keyline states inside that reach.
+         REQUIRE_GPU();
+         using sigil::material::Filter;
+         const SkSize shortOfALine{315, 187};
+         const std::pair<const char *, Filter> filters[] = {
+             {"blur 3", Filter::blur(3)},
+             {"blur 14", Filter::blur(14)},
+             {"blur 44", Filter::blur(44)},
+             {"glow 7", Filter::glow({1, 0.6f, 0.2f, 0.8f}, 7)},
+             {"directional blur", Filter::directionalBlur(18, 90, 12)},
+         };
+         for (const Cache cache : {Cache::None, Cache::Texture})
+           for (const float degrees : {0.0f, 7.0f})
+             for (const auto &[name, filter] : filters) {
+               const SkBitmap narrow = panelOnGpu(filter, 1, 1, cache, degrees, shortOfALine);
+               ASSERT_FALSE(narrow.empty());
+               const SkBitmap wide = panelOnGpu(filter, 10, 1, cache, degrees, shortOfALine);
+               ASSERT_FALSE(wide.empty());
+               EXPECT_EQ(mismatchedPixels(narrow, wide), 0u)
+                   << name << (cache == Cache::Texture ? ", baked" : ", live") << ", turned "
+                   << degrees
+                   << " degrees: another picture over a keyline stating a bleed of "
+                      "ten than over one stating a bleed of one";
+             }
+       }},
+  });
 }

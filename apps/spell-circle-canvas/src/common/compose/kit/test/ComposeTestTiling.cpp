@@ -2,11 +2,12 @@
 // re-records only where an id changed, and the chunks beside it keep the
 // recordings they already had.
 
+#include <sigilmedia/advanced/Skia.h>
+
 #include <string>
 #include <vector>
 
 #include "support/ShapeTestSupport.h"
-#include <sigilmedia/advanced/Skia.h>
 
 namespace {
 
@@ -36,12 +37,13 @@ Element tileChunk(const ChunkProps& p) {
     const int id = p.tiles[(size_t)i];
     const int atlasRow = id / 2, row = i / 4;
     const float sx = (float)(id % 2) * 8, sy = (float)atlasRow * 8;
-    chunk.children({image(atlas, material::Fit::Native)
-                        .imageRegion(geometry::path::Rect::of({sx, sy}, {8, 8}))
-                        .absolute()
-                        .inset((float)row * kTilePx, 0, 0, (float)(i % 4) * kTilePx)
-                        .width(kTilePx)
-                        .height(kTilePx)});
+    chunk.children(
+        {image(atlas, material::Fit::Native)
+             .imageRegion(geometry::path::Rect::of({sx, sy}, {8, 8}))
+             .absolute()
+             .inset((float)row * kTilePx, 0, 0, (float)(i % 4) * kTilePx)
+             .width(kTilePx)
+             .height(kTilePx)});
   }
   return chunk;
 }

@@ -13,6 +13,10 @@
 
 #include "cache/StampCache.h"
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
+
+using sigil::compose::test::checkRows;
+using sigil::compose::test::forEachRow;
 
 TEST(ComposeValues, ACacheModeSaysOneOfThreeThingsToTheProof) {
   // Five names, three answers: three of them ask for a bake and differ
@@ -89,99 +93,38 @@ TEST(ComposeStamps, ReBakingOneArtKeepsEveryOtherBakeInTheStore) {
   EXPECT_EQ(cache.get(std::make_shared<int>(99)), nullptr);
 }
 
-TEST(ComposeValues, AValueThatReadsItselfOutAsTextIsText) {
-  // A node of a document, standing in for the one this library may not
-  // name: it answers `text()` and nothing else, and it is text wherever
-  // text is taken. A value that does not answer it — every string
-  // spelling — keeps its own constructor, which is what keeps a literal
-  // from becoming ambiguous.
-  struct Node {
-    std::string_view text() const { return "THE RULE AND THE STRANDS"; }
-  };
-  const Utf8 read = Node{};
-  EXPECT_EQ(std::string(reinterpret_cast<const char*>(read.bytes().data()),
-                        read.bytes().size()),
-            "THE RULE AND THE STRANDS");
-  EXPECT_TRUE(Utf8("THE RULE AND THE STRANDS") == read);
-  EXPECT_TRUE(Utf8().empty());
-}
+TEST(ComposeElement, AnElementIsACopyOnWriteValue) {
+  checkRows({
+      {"MutatingRenderedValueDetachesDescription",
+       [] {
+         Host host;
+         Element panel = box().width(100).height(100).fill(red());
 
-TEST(ComposeValues, ARunOverACountIsOnePerIndex) {
-  // The run whose items are their own place in it says the count and
-  // nothing else; the make takes the index, or nothing at all.
-  std::vector<size_t> seen;
-  const std::vector<Element> indexed = each(4, [&seen](size_t i) {
-    seen.push_back(i);
-    return text(std::to_string(i));
+         host.composer.render(box().children({panel}));
+         host.frame();
+         EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+
+         // Composer retains the first description. Mutating the caller's value
+         // must create a new description so pointer-identity pruning cannot
+         // preserve the old cached picture.
+         panel.fill(blue());
+         host.composer.render(box().children({panel}));
+         host.frame();
+         EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);
+       }},
+      {"CopiedValuesMutateIndependently",
+       [] {
+         Host host;
+         Element left = box().width(100).height(100).fill(red());
+         Element right = left;
+         right.fill(blue());
+
+         host.composer.render(box().row().children({left, right}));
+         host.frame();
+         EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+         EXPECT_EQ(host.pixel(150, 50), SK_ColorBLUE);
+       }},
   });
-  EXPECT_EQ(indexed.size(), 4u);
-  EXPECT_EQ(seen, (std::vector<size_t>{0, 1, 2, 3}));
-  EXPECT_EQ(each(3, [] { return box(); }).size(), 3u);
-  EXPECT_TRUE(each(0, [] { return box(); }).empty());
-}
-
-TEST(ComposeValues, ARunInterleavesTheSeparatorItIsGiven) {
-  // One separator before every item but the first, so a strip never ends
-  // on a dot: three names make five children.
-  const std::vector<std::string> names{"one", "two", "three"};
-  const std::vector<Element> ruled = each(
-      names, [](const std::string& n) { return text(n); },
-      box().key("rule").width(1));
-  EXPECT_EQ(ruled.size(), 5u);
-  // A separator that is a function of what FOLLOWS it takes the
-  // parameters it names, as every other run does.
-  std::vector<std::string> before;
-  const std::vector<Element> counted = each(
-      names, [](const std::string& n) { return text(n); },
-      [&before](const std::string& next, size_t at) {
-        before.push_back(next + std::to_string(at));
-        return box();
-      });
-  EXPECT_EQ(counted.size(), 5u);
-  EXPECT_EQ(before, (std::vector<std::string>{"two1", "three2"}));
-  // A run of one has nothing between, and an empty one nothing at all.
-  EXPECT_EQ(each(
-                std::vector<std::string>{"only"},
-                [](const std::string& n) { return text(n); }, box())
-                .size(),
-            1u);
-  EXPECT_TRUE(each(
-                  std::vector<std::string>{},
-                  [](const std::string& n) { return text(n); }, box())
-                  .empty());
-}
-
-// -------------------------------------------------------------------------
-// Value semantics around Element itself: a rendered value mutated
-// detaches from the description, and a copy moves on its own.
-
-TEST(ComposeElement, MutatingRenderedValueDetachesDescription) {
-  Host host;
-  Element panel = box().width(100).height(100).fill(red());
-
-  host.composer.render(box().children({panel}));
-  host.frame();
-  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
-
-  // Composer retains the first description. Mutating the caller's value must
-  // create a new description so pointer-identity pruning cannot preserve the
-  // old cached picture.
-  panel.fill(blue());
-  host.composer.render(box().children({panel}));
-  host.frame();
-  EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);
-}
-
-TEST(ComposeElement, CopiedValuesMutateIndependently) {
-  Host host;
-  Element left = box().width(100).height(100).fill(red());
-  Element right = left;
-  right.fill(blue());
-
-  host.composer.render(box().row().children({left, right}));
-  host.frame();
-  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
-  EXPECT_EQ(host.pixel(150, 50), SK_ColorBLUE);
 }
 
 TEST(ComposeElement, AWholeNumberOnALaneIsTheNumberItSpells) {

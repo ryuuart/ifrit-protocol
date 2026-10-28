@@ -915,7 +915,7 @@ ledger's device tier holds each one to a picture of its own.
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
 `world_test` over every feature's `test/` and one `world_bench`, ctest
-one entry per CASE, what a case may pin, and what a label promises. What
+one entry per SUITE, what a case may pin, and what a label promises. What
 is only true of SigilWorld:
 
 **A binary exists where it links a strictly smaller set of targets than

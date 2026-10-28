@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "Fonts.h"
+#include "support/Rows.h"
 
 using namespace sigil::compose;
 
@@ -43,7 +44,8 @@ std::shared_ptr<const sigil::media::Video> redClip(
        .bitRate = 500'000,
        .hardware = sigil::media::HardwarePreference::Disabled});
   if (!encoder || !append(encoder, pixels.pixmap())) return nullptr;
-  const std::vector<std::byte> bytes = encoder.finish().value_or(std::vector<std::byte>{});
+  const std::vector<std::byte> bytes =
+      encoder.finish().value_or(std::vector<std::byte>{});
   if (bytes.empty()) return nullptr;
   return sigil::media::decode<sigil::media::Video>(
       bytes,
@@ -64,101 +66,109 @@ bool redAt(SkSurface& surface, int x, int y) {
 
 }  // namespace
 
-TEST(ComposeMovingImage, AClipFitsItsBoxKeepingItsProportionsByDefault) {
-  // A square clip in a wide box with nothing stated: the leaf takes the
-  // box's height and its own proportions, and the slack beside it stays
-  // the parent's.
-  const auto clip = redClip();
-  ASSERT_NE(clip, nullptr);
-  sigil::motion::Engine engine;
-  Composer composer(engine, fonts());
-  composer.setSize({128, 64});
-  composer.render(box()
-                      .width(128)
-                      .height(64)
-                      .fill(Fill::color({0, 0, 1, 1}))
-                      .children({image(clip)}));
+// An image leaf over a clip fits the frame to its box, shares a decode
+// pool's frame between leaves and takes the node's opacity and blend.
+TEST(ComposeMovingImage, AnImageLeafDrawsTheFrameItsClipAnswers) {
+  sigil::compose::test::checkRows({
+      {"AClipFitsItsBoxKeepingItsProportionsByDefault",
+       [] {
+         // A square clip in a wide box with nothing stated: the leaf takes the
+         // box's height and its own proportions, and the slack beside it stays
+         // the parent's.
+         const auto clip = redClip();
+         ASSERT_NE(clip, nullptr);
+         sigil::motion::Engine engine;
+         Composer composer(engine, fonts());
+         composer.setSize({128, 64});
+         composer.render(box()
+                             .width(128)
+                             .height(64)
+                             .fill(Fill::color({0, 0, 1, 1}))
+                             .children({image(clip)}));
 
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 64));
-  composer.draw(*surface->getCanvas());
-  EXPECT_TRUE(redAt(*surface, 8, 8));
-  EXPECT_TRUE(redAt(*surface, 56, 56));
-  EXPECT_FALSE(redAt(*surface, 100, 32));
-}
+         sk_sp<SkSurface> surface =
+             SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 64));
+         composer.draw(*surface->getCanvas());
+         EXPECT_TRUE(redAt(*surface, 8, 8));
+         EXPECT_TRUE(redAt(*surface, 56, 56));
+         EXPECT_FALSE(redAt(*surface, 100, 32));
+       }},
+      {"AClipSpelledNativeIsDrawnIntoTheBoxItIsGiven",
+       [] {
+         const auto clip = redClip();
+         ASSERT_NE(clip, nullptr);
+         sigil::motion::Engine engine;
+         Composer composer(engine, fonts());
+         composer.setSize({128, 128});
+         composer.render(box()
+                             .fill(Fill::color({0, 0, 1, 1}))
+                             .alignItems(Align::Center)
+                             .justifyContent(Justify::Center)
+                             .children({image(clip, material::Fit::Native)
+                                            .width(64)
+                                            .height(64)}));
 
-TEST(ComposeMovingImage, AClipSpelledNativeIsDrawnIntoTheBoxItIsGiven) {
-  const auto clip = redClip();
-  ASSERT_NE(clip, nullptr);
-  sigil::motion::Engine engine;
-  Composer composer(engine, fonts());
-  composer.setSize({128, 128});
-  composer.render(box()
-                      .fill(Fill::color({0, 0, 1, 1}))
-                      .alignItems(Align::Center)
-                      .justifyContent(Justify::Center)
-                      .children({image(clip, material::Fit::Native)
-                                     .width(64)
-                                     .height(64)}));
+         sk_sp<SkSurface> surface =
+             SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 128));
+         composer.draw(*surface->getCanvas());
+         SkBitmap sample;
+         sample.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+         ASSERT_TRUE(surface->readPixels(sample.pixmap(), 64, 64));
+         const SkColor center = sample.getColor(0, 0);
+         EXPECT_GT(SkColorGetR(center), 220);
+         EXPECT_LT(SkColorGetG(center), 40);
+         EXPECT_LT(SkColorGetB(center), 40);
+         ASSERT_TRUE(surface->readPixels(sample.pixmap(), 4, 4));
+         EXPECT_EQ(sample.getColor(0, 0), SK_ColorBLUE);
+       }},
+      {"AClipOnAPoolPaintsEveryLeafThatShowsIt",
+       [] {
+         // No worker: the leaf's ask decodes inside paint, so the frame it
+         // reads back is the one it asked for. The production pool differs only
+         // in where the decode runs.
+         auto pool = std::make_shared<sigil::media::Playback>(
+             sigil::media::Playback::Options{.workers = 0});
+         const auto clip = redClip(pool);
+         ASSERT_NE(clip, nullptr);
+         sigil::motion::Engine engine;
+         Composer composer(engine, fonts());
+         composer.setSize({128, 64});
+         composer.render(stack().children(
+             {image(clip, material::Fit::Stretch).rect(0, 0, 64, 64),
+              image(clip, material::Fit::Stretch).rect(64, 0, 64, 64)}));
 
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 128));
-  composer.draw(*surface->getCanvas());
-  SkBitmap sample;
-  sample.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-  ASSERT_TRUE(surface->readPixels(sample.pixmap(), 64, 64));
-  const SkColor center = sample.getColor(0, 0);
-  EXPECT_GT(SkColorGetR(center), 220);
-  EXPECT_LT(SkColorGetG(center), 40);
-  EXPECT_LT(SkColorGetB(center), 40);
-  ASSERT_TRUE(surface->readPixels(sample.pixmap(), 4, 4));
-  EXPECT_EQ(sample.getColor(0, 0), SK_ColorBLUE);
-}
+         sk_sp<SkSurface> surface =
+             SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 64));
+         surface->getCanvas()->clear(SK_ColorBLACK);
+         composer.draw(*surface->getCanvas());
+         EXPECT_TRUE(clip->hasFrame());
+         EXPECT_TRUE(redAt(*surface, 32, 32));
+         EXPECT_TRUE(redAt(*surface, 96, 32));
+       }},
+      {"TheLeafTakesTheNodesOpacityAndBlend",
+       [] {
+         const auto clip = redClip();
+         ASSERT_NE(clip, nullptr);
+         sigil::motion::Engine engine;
+         Composer composer(engine, fonts());
+         composer.setSize({64, 64});
+         composer.render(
+             box()
+                 .fill(Fill::color({0, 0, 1, 1}))
+                 .children({image(clip, material::Fit::Cover)
+                                .opacity(0.5f)
+                                .blendMode(material::BlendMode::PlusLighter)}));
 
-TEST(ComposeMovingImage, AClipOnAPoolPaintsEveryLeafThatShowsIt) {
-  // No worker: the leaf's ask decodes inside paint, so the frame it reads
-  // back is the one it asked for. The production pool differs only in
-  // where the decode runs.
-  auto pool = std::make_shared<sigil::media::Playback>(
-      sigil::media::Playback::Options{.workers = 0});
-  const auto clip = redClip(pool);
-  ASSERT_NE(clip, nullptr);
-  sigil::motion::Engine engine;
-  Composer composer(engine, fonts());
-  composer.setSize({128, 64});
-  composer.render(stack().children(
-      {image(clip, material::Fit::Stretch).rect(0, 0, 64, 64),
-       image(clip, material::Fit::Stretch).rect(64, 0, 64, 64)}));
-
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 64));
-  surface->getCanvas()->clear(SK_ColorBLACK);
-  composer.draw(*surface->getCanvas());
-  EXPECT_TRUE(clip->hasFrame());
-  EXPECT_TRUE(redAt(*surface, 32, 32));
-  EXPECT_TRUE(redAt(*surface, 96, 32));
-}
-
-TEST(ComposeMovingImage, TheLeafTakesTheNodesOpacityAndBlend) {
-  const auto clip = redClip();
-  ASSERT_NE(clip, nullptr);
-  sigil::motion::Engine engine;
-  Composer composer(engine, fonts());
-  composer.setSize({64, 64});
-  composer.render(box()
-                      .fill(Fill::color({0, 0, 1, 1}))
-                      .children({image(clip, material::Fit::Cover)
-                                     .opacity(0.5f)
-                                     .blendMode(material::BlendMode::PlusLighter)}));
-
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 64));
-  composer.draw(*surface->getCanvas());
-  SkBitmap sample;
-  sample.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-  ASSERT_TRUE(surface->readPixels(sample.pixmap(), 32, 32));
-  const SkColor center = sample.getColor(0, 0);
-  EXPECT_NEAR(SkColorGetR(center), 128, 3);
-  EXPECT_LT(SkColorGetG(center), 3);
-  EXPECT_GT(SkColorGetB(center), 250);
+         sk_sp<SkSurface> surface =
+             SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 64));
+         composer.draw(*surface->getCanvas());
+         SkBitmap sample;
+         sample.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+         ASSERT_TRUE(surface->readPixels(sample.pixmap(), 32, 32));
+         const SkColor center = sample.getColor(0, 0);
+         EXPECT_NEAR(SkColorGetR(center), 128, 3);
+         EXPECT_LT(SkColorGetG(center), 3);
+         EXPECT_GT(SkColorGetB(center), 250);
+       }},
+  });
 }

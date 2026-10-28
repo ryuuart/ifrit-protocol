@@ -39,7 +39,7 @@ TEST(ComposeQuery, AKeyedShellCanOptOutOfHitTesting) {
   EXPECT_EQ(polite.composer.hitTest({40, 40}), "bar");
 }
 
-TEST(ComposeQuery, BoundsIsAbsentRatherThanNaNBeforeLayout) {
+TEST(ComposeQuery, BoundsIsAbsentRatherThanNotANumberBeforeLayout) {
   // Layout runs inside draw(), so a query issued in the same update() as the
   // render() before it is reading an UNLAID tree. It must answer "no value"
   // rather than a rect full of NaN: a NaN rect propagates silently into

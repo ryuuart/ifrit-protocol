@@ -6,54 +6,7 @@
 // The text binary's share of the content suites, one file per subject.
 
 #include "DressedTypeProbes.h"
-
-TEST(ComposeTextFx, ColorMulTintsEveryPassOfADressedGlyph) {
-  // The multiplier is a statement about the GLYPH, not about its fill: it
-  // has to reach the underlays and overlays a span was styled with too.
-  // Reaching only the foreground would leave a tinted letter wearing its
-  // old drop shadow, which is the bug this test exists to name.
-  sigil::weave::TextStyle shadowed = whiteStyle(52);
-  shadowed.paint.addUnderlay(sigil::weave::PaintLayer(SK_ColorRED, {16, 0}));
-
-  const auto render = [&](Host& host, std::string key, SkColor4f tint) {
-    GlyphModifier mod;
-    mod.colorMultiplier = tint;
-    host.composer.render(box().padding(10).children(
-        {text(u8"I", shadowed)
-             .key("k")
-             .textFx({.effect = fixed(std::move(key), mod)})}));
-    host.frame();
-  };
-  const auto count = [](Host& host, auto&& predicate) {
-    int hits = 0;
-    for (int y = 0; y < 140; ++y)
-      for (int x = 0; x < 140; ++x)
-        if (predicate(host.pixel(x, y))) ++hits;
-    return hits;
-  };
-  const auto reddish = [](SkColor c) {
-    return SkColorGetR(c) > 150 && SkColorGetG(c) < 80 && SkColorGetB(c) < 80;
-  };
-  const auto greenish = [](SkColor c) {
-    return SkColorGetG(c) > 150 && SkColorGetR(c) < 80 && SkColorGetB(c) < 80;
-  };
-  const auto whitish = [](SkColor c) {
-    return SkColorGetR(c) > 200 && SkColorGetG(c) > 200 && SkColorGetB(c) > 200;
-  };
-
-  Host plain(140, 140);
-  render(plain, "plain", {1, 1, 1, 1});
-  ASSERT_GT(count(plain, reddish), 10) << "the underlay pass never painted";
-  ASSERT_GT(count(plain, whitish), 10) << "the foreground pass never painted";
-
-  Host tinted(140, 140);
-  render(tinted, "greenOnly", {0, 1, 0, 1});
-  EXPECT_EQ(count(tinted, reddish), 0)
-      << "the underlay kept its red under a tint that multiplies red by zero";
-  EXPECT_EQ(count(tinted, whitish), 0) << "the foreground kept its white";
-  EXPECT_GT(count(tinted, greenish), 10)
-      << "the tint painted nothing at all — the glyph vanished instead";
-}
+#include "support/Rows.h"
 
 namespace {
 
@@ -80,49 +33,111 @@ std::vector<uint8_t> renderColorTracks(
 
 }  // namespace
 
-TEST(ComposeTextFx, ColorAddAddsAcrossTracksAndClampsAtTheDraw) {
-  // One flash brightens: an added half-red over a quarter-grey glyph reads
-  // red-forward where the untouched glyph reads flat grey.
-  GlyphModifier addHalfRed;
-  addHalfRed.colorAdd = {0.5f, 0, 0, 0};
-  const std::vector<uint8_t> flashed =
-      renderColorTracks({{"addHalfRed", addHalfRed}});
-  const std::vector<uint8_t> plain = renderColorTracks({});
-  EXPECT_NE(flashed, plain) << "an added term changed nothing";
+TEST(ComposeTextFx, TheColourTermsComposeAcrossTracksByTheirOwnArithmetic) {
+  sigil::compose::test::checkRows({
+      {"TheMultiplierTintsEveryPassOfADressedGlyph",
+       [&] {
+         // The multiplier is a statement about the GLYPH, not about its fill:
+         // it has to reach the underlays and overlays a span was styled with
+         // too. Reaching only the foreground would leave a tinted letter
+         // wearing its old drop shadow, which is the bug this test exists to
+         // name.
+         sigil::weave::TextStyle shadowed = whiteStyle(52);
+         shadowed.paint.addUnderlay(
+             sigil::weave::PaintLayer(SK_ColorRED, {16, 0}));
 
-  // TWO tracks ADD — 0.5 + 0.75 — and the sum clamps ONCE at the draw, so
-  // the pair is byte-identical to a single track adding full red. Clamping
-  // per track instead would land at 1.25-before-snap only by accident; the
-  // law is sum-then-clamp, and byte identity against the saturated single
-  // track is that law observed.
-  GlyphModifier addMoreRed;
-  addMoreRed.colorAdd = {0.75f, 0, 0, 0};
-  GlyphModifier addFullRed;
-  addFullRed.colorAdd = {1.0f, 0, 0, 0};
-  EXPECT_EQ(renderColorTracks(
-                {{"addHalfRed", addHalfRed}, {"addMoreRed", addMoreRed}}),
-            renderColorTracks({{"addFullRed", addFullRed}}))
-      << "0.5 + 0.75 across two tracks must draw as a clamped 1.0";
-}
+         const auto render = [&](Host& host, std::string key, SkColor4f tint) {
+           GlyphModifier mod;
+           mod.colorMultiplier = tint;
+           host.composer.render(box().padding(10).children(
+               {text(u8"I", shadowed)
+                    .key("k")
+                    .textFx({.effect = fixed(std::move(key), mod)})}));
+           host.frame();
+         };
+         const auto count = [](Host& host, auto&& predicate) {
+           int hits = 0;
+           for (int y = 0; y < 140; ++y)
+             for (int x = 0; x < 140; ++x)
+               if (predicate(host.pixel(x, y))) ++hits;
+           return hits;
+         };
+         const auto reddish = [](SkColor c) {
+           return SkColorGetR(c) > 150 && SkColorGetG(c) < 80 &&
+                  SkColorGetB(c) < 80;
+         };
+         const auto greenish = [](SkColor c) {
+           return SkColorGetG(c) > 150 && SkColorGetR(c) < 80 &&
+                  SkColorGetB(c) < 80;
+         };
+         const auto whitish = [](SkColor c) {
+           return SkColorGetR(c) > 200 && SkColorGetG(c) > 200 &&
+                  SkColorGetB(c) > 200;
+         };
 
-TEST(ComposeTextFx, ColorScreenScreensCommutativelyAcrossTracks) {
-  GlyphModifier screenRed;
-  screenRed.colorScreen = {0.5f, 0, 0, 0};
-  GlyphModifier screenGreen;
-  screenGreen.colorScreen = {0, 0.5f, 0, 0};
-  // Order-free: 1 − (1−a)(1−b) reads the same both ways, so two glow
-  // tracks land identically whichever is declared first.
-  EXPECT_EQ(renderColorTracks({{"sR", screenRed}, {"sG", screenGreen}}),
-            renderColorTracks({{"sG", screenGreen}, {"sR", screenRed}}))
-      << "screen composition depended on track order";
-  // …and the arithmetic is the screen blend itself: half screened twice is
-  // 1 − 0.5·0.5 = 0.75 screened once. Both sides land on the snap ladder
-  // (16/32 and 24/32), so the compare is exact.
-  GlyphModifier screenThreeQuarters;
-  screenThreeQuarters.colorScreen = {0.75f, 0, 0, 0};
-  EXPECT_EQ(renderColorTracks({{"sR", screenRed}, {"sR2", screenRed}}),
-            renderColorTracks({{"s34", screenThreeQuarters}}))
-      << "two half screens must compose to one three-quarter screen";
+         Host plain(140, 140);
+         render(plain, "plain", {1, 1, 1, 1});
+         ASSERT_GT(count(plain, reddish), 10)
+             << "the underlay pass never painted";
+         ASSERT_GT(count(plain, whitish), 10)
+             << "the foreground pass never painted";
+
+         Host tinted(140, 140);
+         render(tinted, "greenOnly", {0, 1, 0, 1});
+         EXPECT_EQ(count(tinted, reddish), 0)
+             << "the underlay kept its red under a tint that multiplies red by "
+                "zero";
+         EXPECT_EQ(count(tinted, whitish), 0)
+             << "the foreground kept its white";
+         EXPECT_GT(count(tinted, greenish), 10)
+             << "the tint painted nothing at all — the glyph vanished instead";
+       }},
+      {"AddedTermsSumAcrossTracksAndClampOnce",
+       [&] {
+         // One flash brightens: an added half-red over a quarter-grey glyph
+         // reads red-forward where the untouched glyph reads flat grey.
+         GlyphModifier addHalfRed;
+         addHalfRed.colorAdd = {0.5f, 0, 0, 0};
+         const std::vector<uint8_t> flashed =
+             renderColorTracks({{"addHalfRed", addHalfRed}});
+         const std::vector<uint8_t> plain = renderColorTracks({});
+         EXPECT_NE(flashed, plain) << "an added term changed nothing";
+
+         // TWO tracks ADD — 0.5 + 0.75 — and the sum clamps ONCE at the draw,
+         // so the pair is byte-identical to a single track adding full red.
+         // Clamping per track instead would land at 1.25-before-snap only by
+         // accident; the law is sum-then-clamp, and byte identity against the
+         // saturated single track is that law observed.
+         GlyphModifier addMoreRed;
+         addMoreRed.colorAdd = {0.75f, 0, 0, 0};
+         GlyphModifier addFullRed;
+         addFullRed.colorAdd = {1.0f, 0, 0, 0};
+         EXPECT_EQ(renderColorTracks({{"addHalfRed", addHalfRed},
+                                      {"addMoreRed", addMoreRed}}),
+                   renderColorTracks({{"addFullRed", addFullRed}}))
+             << "0.5 + 0.75 across two tracks must draw as a clamped 1.0";
+       }},
+      {"ScreensComposeInEitherOrder",
+       [&] {
+         GlyphModifier screenRed;
+         screenRed.colorScreen = {0.5f, 0, 0, 0};
+         GlyphModifier screenGreen;
+         screenGreen.colorScreen = {0, 0.5f, 0, 0};
+         // Order-free: 1 − (1−a)(1−b) reads the same both ways, so two glow
+         // tracks land identically whichever is declared first.
+         EXPECT_EQ(renderColorTracks({{"sR", screenRed}, {"sG", screenGreen}}),
+                   renderColorTracks({{"sG", screenGreen}, {"sR", screenRed}}))
+             << "screen composition depended on track order";
+         // …and the arithmetic is the screen blend itself: half screened twice
+         // is 1 − 0.5·0.5 = 0.75 screened once. Both sides land on the snap
+         // ladder (16/32 and 24/32), so the compare is exact.
+         GlyphModifier screenThreeQuarters;
+         screenThreeQuarters.colorScreen = {0.75f, 0, 0, 0};
+         EXPECT_EQ(renderColorTracks({{"sR", screenRed}, {"sR2", screenRed}}),
+                   renderColorTracks({{"s34", screenThreeQuarters}}))
+             << "two half screens must compose to one three-quarter screen";
+       }},
+  });
 }
 
 TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInATween) {
@@ -165,20 +180,6 @@ TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInATween) {
                textFx::tween({.to = halfScreen}));
 }
 
-TEST(ComposeTextFx, NeutralColourTermsKeepTheFastPathByteIdentical) {
-  // A deviation that spells the neutral terms outright must draw the very
-  // bytes one that never mentions them draws: neutral means the untouched
-  // source paint, not an identity-shaped filter over it.
-  GlyphModifier spelled;
-  spelled.dy = -4.0f;
-  spelled.colorAdd = {0, 0, 0, 0};
-  spelled.colorScreen = {0, 0, 0, 0};
-  GlyphModifier silent;
-  silent.dy = -4.0f;
-  EXPECT_EQ(renderColorTracks({{"spelledNeutral", spelled}}),
-            renderColorTracks({{"silentNeutral", silent}}));
-}
-
 TEST(ComposeTextFx, TheSnapLadderBoundsTheColourTermsAndContinuousLiftsIt) {
   // Below half a ladder step the snapped term rounds to neutral — that
   // rounding is what bounds the memoized filter population — and
@@ -195,41 +196,62 @@ TEST(ComposeTextFx, TheSnapLadderBoundsTheColourTermsAndContinuousLiftsIt) {
       << "continuous must lift the snap and let the faint term through";
 }
 
-TEST(ComposeTextFx, TheFilterPathAgreesWithTheFlatColourPath) {
-  // A pass whose colour is decided by a shader takes the colour terms as a
-  // memoized matrix filter; a flat pass takes them in its colour. Same
-  // arithmetic by contract — multiply, add, clamp, then screen — so the
-  // two paths must land within rounding of each other.
-  GlyphModifier mod;
-  mod.colorMultiplier = {0.5f, 1.0f, 1.0f, 1.0f};
-  mod.colorAdd = {0.25f, 0.25f, 0, 0};
-  mod.colorScreen = {0, 0.5f, 0.5f, 0};
-  const auto render = [&](Host& host, bool shaderFill) {
-    sigil::weave::TextStyle style = greyStyle(52, 0.5f);
-    if (shaderFill)
-      style.paint.foreground.setShader(
-          SkShaders::Color({0.5f, 0.5f, 0.5f, 1.0f}, nullptr));
-    host.composer.render(box().padding(10).children(
-        {text(u8"I", style).key("k").textFx({.effect = fixed("both", mod)})}));
-    host.frame();
-  };
-  Host flat(140, 140);
-  render(flat, false);
-  Host filtered(140, 140);
-  render(filtered, true);
-  int worst = 0;
-  for (int y = 0; y < 140; ++y)
-    for (int x = 0; x < 140; ++x) {
-      const SkColor a = flat.pixel(x, y);
-      const SkColor b = filtered.pixel(x, y);
-      worst =
-          std::max({worst, std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)),
-                    std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)),
-                    std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b))});
-    }
-  EXPECT_LE(worst, 2)
-      << "the matrix-filter path and the flat-colour path disagree about "
-         "the colour-term arithmetic";
+TEST(ComposeTextFx, TheColourTermsTakeOneArithmeticOnEveryPass) {
+  sigil::compose::test::checkRows({
+      {"NeutralTermsKeepTheFastPathBytes",
+       [&] {
+         // A deviation that spells the neutral terms outright must draw the
+         // very bytes one that never mentions them draws: neutral means the
+         // untouched source paint, not an identity-shaped filter over it.
+         GlyphModifier spelled;
+         spelled.dy = -4.0f;
+         spelled.colorAdd = {0, 0, 0, 0};
+         spelled.colorScreen = {0, 0, 0, 0};
+         GlyphModifier silent;
+         silent.dy = -4.0f;
+         EXPECT_EQ(renderColorTracks({{"spelledNeutral", spelled}}),
+                   renderColorTracks({{"silentNeutral", silent}}));
+       }},
+      {"TheFilterPathAgreesWithTheFlatColourPath",
+       [&] {
+         // A pass whose colour is decided by a shader takes the colour terms as
+         // a memoized matrix filter; a flat pass takes them in its colour. Same
+         // arithmetic by contract — multiply, add, clamp, then screen — so the
+         // two paths must land within rounding of each other.
+         GlyphModifier mod;
+         mod.colorMultiplier = {0.5f, 1.0f, 1.0f, 1.0f};
+         mod.colorAdd = {0.25f, 0.25f, 0, 0};
+         mod.colorScreen = {0, 0.5f, 0.5f, 0};
+         const auto render = [&](Host& host, bool shaderFill) {
+           sigil::weave::TextStyle style = greyStyle(52, 0.5f);
+           if (shaderFill)
+             style.paint.foreground.setShader(
+                 SkShaders::Color({0.5f, 0.5f, 0.5f, 1.0f}, nullptr));
+           host.composer.render(box().padding(10).children(
+               {text(u8"I", style)
+                    .key("k")
+                    .textFx({.effect = fixed("both", mod)})}));
+           host.frame();
+         };
+         Host flat(140, 140);
+         render(flat, false);
+         Host filtered(140, 140);
+         render(filtered, true);
+         int worst = 0;
+         for (int y = 0; y < 140; ++y)
+           for (int x = 0; x < 140; ++x) {
+             const SkColor a = flat.pixel(x, y);
+             const SkColor b = filtered.pixel(x, y);
+             worst = std::max(
+                 {worst, std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)),
+                  std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)),
+                  std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b))});
+           }
+         EXPECT_LE(worst, 2) << "the matrix-filter path and the flat-colour "
+                                "path disagree about "
+                                "the colour-term arithmetic";
+       }},
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -264,29 +286,34 @@ int pixelsOf(Host& host, SkColor colour) {
 
 }  // namespace
 
-TEST(ComposeTextFxColor, ATableNamingTheInkInForceFollowsTheSheetsInk) {
-  Host host(200, 100);
-  host.composer.render(termPage("red", ColorTerm::currentInk()));
-  host.frame();
-  EXPECT_GT(pixelsOf(host, SK_ColorRED), 50)
-      << "the white letters were not multiplied toward the red ink";
-  // The sheet's ink changes; the table names no colour of its own, so the
-  // letters follow.
-  host.composer.render(termPage("blue", ColorTerm::currentInk()));
-  host.frame();
-  EXPECT_GT(pixelsOf(host, SK_ColorBLUE), 50);
-  EXPECT_EQ(pixelsOf(host, SK_ColorRED), 0);
-}
-
-TEST(ComposeTextFxColor, ATableNamingACustomPropertyFollowsTheSheetsPalette) {
-  Host host(200, 100);
-  host.composer.render(termPage("green", var("x")));
-  host.frame();
-  EXPECT_GT(pixelsOf(host, SK_ColorGREEN), 50)
-      << "the letters were not multiplied toward the property's green";
-  // A class restating the property recolours the letters with it.
-  host.composer.render(termPage("magenta", var("x")));
-  host.frame();
-  EXPECT_GT(pixelsOf(host, SK_ColorMAGENTA), 50);
-  EXPECT_EQ(pixelsOf(host, SK_ColorGREEN), 0);
+TEST(ComposeTextFxColor, AColourTermNamingTheCascadeFollowsTheSheet) {
+  sigil::compose::test::checkRows({
+      {"TheInkInForce",
+       [&] {
+         Host host(200, 100);
+         host.composer.render(termPage("red", ColorTerm::currentInk()));
+         host.frame();
+         EXPECT_GT(pixelsOf(host, SK_ColorRED), 50)
+             << "the white letters were not multiplied toward the red ink";
+         // The sheet's ink changes; the table names no colour of its own, so
+         // the letters follow.
+         host.composer.render(termPage("blue", ColorTerm::currentInk()));
+         host.frame();
+         EXPECT_GT(pixelsOf(host, SK_ColorBLUE), 50);
+         EXPECT_EQ(pixelsOf(host, SK_ColorRED), 0);
+       }},
+      {"ACustomProperty",
+       [&] {
+         Host host(200, 100);
+         host.composer.render(termPage("green", var("x")));
+         host.frame();
+         EXPECT_GT(pixelsOf(host, SK_ColorGREEN), 50)
+             << "the letters were not multiplied toward the property's green";
+         // A class restating the property recolours the letters with it.
+         host.composer.render(termPage("magenta", var("x")));
+         host.frame();
+         EXPECT_GT(pixelsOf(host, SK_ColorMAGENTA), 50);
+         EXPECT_EQ(pixelsOf(host, SK_ColorGREEN), 0);
+       }},
+  });
 }

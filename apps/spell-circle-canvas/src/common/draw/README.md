@@ -569,6 +569,7 @@ layout relations. `PenMachineFace` uses installed fonts and carries the
 `fonts` label.
 
 Build `draw_test` and `draw_bench` from the app's build directory. Ctest
-discovers each case, so `ctest -R '^Pen\.'` selects the pen suite.
+discovers one entry per suite, so `ctest -R '^draw\.Pen$'` selects the pen
+suite.
 [The testing guide](../../../docs/overview/testing.md) describes the
 shared commands, labels and benchmark workflow.

@@ -1,6 +1,6 @@
 // The face a family's name and a style choose: `fontFamily` over a
 // family's name and `fontStyle` over upright, italic and an oblique angle.
-// The cases that ask the machine's own families carry the `fonts` label
+// The tests that ask the machine's own families carry the `fonts` label
 // through their suites; the lean and the italic axis are asked of the
 // instrument faces and need nothing.
 
@@ -10,6 +10,7 @@
 #include <sigilcompose/core/FontStyle.h>
 #include <sigilcompose/core/SpanStyle.h>
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilweave/fonts/FamilyName.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/query/Selector.h>
 
@@ -20,6 +21,10 @@
 #include "sigilweave/advanced/Skia.h"
 #include "style/FamilyList.h"
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
+
+using sigil::compose::test::checkRows;
+using sigil::compose::test::forEachRow;
 
 namespace {
 
@@ -72,306 +77,6 @@ sk_sp<SkTypeface> styleOf(const char* family, const char* styleName) {
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// fontFamily
-
-TEST(ComposeFontFamily, ANameIsTheFaceTheContextFindsForIt) {
-  ASSERT_TRUE(faceOf("Georgia"));
-  const auto named = render(box().fontFamily("Georgia").children({words()}));
-  EXPECT_EQ(
-      named,
-      render(box().font({.face = faceOf("Georgia")}).children({words()})));
-  EXPECT_NE(named,
-            render(box().font({.face = faceOf("Impact")}).children({words()})));
-}
-
-TEST(ComposeFontFamily, AFamilyNobodyInstalledLeavesTheInheritedFace) {
-  const Element inherited = box().font({.face = faceOf("Georgia")});
-  ::testing::internal::CaptureStderr();
-  const auto missing = render(Element(inherited).children(
-      {box().fontFamily("Nobody Installed This Family").children({words()})}));
-  const std::string said = ::testing::internal::GetCapturedStderr();
-  EXPECT_EQ(missing, render(Element(inherited).children({words()})));
-  EXPECT_NE(said.find("Nobody Installed This Family"), std::string::npos)
-      << said;
-}
-
-TEST(ComposeFontFamily, AListIsReadIntoItsNamesAsCssReadsIt) {
-  using sigil::compose::detail::familiesOf;
-  EXPECT_EQ(familiesOf(" Inter ,  Helvetica   Neue,'A Family, Quoted' ,"
-                       "\"Q\" ,, sans-serif"),
-            (std::vector<std::string>{"Inter", "Helvetica Neue",
-                                      "A Family, Quoted", "Q", "sans-serif"}));
-  EXPECT_EQ(familiesOf("Georgia"), (std::vector<std::string>{"Georgia"}));
-  EXPECT_TRUE(familiesOf(" , ").empty());
-}
-
-TEST(ComposeFontFamily, AListIsSetInItsFirstInstalledFamily) {
-  // CSS's family list: the first family the context has, at the style in
-  // force, whatever follows it.
-  const auto georgia = render(box().fontFamily("Georgia").children({words()}));
-  EXPECT_EQ(render(box()
-                       .fontFamily("Nobody Installed This Family, Georgia, "
-                                   "Impact")
-                       .children({words()})),
-            georgia);
-  EXPECT_EQ(render(box()
-                       .fontFamily("  'Nobody Installed This Family' ,"
-                                   "\"Georgia\",Impact")
-                       .children({words()})),
-            georgia);
-  EXPECT_EQ(
-      render(box().fontFamily("Courier   New, Georgia").children({words()})),
-      render(box().font({.face = faceOf("Courier New")}).children({words()})));
-  // A rule and a span take the same string.
-  constexpr const char* kList = "Nobody Installed This Family, Georgia";
-  const StyleSheet sheet{sigil::compose::rule(".t").fontFamily(kList)};
-  EXPECT_EQ(
-      render(box().applyStyleSheet(sheet).children({words().styleClass("t")})),
-      georgia);
-  EXPECT_EQ(render(box().children({words().span(
-                allOfTheWords(), SpanStyle().fontFamily(kList))})),
-            georgia);
-}
-
-TEST(ComposeFontFamily, AGenericNameIsTheFamilyThePlatformDrawsItIn) {
-  // What `serif` stands for is the font manager's to answer; the tree's
-  // own reads it as the platform does.
-  for (const char* generic : {"serif", "sans-serif", "monospace"}) {
-    SCOPED_TRACE(generic);
-    const sk_sp<SkTypeface> platform = faceOf(generic);
-    ASSERT_TRUE(platform);
-    EXPECT_EQ(
-        render(box()
-                   .fontFamily(std::string("Nobody Installed This Family, ") +
-                               generic)
-                   .children({words()})),
-        render(box().font({.face = platform}).children({words()})));
-  }
-  EXPECT_NE(render(box().fontFamily("serif").children({words()})),
-            render(box().fontFamily("monospace").children({words()})));
-}
-
-TEST(ComposeFontFamily, AListWithNothingInstalledWarnsOnceNamingTheList) {
-  const Element inherited = box().font({.face = faceOf("Georgia")});
-  constexpr const char* kNothing =
-      "Nobody Installed This, Nor This Either 5e1d";
-  ::testing::internal::CaptureStderr();
-  const auto missing = render(Element(inherited).children(
-      {box().fontFamily(kNothing).children({words()})}));
-  (void)render(Element(inherited).children(
-      {box().fontFamily(kNothing).children({words()})}));
-  const std::string said = ::testing::internal::GetCapturedStderr();
-  EXPECT_EQ(missing, render(Element(inherited).children({words()})));
-  const size_t first = said.find(kNothing);
-  ASSERT_NE(first, std::string::npos) << said;
-  EXPECT_EQ(said.find(kNothing, first + 1), std::string::npos) << said;
-}
-
-TEST(ComposeFontFamily, ARuleAndASpanNameAFamilyAsTheElementDoes) {
-  const auto named = render(box().fontFamily("Georgia").children({words()}));
-  const StyleSheet sheet{sigil::compose::rule(".t").fontFamily("Georgia")};
-  EXPECT_EQ(
-      named,
-      render(box().applyStyleSheet(sheet).children({words().styleClass("t")})));
-  EXPECT_EQ(named, render(box().children({words().span(
-                       allOfTheWords(), SpanStyle().fontFamily("Georgia"))})));
-}
-
-TEST(ComposeFontFamily, ARunARuleNamesTakesItsFamily) {
-  // A run named so is a virtual child of the leaf, and a rule about the
-  // name finds its face as it would a child's.
-  const StyleSheet sheet{sigil::compose::rule(".g").fontFamily("Georgia")};
-  EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
-                {text(sigil::weave::rich().add(std::u8string_view(kWords), "g"))
-                     .fontSize(28)
-                     .ink({1, 1, 1, 1})})),
-            render(box().fontFamily("Georgia").children({words()})));
-}
-
-TEST(ComposeFontFamily, AWeightBelowAFamilyFindsTheFamilysFaceAtIt) {
-  // CSS matches a face per element from the family, the weight and the
-  // style in force there, so a weight stated below the family is the same
-  // statement as one stated beside it.
-  ASSERT_TRUE(faceOf("Georgia", SkFontStyle::Bold()));
-  const auto bold =
-      render(box().fontFamily("Georgia").fontWeight(700).children({words()}));
-  EXPECT_NE(bold, render(box().fontFamily("Georgia").children({words()})));
-  EXPECT_EQ(
-      render(box().fontFamily("Georgia").children({words().fontWeight(700)})),
-      bold);
-  EXPECT_EQ(render(box().fontFamily("Georgia").children(
-                {words().span(allOfTheWords(), SpanStyle().fontWeight(700))})),
-            bold);
-}
-
-TEST(ComposeFontFamily, AFaceKeywordInAStrongerLayerStandsOverAFamily) {
-  // The element's own `initial` on the face is stronger than the rule's
-  // family, and `inherit` takes the parent's face over it.
-  sigil::weave::Type initialFace, inheritedFace;
-  initialFace.keywords.set(sigil::weave::TypeField::Face,
-                           sigil::weave::Keyword::Initial);
-  inheritedFace.keywords.set(sigil::weave::TypeField::Face,
-                             sigil::weave::Keyword::Inherit);
-  const StyleSheet sheet{sigil::compose::rule(".t").fontFamily("Georgia")};
-  EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
-                {words().styleClass("t").font(initialFace)})),
-            render(box().children({words()})));
-  EXPECT_EQ(render(box().fontFamily("Impact").applyStyleSheet(sheet).children(
-                {words().styleClass("t").font(inheritedFace)})),
-            render(box().fontFamily("Impact").children({words()})));
-}
-
-TEST(ComposeFontFamily, AStyleNamedBesideTheFamilyIsTheFaceItsFontNamesSo) {
-  // Book and Roman are both an upright 400: only their names part them.
-  ASSERT_TRUE(styleOf("Avenir", "Book") && styleOf("Avenir", "Roman"));
-  const auto book =
-      render(box().fontFamily("Avenir", "Book").children({words()}));
-  EXPECT_EQ(
-      book,
-      render(
-          box().font({.face = styleOf("Avenir", "Book")}).children({words()})));
-  EXPECT_NE(book,
-            render(box().fontFamily("Avenir", "Roman").children({words()})));
-  // The name is compared with case and spaces aside, and an empty one is
-  // the family alone.
-  EXPECT_EQ(book,
-            render(box().fontFamily("Avenir", " b ook").children({words()})));
-  EXPECT_EQ(render(box().fontFamily("Avenir", "").children({words()})),
-            render(box().fontFamily("Avenir").children({words()})));
-}
-
-TEST(ComposeFontFamily, AWeightOrAStyleAfterANamedStyleOverridesItsTraits) {
-  ASSERT_TRUE(styleOf("Avenir", "Book") && styleOf("Avenir", "Heavy"));
-  const auto heavy =
-      render(box().fontFamily("Avenir").fontWeight(800).children({words()}));
-  ASSERT_NE(heavy,
-            render(box().fontFamily("Avenir", "Book").children({words()})));
-  // After it on the node, and below it in the tree, a weight is CSS's
-  // matching from the family again.
-  EXPECT_EQ(render(box()
-                       .fontFamily("Avenir", "Book")
-                       .fontWeight(800)
-                       .children({words()})),
-            heavy);
-  EXPECT_EQ(render(box()
-                       .fontFamily("Avenir", "Book")
-                       .children({words().fontWeight(800)})),
-            heavy);
-  // Before it on the node, the weight gives way to the face named.
-  EXPECT_EQ(render(box()
-                       .fontWeight(800)
-                       .fontFamily("Avenir", "Book")
-                       .children({words()})),
-            render(box().fontFamily("Avenir", "Book").children({words()})));
-  // An italic below it finds the family's italic.
-  EXPECT_NE(render(box()
-                       .fontFamily("Avenir", "Book")
-                       .children({words().fontStyle(FontStyle::Italic)})),
-            render(box().fontFamily("Avenir", "Book").children({words()})));
-}
-
-TEST(ComposeFontFamily, ARuleAndASpanNameAStyleAsTheElementDoes) {
-  ASSERT_TRUE(styleOf("Avenir", "Heavy"));
-  const auto named =
-      render(box().fontFamily("Avenir", "Heavy").children({words()}));
-  const StyleSheet sheet{
-      sigil::compose::rule(".t").fontFamily("Avenir", "Heavy")};
-  EXPECT_EQ(
-      named,
-      render(box().applyStyleSheet(sheet).children({words().styleClass("t")})));
-  EXPECT_EQ(named,
-            render(box().children({words().span(
-                allOfTheWords(), SpanStyle().fontFamily("Avenir", "Heavy"))})));
-}
-
-TEST(ComposeFontFamily, AStyleNoFamilyHasIsSaidOnceAndTheFamilyStands) {
-  constexpr const char* kNoStyle = "No Style Goes By This 7c2a";
-  ::testing::internal::CaptureStderr();
-  const auto missing =
-      render(box().fontFamily("Avenir", kNoStyle).children({words()}));
-  (void)render(box().fontFamily("Avenir", kNoStyle).children({words()}));
-  const std::string said = ::testing::internal::GetCapturedStderr();
-  EXPECT_EQ(missing, render(box().fontFamily("Avenir").children({words()})));
-  const size_t first = said.find(kNoStyle);
-  ASSERT_NE(first, std::string::npos) << said;
-  EXPECT_EQ(said.find(kNoStyle, first + 1), std::string::npos) << said;
-}
-
-TEST(ComposeFontStatements, TheLaterOfAFamilyAndAFaceStands) {
-  // One property, two spellings: the face of `font()` and the family by
-  // name replace each other, so whichever was written last is all the
-  // node says.
-  const sk_sp<SkTypeface> face = sigil::test::instrument::sans();
-  EXPECT_TRUE(sameDescription(box().fontFamily("Georgia").font({.face = face}),
-                              box().font({.face = face})));
-  EXPECT_TRUE(sameDescription(box().font({.face = face}).fontFamily("Georgia"),
-                              box().fontFamily("Georgia")));
-  // An empty name is the default family, which the partial can say.
-  EXPECT_TRUE(sameDescription(box().fontFamily(""),
-                              box().font({.face = weave::defaultFace()})));
-}
-
-// ---------------------------------------------------------------------------
-// fontStyle
-
-TEST(ComposeFontStatements, ANumberIsAnObliqueLeaningRightWhenPositive) {
-  // CSS's sign: a positive angle leans right, which is a NEGATIVE value on
-  // the face's slnt axis, and a bare number is the oblique of that angle.
-  EXPECT_TRUE(sameDescription(box().fontStyle(12), box().font({.slant = -12})));
-  EXPECT_TRUE(sameDescription(box().fontStyle(FontStyle::oblique(12)),
-                              box().fontStyle(12)));
-  EXPECT_TRUE(sameDescription(box().fontStyle(FontStyle::oblique()),
-                              box().fontStyle(14)));
-  EXPECT_TRUE(sameDescription(box().fontStyle(FontStyle::Normal),
-                              box().font({.slant = 0})));
-  EXPECT_FALSE(sameDescription(box().fontStyle(FontStyle::Italic),
-                               box().fontStyle(FontStyle::Normal)));
-  // An italic is a style of its own, and a lean written after it replaces
-  // it.
-  EXPECT_TRUE(sameDescription(box().fontStyle(FontStyle::Italic).fontStyle(8),
-                              box().fontStyle(8)));
-}
-
-TEST(ComposeFontStyle, AnItalicIsTheFamilysItalicFace) {
-  const sk_sp<SkTypeface> italicFace = faceOf("Georgia", SkFontStyle::Italic());
-  ASSERT_TRUE(italicFace);
-  ASSERT_NE(italicFace->fontStyle().slant(), SkFontStyle::kUpright_Slant);
-  const auto italic = render(box()
-                                 .fontFamily("Georgia")
-                                 .fontStyle(FontStyle::Italic)
-                                 .children({words()}));
-  EXPECT_EQ(italic,
-            render(box().font({.face = italicFace}).children({words()})));
-  EXPECT_NE(italic, render(box().fontFamily("Georgia").children({words()})));
-}
-
-TEST(ComposeFontStyle, AnItalicInheritsIntoAFamilyNamedUnderIt) {
-  // The style is inherited beside the face, so a family named further
-  // down is found at the italic in force, as CSS finds it.
-  const sk_sp<SkTypeface> courierItalic =
-      faceOf("Courier New", SkFontStyle::Italic());
-  ASSERT_TRUE(courierItalic);
-  ASSERT_NE(courierItalic->fontStyle().slant(), SkFontStyle::kUpright_Slant);
-  EXPECT_EQ(
-      render(
-          box()
-              .fontFamily("Georgia")
-              .fontStyle(FontStyle::Italic)
-              .children({box().fontFamily("Courier New").children({words()})})),
-      render(box().font({.face = courierItalic}).children({words()})));
-}
-
-TEST(ComposeFontStyle, NormalUnderAnItalicStandsUprightAgain) {
-  EXPECT_EQ(
-      render(box()
-                 .fontFamily("Georgia")
-                 .fontStyle(FontStyle::Italic)
-                 .children(
-                     {box().fontStyle(FontStyle::Normal).children({words()})})),
-      render(box().fontFamily("Georgia").children({words()})));
-}
-
-// ---------------------------------------------------------------------------
 // The lean and the italic axis, asked of the instruments
 
 namespace {
@@ -418,70 +123,448 @@ Lean leanOf(const std::vector<uint32_t>& pixels, int width) {
 
 }  // namespace
 
-TEST(ComposeOblique, APositiveAngleLeansRight) {
-  // CSS's sign, written onto the face's slnt axis negated: the top of the
-  // letter stands to the right of its foot.
-  const Lean leaning =
-      leanOf(render(box().children(
+TEST(ComposeFontFamily, AFamilyIsFoundByNameAsCssReadsTheList) {
+  checkRows({
+      {"ANameIsTheFaceTheContextFindsForIt",
+       [] {
+         ASSERT_TRUE(faceOf("Georgia"));
+         const auto named =
+             render(box().fontFamily("Georgia").children({words()}));
+         EXPECT_EQ(
+             named,
+             render(
+                 box().font({.face = faceOf("Georgia")}).children({words()})));
+         EXPECT_NE(
+             named,
+             render(
+                 box().font({.face = faceOf("Impact")}).children({words()})));
+       }},
+      {"AFamilyNobodyInstalledLeavesTheInheritedFace",
+       [] {
+         const Element inherited = box().font({.face = faceOf("Georgia")});
+         ::testing::internal::CaptureStderr();
+         const auto missing = render(Element(inherited).children(
+             {box()
+                  .fontFamily("Nobody Installed This Family")
+                  .children({words()})}));
+         const std::string said = ::testing::internal::GetCapturedStderr();
+         EXPECT_EQ(missing, render(Element(inherited).children({words()})));
+         EXPECT_NE(said.find("Nobody Installed This Family"), std::string::npos)
+             << said;
+       }},
+      {"AListIsReadIntoItsNamesAsCssReadsIt",
+       [] {
+         using sigil::compose::detail::familiesOf;
+         EXPECT_EQ(
+             familiesOf(" Inter ,  Helvetica   Neue,'A Family, Quoted' ,"
+                        "\"Q\" ,, sans-serif"),
+             (std::vector<std::string>{"Inter", "Helvetica Neue",
+                                       "A Family, Quoted", "Q", "sans-serif"}));
+         EXPECT_EQ(familiesOf("Georgia"),
+                   (std::vector<std::string>{"Georgia"}));
+         EXPECT_TRUE(familiesOf(" , ").empty());
+       }},
+      {"AListIsSetInItsFirstInstalledFamily",
+       [] {
+         // CSS's family list: the first family the context has, at the style in
+         // force, whatever follows it.
+         const auto georgia =
+             render(box().fontFamily("Georgia").children({words()}));
+         EXPECT_EQ(
+             render(box()
+                        .fontFamily("Nobody Installed This Family, Georgia, "
+                                    "Impact")
+                        .children({words()})),
+             georgia);
+         EXPECT_EQ(render(box()
+                              .fontFamily("  'Nobody Installed This Family' ,"
+                                          "\"Georgia\",Impact")
+                              .children({words()})),
+                   georgia);
+         EXPECT_EQ(render(box()
+                              .fontFamily("Courier   New, Georgia")
+                              .children({words()})),
+                   render(box()
+                              .font({.face = faceOf("Courier New")})
+                              .children({words()})));
+         // A rule and a span take the same string.
+         constexpr const char* kList = "Nobody Installed This Family, Georgia";
+         const StyleSheet sheet{sigil::compose::rule(".t").fontFamily(kList)};
+         EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
+                       {words().styleClass("t")})),
+                   georgia);
+         EXPECT_EQ(render(box().children({words().span(
+                       allOfTheWords(), SpanStyle().fontFamily(kList))})),
+                   georgia);
+       }},
+      {"AGenericNameIsTheFamilyThePlatformDrawsItIn",
+       [] {
+         // What `serif` stands for is the font manager's to answer; the tree's
+         // own reads it as the platform does.
+         for (const char* generic : {"serif", "sans-serif", "monospace"}) {
+           SCOPED_TRACE(generic);
+           const sk_sp<SkTypeface> platform = faceOf(generic);
+           ASSERT_TRUE(platform);
+           EXPECT_EQ(
+               render(box()
+                          .fontFamily(
+                              std::string("Nobody Installed This Family, ") +
+                              generic)
+                          .children({words()})),
+               render(box().font({.face = platform}).children({words()})));
+         }
+         EXPECT_NE(render(box().fontFamily("serif").children({words()})),
+                   render(box().fontFamily("monospace").children({words()})));
+       }},
+      {"AListWithNothingInstalledWarnsOnceNamingTheList",
+       [] {
+         const Element inherited = box().font({.face = faceOf("Georgia")});
+         constexpr const char* kNothing =
+             "Nobody Installed This, Nor This Either 5e1d";
+         ::testing::internal::CaptureStderr();
+         const auto missing = render(Element(inherited).children(
+             {box().fontFamily(kNothing).children({words()})}));
+         (void)render(Element(inherited).children(
+             {box().fontFamily(kNothing).children({words()})}));
+         const std::string said = ::testing::internal::GetCapturedStderr();
+         EXPECT_EQ(missing, render(Element(inherited).children({words()})));
+         const size_t first = said.find(kNothing);
+         ASSERT_NE(first, std::string::npos) << said;
+         EXPECT_EQ(said.find(kNothing, first + 1), std::string::npos) << said;
+       }},
+      {"ARuleAndASpanNameAFamilyAsTheElementDoes",
+       [] {
+         const auto named =
+             render(box().fontFamily("Georgia").children({words()}));
+         const StyleSheet sheet{
+             sigil::compose::rule(".t").fontFamily("Georgia")};
+         EXPECT_EQ(named, render(box().applyStyleSheet(sheet).children(
+                              {words().styleClass("t")})));
+         EXPECT_EQ(named,
+                   render(box().children({words().span(
+                       allOfTheWords(), SpanStyle().fontFamily("Georgia"))})));
+       }},
+      {"ARunARuleNamesTakesItsFamily",
+       [] {
+         // A run named so is a virtual child of the leaf, and a rule about the
+         // name finds its face as it would a child's.
+         const StyleSheet sheet{
+             sigil::compose::rule(".g").fontFamily("Georgia")};
+         EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
+                       {text(sigil::weave::rich().add(
+                                 std::u8string_view(kWords), "g"))
+                            .fontSize(28)
+                            .ink({1, 1, 1, 1})})),
+                   render(box().fontFamily("Georgia").children({words()})));
+       }},
+  });
+}
+
+TEST(ComposeFontFamily, TheFaceIsChosenAtTheWeightAndStyleInForce) {
+  checkRows({
+      {"AWeightBelowAFamilyFindsTheFamilysFaceAtIt",
+       [] {
+         // CSS matches a face per element from the family, the weight and the
+         // style in force there, so a weight stated below the family is the
+         // same statement as one stated beside it.
+         ASSERT_TRUE(faceOf("Georgia", SkFontStyle::Bold()));
+         const auto bold = render(
+             box().fontFamily("Georgia").fontWeight(700).children({words()}));
+         EXPECT_NE(bold,
+                   render(box().fontFamily("Georgia").children({words()})));
+         EXPECT_EQ(render(box().fontFamily("Georgia").children(
+                       {words().fontWeight(700)})),
+                   bold);
+         EXPECT_EQ(render(box().fontFamily("Georgia").children({words().span(
+                       allOfTheWords(), SpanStyle().fontWeight(700))})),
+                   bold);
+       }},
+      {"AFaceKeywordInAStrongerLayerStandsOverAFamily",
+       [] {
+         // The element's own `initial` on the face is stronger than the rule's
+         // family, and `inherit` takes the parent's face over it.
+         sigil::weave::Type initialFace, inheritedFace;
+         initialFace.keywords.set(sigil::weave::TypeField::Face,
+                                  sigil::weave::Keyword::Initial);
+         inheritedFace.keywords.set(sigil::weave::TypeField::Face,
+                                    sigil::weave::Keyword::Inherit);
+         const StyleSheet sheet{
+             sigil::compose::rule(".t").fontFamily("Georgia")};
+         EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
+                       {words().styleClass("t").font(initialFace)})),
+                   render(box().children({words()})));
+         EXPECT_EQ(
+             render(box().fontFamily("Impact").applyStyleSheet(sheet).children(
+                 {words().styleClass("t").font(inheritedFace)})),
+             render(box().fontFamily("Impact").children({words()})));
+       }},
+  });
+}
+
+TEST(ComposeFontFamily, AStyleNamedBesideTheFamilyIsTheFaceItsFontNamesSo) {
+  checkRows({
+      {"AStyleNamedBesideTheFamilyIsTheFaceItsFontNamesSo",
+       [] {
+         // Book and Roman are both an upright 400: only their names part them.
+         ASSERT_TRUE(styleOf("Avenir", "Book") && styleOf("Avenir", "Roman"));
+         const auto book =
+             render(box().fontFamily("Avenir", "Book").children({words()}));
+         EXPECT_EQ(book, render(box()
+                                    .font({.face = styleOf("Avenir", "Book")})
+                                    .children({words()})));
+         EXPECT_NE(
+             book,
+             render(box().fontFamily("Avenir", "Roman").children({words()})));
+         // The name is compared with case and spaces aside, and an empty one is
+         // the family alone.
+         EXPECT_EQ(
+             book,
+             render(box().fontFamily("Avenir", " b ook").children({words()})));
+         EXPECT_EQ(render(box().fontFamily("Avenir", "").children({words()})),
+                   render(box().fontFamily("Avenir").children({words()})));
+       }},
+      {"AWeightOrAStyleAfterANamedStyleOverridesItsTraits",
+       [] {
+         ASSERT_TRUE(styleOf("Avenir", "Book") && styleOf("Avenir", "Heavy"));
+         const auto heavy = render(
+             box().fontFamily("Avenir").fontWeight(800).children({words()}));
+         ASSERT_NE(
+             heavy,
+             render(box().fontFamily("Avenir", "Book").children({words()})));
+         // After it on the node, and below it in the tree, a weight is CSS's
+         // matching from the family again.
+         EXPECT_EQ(render(box()
+                              .fontFamily("Avenir", "Book")
+                              .fontWeight(800)
+                              .children({words()})),
+                   heavy);
+         EXPECT_EQ(render(box()
+                              .fontFamily("Avenir", "Book")
+                              .children({words().fontWeight(800)})),
+                   heavy);
+         // Before it on the node, the weight gives way to the face named.
+         EXPECT_EQ(
+             render(box()
+                        .fontWeight(800)
+                        .fontFamily("Avenir", "Book")
+                        .children({words()})),
+             render(box().fontFamily("Avenir", "Book").children({words()})));
+         // An italic below it finds the family's italic.
+         EXPECT_NE(
+             render(box()
+                        .fontFamily("Avenir", "Book")
+                        .children({words().fontStyle(FontStyle::Italic)})),
+             render(box().fontFamily("Avenir", "Book").children({words()})));
+       }},
+      {"ARuleAndASpanNameAStyleAsTheElementDoes",
+       [] {
+         ASSERT_TRUE(styleOf("Avenir", "Heavy"));
+         const auto named =
+             render(box().fontFamily("Avenir", "Heavy").children({words()}));
+         const StyleSheet sheet{
+             sigil::compose::rule(".t").fontFamily("Avenir", "Heavy")};
+         EXPECT_EQ(named, render(box().applyStyleSheet(sheet).children(
+                              {words().styleClass("t")})));
+         EXPECT_EQ(named, render(box().children({words().span(
+                              allOfTheWords(),
+                              SpanStyle().fontFamily("Avenir", "Heavy"))})));
+       }},
+      {"AStyleNoFamilyHasIsSaidOnceAndTheFamilyStands",
+       [] {
+         constexpr const char* kNoStyle = "No Style Goes By This 7c2a";
+         ::testing::internal::CaptureStderr();
+         const auto missing =
+             render(box().fontFamily("Avenir", kNoStyle).children({words()}));
+         (void)render(box().fontFamily("Avenir", kNoStyle).children({words()}));
+         const std::string said = ::testing::internal::GetCapturedStderr();
+         EXPECT_EQ(missing,
+                   render(box().fontFamily("Avenir").children({words()})));
+         const size_t first = said.find(kNoStyle);
+         ASSERT_NE(first, std::string::npos) << said;
+         EXPECT_EQ(said.find(kNoStyle, first + 1), std::string::npos) << said;
+       }},
+  });
+}
+
+TEST(ComposeFontStatements, TheLaterOfAFamilyAndAFaceStands) {
+  // One property, two spellings: the face of `font()` and the family by
+  // name replace each other, so whichever was written last is all the
+  // node says.
+  const sk_sp<SkTypeface> face = sigil::test::instrument::sans();
+  EXPECT_TRUE(sameDescription(box().fontFamily("Georgia").font({.face = face}),
+                              box().font({.face = face})));
+  EXPECT_TRUE(sameDescription(box().font({.face = face}).fontFamily("Georgia"),
+                              box().fontFamily("Georgia")));
+  // An empty name is the default family, which the partial can say.
+  EXPECT_TRUE(sameDescription(box().fontFamily(""),
+                              box().font({.face = weave::defaultFace()})));
+}
+
+TEST(ComposeFontStatements, ANumberIsAnObliqueLeaningRightWhenPositive) {
+  // CSS's sign: a positive angle leans right, which is a NEGATIVE value on
+  // the face's slnt axis, and a bare number is the oblique of that angle.
+  EXPECT_TRUE(sameDescription(box().fontStyle(12), box().font({.slant = -12})));
+  EXPECT_TRUE(sameDescription(box().fontStyle(FontStyle::oblique(12)),
+                              box().fontStyle(12)));
+  EXPECT_TRUE(sameDescription(box().fontStyle(FontStyle::oblique()),
+                              box().fontStyle(14)));
+  EXPECT_TRUE(sameDescription(box().fontStyle(FontStyle::Normal),
+                              box().font({.slant = 0})));
+  EXPECT_FALSE(sameDescription(box().fontStyle(FontStyle::Italic),
+                               box().fontStyle(FontStyle::Normal)));
+  // An italic is a style of its own, and a lean written after it replaces
+  // it.
+  EXPECT_TRUE(sameDescription(box().fontStyle(FontStyle::Italic).fontStyle(8),
+                              box().fontStyle(8)));
+}
+
+TEST(ComposeFontStyle, AnItalicIsTheFamilysItalicFaceWhereverTheFamilyIsNamed) {
+  checkRows({
+      {"AnItalicIsTheFamilysItalicFace",
+       [] {
+         const sk_sp<SkTypeface> italicFace =
+             faceOf("Georgia", SkFontStyle::Italic());
+         ASSERT_TRUE(italicFace);
+         ASSERT_NE(italicFace->fontStyle().slant(),
+                   SkFontStyle::kUpright_Slant);
+         const auto italic = render(box()
+                                        .fontFamily("Georgia")
+                                        .fontStyle(FontStyle::Italic)
+                                        .children({words()}));
+         EXPECT_EQ(
+             italic,
+             render(box().font({.face = italicFace}).children({words()})));
+         EXPECT_NE(italic,
+                   render(box().fontFamily("Georgia").children({words()})));
+       }},
+      {"AnItalicOverAFamilysOwnFaceIsTheFamilysItalic",
+       [] {
+         const sk_sp<SkTypeface> upright = fonts().familyTypeface(
+             "Georgia", sigil::weave::fromSk(SkFontStyle::Normal()));
+         ASSERT_TRUE(upright);
+         // The family the italic is asked of is the one the font service names.
+         const sk_sp<SkTypeface> italicFace = fonts().familyTypeface(
+             sigil::weave::fonts::familyName(*upright),
+             sigil::weave::fromSk(SkFontStyle::Italic()));
+         ASSERT_TRUE(italicFace);
+         ASSERT_NE(italicFace->fontStyle().slant(),
+                   SkFontStyle::kUpright_Slant);
+         const auto italic = render(box()
+                                        .font({.face = upright})
+                                        .fontStyle(FontStyle::Italic)
+                                        .children({words()}));
+         EXPECT_EQ(
+             italic,
+             render(box().font({.face = italicFace}).children({words()})));
+         EXPECT_NE(italic,
+                   render(box().font({.face = upright}).children({words()})));
+       }},
+      {"AnItalicInheritsIntoAFamilyNamedUnderIt",
+       [] {
+         // The style is inherited beside the face, so a family named further
+         // down is found at the italic in force, as CSS finds it.
+         const sk_sp<SkTypeface> courierItalic =
+             faceOf("Courier New", SkFontStyle::Italic());
+         ASSERT_TRUE(courierItalic);
+         ASSERT_NE(courierItalic->fontStyle().slant(),
+                   SkFontStyle::kUpright_Slant);
+         EXPECT_EQ(
+             render(box()
+                        .fontFamily("Georgia")
+                        .fontStyle(FontStyle::Italic)
+                        .children({box()
+                                       .fontFamily("Courier New")
+                                       .children({words()})})),
+             render(box().font({.face = courierItalic}).children({words()})));
+       }},
+      {"NormalUnderAnItalicStandsUprightAgain",
+       [] {
+         EXPECT_EQ(render(box()
+                              .fontFamily("Georgia")
+                              .fontStyle(FontStyle::Italic)
+                              .children({box()
+                                             .fontStyle(FontStyle::Normal)
+                                             .children({words()})})),
+                   render(box().fontFamily("Georgia").children({words()})));
+       }},
+  });
+}
+
+TEST(ComposeOblique, ALeanNeedsASlantAxisAndAnItalicFallsBackToIt) {
+  checkRows({
+      {"APositiveAngleLeansRight",
+       [] {
+         // CSS's sign, written onto the face's slnt axis negated: the top of
+         // the letter stands to the right of its foot.
+         const Lean leaning = leanOf(
+             render(box().children(
                  {letterIn(sigil::test::instrument::oblique()).fontStyle(12)})),
              320);
-  EXPECT_GT(leaning.top, leaning.bottom + 3);
-  const Lean upright = leanOf(
-      render(box().children({letterIn(sigil::test::instrument::oblique())})),
-      320);
-  EXPECT_EQ(upright.top, upright.bottom);
-}
-
-TEST(ComposeOblique, AFamilyWithNoItalicLeansFourteenDegreesAndSaysSo) {
-  // No italic face and no ital axis: the italic is the oblique CSS falls
-  // back to, and the composer names the family that had neither.
-  ::testing::internal::CaptureStderr();
-  const auto italic =
-      render(box().children({letterIn(sigil::test::instrument::oblique())
-                                 .fontStyle(FontStyle::Italic)}));
-  const std::string said = ::testing::internal::GetCapturedStderr();
-  EXPECT_EQ(italic,
-            render(box().children(
-                {letterIn(sigil::test::instrument::oblique()).fontStyle(14)})));
-  const Lean lean = leanOf(italic, 320);
-  EXPECT_GT(lean.top, lean.bottom + 3);
-  EXPECT_NE(said.find("Sigil Instrument Oblique"), std::string::npos) << said;
-}
-
-TEST(ComposeOblique, AnItalicAxisIsTheItalicOnANodeARuleAndASpan) {
-  sigil::weave::Type onTheAxis;
-  onTheAxis.face = sigil::test::instrument::italic();
-  onTheAxis.variations.emplace_back("ital", 1.0f);
-  const auto axis = render(box().children(
-      {letterIn(sigil::test::instrument::italic()).font(onTheAxis)}));
-  EXPECT_NE(
-      axis,
-      render(box().children({letterIn(sigil::test::instrument::italic())})));
-  EXPECT_EQ(render(box().children({letterIn(sigil::test::instrument::italic())
-                                       .fontStyle(FontStyle::Italic)})),
-            axis);
-  const StyleSheet sheet{
-      sigil::compose::rule(".i").fontStyle(FontStyle::Italic)};
-  EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
-                {letterIn(sigil::test::instrument::italic()).styleClass("i")})),
-            axis);
-  EXPECT_EQ(render(box().children(
-                {letterIn(sigil::test::instrument::italic())
-                     .span(sigil::weave::selectors::range({0, 1}),
-                           SpanStyle().fontStyle(FontStyle::Italic))})),
-            axis);
-  // A run a rule makes italic by name is set on the axis too.
-  EXPECT_EQ(
-      render(box().applyStyleSheet(sheet).children(
-          {text(sigil::weave::rich().add(std::u8string_view(u8"I"), "i"))
-               .font({.face = sigil::test::instrument::italic(), .size = 60})
-               .ink({1, 1, 1, 1})})),
-      axis);
-  // Normal under the italic sets the axis back.
-  EXPECT_EQ(
-      render(box()
-                 .fontStyle(FontStyle::Italic)
-                 .children({letterIn(sigil::test::instrument::italic())
-                                .fontStyle(FontStyle::Normal)})),
-      render(box().children({letterIn(sigil::test::instrument::italic())})));
+         EXPECT_GT(leaning.top, leaning.bottom + 3);
+         const Lean upright =
+             leanOf(render(box().children(
+                        {letterIn(sigil::test::instrument::oblique())})),
+                    320);
+         EXPECT_EQ(upright.top, upright.bottom);
+       }},
+      {"AFamilyWithNoItalicLeansFourteenDegreesAndSaysSo",
+       [] {
+         // No italic face and no ital axis: the italic is the oblique CSS falls
+         // back to, and the composer names the family that had neither.
+         ::testing::internal::CaptureStderr();
+         const auto italic =
+             render(box().children({letterIn(sigil::test::instrument::oblique())
+                                        .fontStyle(FontStyle::Italic)}));
+         const std::string said = ::testing::internal::GetCapturedStderr();
+         EXPECT_EQ(
+             italic,
+             render(box().children({letterIn(sigil::test::instrument::oblique())
+                                        .fontStyle(14)})));
+         const Lean lean = leanOf(italic, 320);
+         EXPECT_GT(lean.top, lean.bottom + 3);
+         EXPECT_NE(said.find("Sigil Instrument Oblique"), std::string::npos)
+             << said;
+       }},
+      {"AnItalicAxisIsTheItalicOnANodeARuleAndASpan",
+       [] {
+         sigil::weave::Type onTheAxis;
+         onTheAxis.face = sigil::test::instrument::italic();
+         onTheAxis.variations.emplace_back("ital", 1.0f);
+         const auto axis = render(box().children(
+             {letterIn(sigil::test::instrument::italic()).font(onTheAxis)}));
+         EXPECT_NE(axis, render(box().children(
+                             {letterIn(sigil::test::instrument::italic())})));
+         EXPECT_EQ(
+             render(box().children({letterIn(sigil::test::instrument::italic())
+                                        .fontStyle(FontStyle::Italic)})),
+             axis);
+         const StyleSheet sheet{
+             sigil::compose::rule(".i").fontStyle(FontStyle::Italic)};
+         EXPECT_EQ(render(box().applyStyleSheet(sheet).children(
+                       {letterIn(sigil::test::instrument::italic())
+                            .styleClass("i")})),
+                   axis);
+         EXPECT_EQ(render(box().children(
+                       {letterIn(sigil::test::instrument::italic())
+                            .span(sigil::weave::selectors::range({0, 1}),
+                                  SpanStyle().fontStyle(FontStyle::Italic))})),
+                   axis);
+         // A run a rule makes italic by name is set on the axis too.
+         EXPECT_EQ(
+             render(box().applyStyleSheet(sheet).children(
+                 {text(sigil::weave::rich().add(std::u8string_view(u8"I"), "i"))
+                      .font({.face = sigil::test::instrument::italic(),
+                             .size = 60})
+                      .ink({1, 1, 1, 1})})),
+             axis);
+         // Normal under the italic sets the axis back.
+         EXPECT_EQ(
+             render(box()
+                        .fontStyle(FontStyle::Italic)
+                        .children({letterIn(sigil::test::instrument::italic())
+                                       .fontStyle(FontStyle::Normal)})),
+             render(box().children(
+                 {letterIn(sigil::test::instrument::italic())})));
+       }},
+  });
 }

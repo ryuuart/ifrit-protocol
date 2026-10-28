@@ -39,9 +39,10 @@ TEST(ComposeTextPathEcho, AnEchoRidesThePathTheRunIsLaidAlong) {
            .top(0)
            .textOnPath({.path = geometry::shapes::circle(),
                         .align = TextPath::Align::Center})
-           .ink(material::from(material::Color{1, 1, 1, 1})
-                    .effects(material::Filter::shadow(
-                        {0, 1, 0, 1}, {.offset = {kOffset.fX, kOffset.fY}})))}));
+           .ink(
+               material::from(material::Color{1, 1, 1, 1})
+                   .effects(material::Filter::shadow(
+                       {0, 1, 0, 1}, {.offset = {kOffset.fX, kOffset.fY}})))}));
   host.frame();
   SkBitmap pixels;
   pixels.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));

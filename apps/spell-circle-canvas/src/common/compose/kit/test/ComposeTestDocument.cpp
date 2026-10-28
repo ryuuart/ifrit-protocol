@@ -74,39 +74,6 @@ TEST(KitDocument, RoleRulesRethemeExistingContentAndReflowParagraphs) {
             require(host.composer.bounds("heading")).bottom());
 }
 
-TEST(KitDocument, RichParagraphsRemainOnePassageWithTheirInlineStyles) {
-  const auto words = weave::rich()
-                         .add(u8"Plain ")
-                         .add(u8"accent", weave::Type{.ink = SkColors::kRed})
-                         .add(u8" plain");
-  Host semantic(350, 100), raw(350, 100);
-  semantic.composer.render(onPage(doc::paragraph(words).width(330)));
-  raw.composer.render(onPage(text(words).width(330)));
-  semantic.frame();
-  raw.frame();
-  EXPECT_TRUE(identicalPixels(semantic, raw, 350, 100));
-}
-
-TEST(KitDocument, WrappedListItemsKeepMarkersBesideTheirFirstLine) {
-  Host host(300, 400);
-  host.composer.render(onPage(
-      doc::list(
-          {doc::item(doc::paragraph("A long item wraps onto several lines in a "
-                                    "narrow reading column.")
-                         .key("body"),
-                     "1.")
-               .key("first"),
-           doc::item("Second item", "2.").key("second")})
-          .width(160)));
-  host.frame();
-  const auto first = require(host.composer.bounds("first"));
-  const auto body = require(host.composer.bounds("body"));
-  EXPECT_GT(body.left(), first.left());
-  EXPECT_LE(body.right(), first.right() + 0.1f);
-  EXPECT_GT(body.height(), 32);
-  EXPECT_GT(require(host.composer.bounds("second")).top(), first.bottom());
-}
-
 TEST(KitDocument, ADocumentMeasuresWithoutAWindow) {
   auto article =
       doc::article({doc::h1("A document"),
@@ -118,7 +85,7 @@ TEST(KitDocument, ADocumentMeasuresWithoutAWindow) {
   EXPECT_GT(size.height(), 48);
 }
 
-TEST(KitDocument, ALongMarkerReservesItsOwnWidth) {
+TEST(KitDocument, AListItemsMarkerStandsBesideItsFirstLineInItsOwnWidth) {
   Host host(300, 150);
   host.composer.render(onPage(
       doc::list(

@@ -9,7 +9,7 @@ ctest --test-dir build -C Release --output-on-failure
 ```
 
 Every suite of the application's own is named for it, so
-`ctest -R '^Grimoire'` selects them. The application has one test binary,
+`ctest -R '^grimoire\.'` selects them. The application has one test binary,
 `grimoire_test`, built from `test/`,
 and one bench binary, `grimoire_bench`, built from `bench/`. Its cases
 cover what is the application's own: the command line, the workspace a

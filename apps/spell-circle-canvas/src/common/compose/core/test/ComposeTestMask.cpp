@@ -2,7 +2,9 @@
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmedia/advanced/Skia.h>
+
 #include "support/CoreTestSupport.h"
+#include "support/Rows.h"
 
 namespace {
 
@@ -14,176 +16,175 @@ Element maskBox() { return box().rect(20, 20, 100, 100); }
 
 // ---- the positioned leaf set --------------------------------------------
 
-TEST(ComposePositioned, RectsAreHonoredAndYogaFree) {
-  Host host;
-  host.composer.render(
-      positioned()
-          .inset(0)
-          .children({box().key("a").left(10).top(20).width(50).height(30).fill(
-                         green()),
-                     box().key("b").left(70).top(90).width(40).height(40).fill(
-                         Fill::color({1, 0, 0, 1}))}));
-  host.frame();
-  const auto a = host.composer.bounds("a");
-  const auto b = host.composer.bounds("b");
-  ASSERT_TRUE(a && b);
-  EXPECT_EQ(geometry::path::toSk(*a), SkRect::MakeXYWH(10, 20, 50, 30));
-  EXPECT_EQ(geometry::path::toSk(*b), SkRect::MakeXYWH(70, 90, 40, 40));
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
-  EXPECT_EQ(host.pixel(90, 110), SK_ColorRED);
-  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);
-  // The whole point: root + container carry Yoga nodes, the leaves do not.
-  const Composer::Stats& stats = host.composer.stats();
-  EXPECT_EQ(stats.instances, 3u);
-  EXPECT_EQ(stats.yogaNodes, 1u);
-}
-
-TEST(ComposePositioned, NestedRectsComposeYogaFreeAllTheWayDown) {
-  Host host;
-  host.composer.render(
-      positioned()
-          .inset(0)
-          .children(
-              {box()
-                   .key("outer")
-                   .left(40)
-                   .top(40)
-                   .width(100)
-                   .height(100)
-                   .children(
-                       {box().key("inner").left(10).top(20).width(30).height(
-                           30)})}));
-  host.frame();
-  const auto inner = host.composer.bounds("inner");
-  ASSERT_TRUE(inner);
-  // bounds() is absolute: outer's origin + inner's own rect.
-  EXPECT_EQ(geometry::path::toSk(*inner), SkRect::MakeXYWH(50, 60, 30, 30));
-  EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
-  EXPECT_EQ(host.composer.stats().instances, 3u);
-}
-
-TEST(ComposePositioned, PctAndOpposingInsetsResolve) {
-  Host host;  // 200x200 canvas; container fills it
-  host.composer.render(
-      positioned()
-          .inset(0)
-          // percent dims resolve against the container's rect
-          .children(
-              {box().key("half").left(0).top(0).width(percent(50)).height(percent(25))})
-          // open width + right inset pins the far edge
-          .children(
-              {box().key("pinned").left(20).top(100).right(30).height(10)}));
-  host.frame();
-  const auto half = host.composer.bounds("half");
-  const auto pinned = host.composer.bounds("pinned");
-  ASSERT_TRUE(half && pinned);
-  EXPECT_EQ(geometry::path::toSk(*half), SkRect::MakeXYWH(0, 0, 100, 50));
-  EXPECT_EQ(geometry::path::toSk(*pinned), SkRect::MakeXYWH(20, 100, 150, 10));
-}
-
-TEST(ComposePositioned, TextMeasuresAgainstItsSuppliedWidth) {
-  Host host;
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = 14;
-  style.paint.foreground.setColor(SK_ColorWHITE);
-  host.composer.render(
-      positioned()
-          .inset(0)
-          .children({text(u8"wrap me across a narrow measure", style)
-                         .key("t")
-                         .left(10)
-                         .top(10)
-                         .width(90)}));
-  host.frame();
-  const auto t = host.composer.bounds("t");
-  ASSERT_TRUE(t);
-  EXPECT_EQ(t->left(), 10);
-  EXPECT_EQ(t->width(), 90);
-  // Height is left open, so it comes from measurement: a wrapped run is
-  // taller than a single line.
-  EXPECT_GT(t->height(), 20.0f);
-}
-
-TEST(ComposePositioned, StructuralPruneAndMovesStillWork) {
-  Host host;
-  auto tree = [](float x) {
-    return positioned()
-        .inset(0)
-        .children({box().key("m").left(x).top(10).width(40).height(40).fill(
-            green())});
-  };
-  host.composer.render(tree(10));
-  host.frame();
-  host.composer.render(tree(10));  // identical: prune, no cache writes
-  host.frame();
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-  host.composer.render(tree(120));  // moved: repaints, and the rect follows
-  host.frame();
-  EXPECT_EQ(host.pixel(140, 30), SK_ColorGREEN);
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorBLACK);
-  const auto m = host.composer.bounds("m");
-  ASSERT_TRUE(m);
-  EXPECT_EQ(m->left(), 120);
-}
-
-TEST(ComposePositioned, HitTestAndZOrderSeeChildren) {
-  Host host;
-  host.composer.render(
-      positioned()
-          .inset(0)
-          .children({box()
-                         .key("under")
-                         .left(20)
-                         .top(20)
-                         .width(60)
-                         .height(60)
-                         .fill(Fill::color({1, 0, 0, 1}))
-                         .hitTestable(true),
-                     box()
-                         .key("over")
-                         .left(50)
-                         .top(50)
-                         .width(60)
-                         .height(60)
-                         .zIndex(1)
-                         .fill(green())
-                         .hitTestable(true)}));
-  host.frame();
-  EXPECT_EQ(host.pixel(60, 60), SK_ColorGREEN);  // zIndex 1 paints on top
-  const auto hitOver = host.composer.hitTest({60, 60});
-  const auto hitUnder = host.composer.hitTest({25, 25});
-  ASSERT_TRUE(hitOver && hitUnder);
-  EXPECT_EQ(*hitOver, "over");
-  EXPECT_EQ(*hitUnder, "under");
-}
-
-TEST(ComposePositioned, TogglingPositionedRemountsCleanly) {
-  Host host;
-  auto child = []() {
-    return box().key("c").left(10).top(10).width(30).height(30).fill(green());
-  };
-  host.composer.render(
-      positioned()
-          .inset(0)
-          .children({child()}));
-  host.frame();
-  EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
-  // The same child under a plain box: rejoins the Yoga world.
-  host.composer.render(
-      box()
-          .inset(0)
-          .children({child()}));
-  host.frame();
-  EXPECT_EQ(host.composer.stats().yogaNodes, 2u);
-  EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);  // absolute insets agree
-  // And back again.
-  host.composer.render(
-      positioned()
-          .inset(0)
-          .children({child()}));
-  host.frame();
-  EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
-  EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
+TEST(ComposePositioned,
+     APositionedContainerPlacesItsChildrenByTheirRectangles) {
+  sigil::compose::test::checkRows({
+      {"RectanglesAreHonouredWithoutYoga",
+       [&] {
+         Host host;
+         host.composer.render(positioned().inset(0).children(
+             {box().key("a").left(10).top(20).width(50).height(30).fill(
+                  green()),
+              box().key("b").left(70).top(90).width(40).height(40).fill(
+                  Fill::color({1, 0, 0, 1}))}));
+         host.frame();
+         const auto a = host.composer.bounds("a");
+         const auto b = host.composer.bounds("b");
+         ASSERT_TRUE(a && b);
+         EXPECT_EQ(geometry::path::toSk(*a), SkRect::MakeXYWH(10, 20, 50, 30));
+         EXPECT_EQ(geometry::path::toSk(*b), SkRect::MakeXYWH(70, 90, 40, 40));
+         EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
+         EXPECT_EQ(host.pixel(90, 110), SK_ColorRED);
+         EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);
+         // The whole point: root + container carry Yoga nodes, the leaves do
+         // not.
+         const Composer::Stats& stats = host.composer.stats();
+         EXPECT_EQ(stats.instances, 3u);
+         EXPECT_EQ(stats.yogaNodes, 1u);
+       }},
+      {"NestedRectanglesCompose",
+       [&] {
+         Host host;
+         host.composer.render(positioned().inset(0).children(
+             {box()
+                  .key("outer")
+                  .left(40)
+                  .top(40)
+                  .width(100)
+                  .height(100)
+                  .children(
+                      {box().key("inner").left(10).top(20).width(30).height(
+                          30)})}));
+         host.frame();
+         const auto inner = host.composer.bounds("inner");
+         ASSERT_TRUE(inner);
+         // bounds() is absolute: outer's origin + inner's own rect.
+         EXPECT_EQ(geometry::path::toSk(*inner),
+                   SkRect::MakeXYWH(50, 60, 30, 30));
+         EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
+         EXPECT_EQ(host.composer.stats().instances, 3u);
+       }},
+      {"PercentagesAndOpposingInsetsResolve",
+       [&] {
+         Host host;  // 200x200 canvas; container fills it
+         host.composer.render(
+             positioned()
+                 .inset(0)
+                 // percent dims resolve against the container's rect
+                 .children({box()
+                                .key("half")
+                                .left(0)
+                                .top(0)
+                                .width(percent(50))
+                                .height(percent(25))})
+                 // open width + right inset pins the far edge
+                 .children(
+                     {box().key("pinned").left(20).top(100).right(30).height(
+                         10)}));
+         host.frame();
+         const auto half = host.composer.bounds("half");
+         const auto pinned = host.composer.bounds("pinned");
+         ASSERT_TRUE(half && pinned);
+         EXPECT_EQ(geometry::path::toSk(*half),
+                   SkRect::MakeXYWH(0, 0, 100, 50));
+         EXPECT_EQ(geometry::path::toSk(*pinned),
+                   SkRect::MakeXYWH(20, 100, 150, 10));
+       }},
+      {"TextMeasuresAgainstItsStatedWidth",
+       [&] {
+         Host host;
+         sigil::weave::TextStyle style;
+         style.shaping.fontSize = 14;
+         style.paint.foreground.setColor(SK_ColorWHITE);
+         host.composer.render(positioned().inset(0).children(
+             {text(u8"wrap me across a narrow measure", style)
+                  .key("t")
+                  .left(10)
+                  .top(10)
+                  .width(90)}));
+         host.frame();
+         const auto t = host.composer.bounds("t");
+         ASSERT_TRUE(t);
+         EXPECT_EQ(t->left(), 10);
+         EXPECT_EQ(t->width(), 90);
+         // Height is left open, so it comes from measurement: a wrapped run is
+         // taller than a single line.
+         EXPECT_GT(t->height(), 20.0f);
+       }},
+      {"APruneAndAMoveWork",
+       [&] {
+         Host host;
+         auto tree = [](float x) {
+           return positioned().inset(0).children(
+               {box().key("m").left(x).top(10).width(40).height(40).fill(
+                   green())});
+         };
+         host.composer.render(tree(10));
+         host.frame();
+         host.composer.render(tree(10));  // identical: prune, no cache writes
+         host.frame();
+         EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+         host.composer.render(
+             tree(120));  // moved: repaints, and the rect follows
+         host.frame();
+         EXPECT_EQ(host.pixel(140, 30), SK_ColorGREEN);
+         EXPECT_EQ(host.pixel(30, 30), SK_ColorBLACK);
+         const auto m = host.composer.bounds("m");
+         ASSERT_TRUE(m);
+         EXPECT_EQ(m->left(), 120);
+       }},
+      {"HitTestingAndZOrderSeeTheChildren",
+       [&] {
+         Host host;
+         host.composer.render(positioned().inset(0).children(
+             {box()
+                  .key("under")
+                  .left(20)
+                  .top(20)
+                  .width(60)
+                  .height(60)
+                  .fill(Fill::color({1, 0, 0, 1}))
+                  .hitTestable(true),
+              box()
+                  .key("over")
+                  .left(50)
+                  .top(50)
+                  .width(60)
+                  .height(60)
+                  .zIndex(1)
+                  .fill(green())
+                  .hitTestable(true)}));
+         host.frame();
+         EXPECT_EQ(host.pixel(60, 60),
+                   SK_ColorGREEN);  // zIndex 1 paints on top
+         const auto hitOver = host.composer.hitTest({60, 60});
+         const auto hitUnder = host.composer.hitTest({25, 25});
+         ASSERT_TRUE(hitOver && hitUnder);
+         EXPECT_EQ(*hitOver, "over");
+         EXPECT_EQ(*hitUnder, "under");
+       }},
+      {"AChildMovesBetweenAPositionedAndAFlexParent",
+       [&] {
+         Host host;
+         auto child = []() {
+           return box().key("c").left(10).top(10).width(30).height(30).fill(
+               green());
+         };
+         host.composer.render(positioned().inset(0).children({child()}));
+         host.frame();
+         EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
+         // The same child under a plain box: rejoins the Yoga world.
+         host.composer.render(box().inset(0).children({child()}));
+         host.frame();
+         EXPECT_EQ(host.composer.stats().yogaNodes, 2u);
+         EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);  // absolute insets agree
+         // And back again.
+         host.composer.render(positioned().inset(0).children({child()}));
+         host.frame();
+         EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
+         EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
+       }},
+  });
 }
 
 // ---- the memo carve-outs and the lanes they must not forget ---------------
@@ -198,7 +199,7 @@ TEST(ComposePositioned, TogglingPositionedRemountsCleanly) {
 // This is why the terms are named once and each consumer subtracts from
 // them, rather than each site listing what it cares about.
 
-TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
+TEST(ComposeCache, ALiveEffectMovingOverAHeldLiveMaterialRepaints) {
   // The OTHER memo, same hole: liveMatOnly holds the recording while the
   // MATERIAL's resolved shader pointer is stable, and its refusal list
   // does not mention a live effect either.
@@ -218,14 +219,17 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
     if (!e) ADD_FAILURE() << err.c_str();
     return e;
   }();
-  sigil::motion::Animatable<float> lift = sigil::motion::animatable(0.0f);  // the material's own bound uniform
-  sigil::motion::Animatable<float> amt = sigil::motion::animatable(1.0f);   // the effect's
+  sigil::motion::Animatable<float> lift =
+      sigil::motion::animatable(0.0f);  // the material's own bound uniform
+  sigil::motion::Animatable<float> amt =
+      sigil::motion::animatable(1.0f);  // the effect's
   Host host(200, 200);
-  host.composer.render(box().children(
-      {maskBox()
-           .fill(material::skia::base(material::skia::sksl(matfx).bind("lift", lift)))
-           .filter(material::skia::program(fx, {{"amt", 1.0f}})
-                       .bind("amt", amt))}));
+  host.composer.render(
+      box().children({maskBox()
+                          .fill(material::skia::base(
+                              material::skia::sksl(matfx).bind("lift", lift)))
+                          .filter(material::skia::program(fx, {{"amt", 1.0f}})
+                                      .bind("amt", amt))}));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
@@ -308,154 +312,151 @@ std::shared_ptr<const sigil::media::Image> cutOutQuarter() {
 
 }  // namespace
 
-TEST(ComposeBoundary, CoverageDressesWhatTheSubtreeDrewAndNotTheNodesBox) {
-  // A 100×100 node whose only paint is a child across its top 40px. On the
-  // default boundary its decoration floods the whole box; on the coverage
-  // boundary it floods where the child drew and nowhere else.
-  const auto describe = [](Boundary boundary) {
-    Element node =
-        positioned()
-            .left(20)
-            .top(20)
-            .width(100)
-            .height(100)
-            .children({box().left(0).top(0).width(100).height(40).fill(red())})
-            .foreground(flooding(SK_ColorGREEN));
-    if (boundary != Boundary::Auto) node.decorationOutline(boundary);
-    return positioned()
-        .inset(0)
-        .children({std::move(node)});
-  };
-  Host boxed, drawn;
-  boxed.composer.render(describe(Boundary::Auto));
-  boxed.frame();
-  drawn.composer.render(describe(Boundary::Coverage));
-  drawn.frame();
+TEST(ComposeBoundary, ACoverageBoundaryIsWhatTheNodeAndItsSubtreeDrew) {
+  sigil::compose::test::checkRows({
+      {"WhatTheSubtreeDrewAndNotTheBox",
+       [&] {
+         // A 100×100 node whose only paint is a child across its top 40px. On
+         // the default boundary its decoration floods the whole box; on the
+         // coverage boundary it floods where the child drew and nowhere else.
+         const auto describe = [](Boundary boundary) {
+           Element node =
+               positioned()
+                   .left(20)
+                   .top(20)
+                   .width(100)
+                   .height(100)
+                   .children(
+                       {box().left(0).top(0).width(100).height(40).fill(red())})
+                   .foreground(flooding(SK_ColorGREEN));
+           if (boundary != Boundary::Auto) node.decorationOutline(boundary);
+           return positioned().inset(0).children({std::move(node)});
+         };
+         Host boxed, drawn;
+         boxed.composer.render(describe(Boundary::Auto));
+         boxed.frame();
+         drawn.composer.render(describe(Boundary::Coverage));
+         drawn.frame();
 
-  // Inside the child's band, both flood.
-  EXPECT_EQ(boxed.pixel(70, 40), SK_ColorGREEN);
-  EXPECT_EQ(drawn.pixel(70, 40), SK_ColorGREEN);
-  // Below it — inside the node's box, and where nothing was drawn.
-  EXPECT_EQ(boxed.pixel(70, 100), SK_ColorGREEN);
-  EXPECT_NE(drawn.pixel(70, 100), SK_ColorGREEN);
-}
+         // Inside the child's band, both flood.
+         EXPECT_EQ(boxed.pixel(70, 40), SK_ColorGREEN);
+         EXPECT_EQ(drawn.pixel(70, 40), SK_ColorGREEN);
+         // Below it — inside the node's box, and where nothing was drawn.
+         EXPECT_EQ(boxed.pixel(70, 100), SK_ColorGREEN);
+         EXPECT_NE(drawn.pixel(70, 100), SK_ColorGREEN);
+       }},
+      {"AnImagesAlphaCutOut",
+       [&] {
+         // The mechanism the glyph boundary cannot reach: the image fills its
+         // node's box, and a quarter of that box is all it makes opaque.
+         const auto describe = [](Boundary boundary) {
+           Element node = image(cutOutQuarter())
+                              .left(20)
+                              .top(20)
+                              .width(100)
+                              .height(100)
+                              .foreground(flooding(SK_ColorGREEN));
+           if (boundary != Boundary::Auto) node.decorationOutline(boundary);
+           return positioned().inset(0).children({std::move(node)});
+         };
+         Host boxed, drawn;
+         boxed.composer.render(describe(Boundary::Auto));
+         boxed.frame();
+         drawn.composer.render(describe(Boundary::Coverage));
+         drawn.frame();
 
-TEST(ComposeBoundary, CoverageFollowsAnImagesAlphaCutOut) {
-  // The mechanism the glyph boundary cannot reach: the image fills its
-  // node's box, and a quarter of that box is all it makes opaque.
-  const auto describe = [](Boundary boundary) {
-    Element node = image(cutOutQuarter())
-                       .left(20)
-                       .top(20)
-                       .width(100)
-                       .height(100)
-                       .foreground(flooding(SK_ColorGREEN));
-    if (boundary != Boundary::Auto) node.decorationOutline(boundary);
-    return positioned()
-        .inset(0)
-        .children({std::move(node)});
-  };
-  Host boxed, drawn;
-  boxed.composer.render(describe(Boundary::Auto));
-  boxed.frame();
-  drawn.composer.render(describe(Boundary::Coverage));
-  drawn.frame();
+         EXPECT_EQ(boxed.pixel(40, 40), SK_ColorGREEN);  // the opaque quarter
+         EXPECT_EQ(drawn.pixel(40, 40), SK_ColorGREEN);
+         EXPECT_EQ(boxed.pixel(100, 100), SK_ColorGREEN);  // the cut-out
+         EXPECT_NE(drawn.pixel(100, 100), SK_ColorGREEN);
+       }},
+      {"TheThresholdIsHowMuchPaintCountsAsInk",
+       [&] {
+         // Two bands under one node: one opaque, one a wash. The tolerance is
+         // the whole of what decides whether the wash is silhouette.
+         const auto describe = [](float threshold) {
+           Element node =
+               positioned()
+                   .left(20)
+                   .top(20)
+                   .width(100)
+                   .height(100)
+                   .children(
+                       {box().left(0).top(0).width(100).height(40).fill(red()),
+                        box()
+                            .left(0)
+                            .top(60)
+                            .width(100)
+                            .height(40)
+                            .fill(red())
+                            .opacity(0.3f)})
+                   .foreground(flooding(SK_ColorGREEN))
+                   .decorationOutline(Boundary::Coverage,
+                                      threshold > 0 ? threshold : 0.5f);
+           return positioned().inset(0).children({std::move(node)});
+         };
+         Host strict, lenient;
+         strict.composer.render(describe(0));  // the default: half the pixel
+         strict.frame();
+         lenient.composer.render(describe(0.2f));
+         lenient.frame();
 
-  EXPECT_EQ(boxed.pixel(40, 40), SK_ColorGREEN);  // the opaque quarter
-  EXPECT_EQ(drawn.pixel(40, 40), SK_ColorGREEN);
-  EXPECT_EQ(boxed.pixel(100, 100), SK_ColorGREEN);  // the cut-out
-  EXPECT_NE(drawn.pixel(100, 100), SK_ColorGREEN);
-}
-
-TEST(ComposeBoundary, TheThresholdIsHowMuchPaintCountsAsInk) {
-  // Two bands under one node: one opaque, one a wash. The tolerance is the
-  // whole of what decides whether the wash is silhouette.
-  const auto describe = [](float threshold) {
-    Element node =
-        positioned()
-            .left(20)
-            .top(20)
-            .width(100)
-            .height(100)
-            .children({box().left(0).top(0).width(100).height(40).fill(red()),
-                       box()
-                           .left(0)
-                           .top(60)
-                           .width(100)
-                           .height(40)
-                           .fill(red())
-                           .opacity(0.3f)})
-            .foreground(flooding(SK_ColorGREEN))
-            .decorationOutline(Boundary::Coverage,
-                               threshold > 0 ? threshold : 0.5f);
-    return positioned()
-        .inset(0)
-        .children({std::move(node)});
-  };
-  Host strict, lenient;
-  strict.composer.render(describe(0));  // the default: half the pixel
-  strict.frame();
-  lenient.composer.render(describe(0.2f));
-  lenient.frame();
-
-  // The opaque band is ink under either tolerance.
-  EXPECT_EQ(strict.pixel(70, 40), SK_ColorGREEN);
-  EXPECT_EQ(lenient.pixel(70, 40), SK_ColorGREEN);
-  // The wash is ink only under the lower one.
-  EXPECT_NE(strict.pixel(70, 100), SK_ColorGREEN);
-  EXPECT_EQ(lenient.pixel(70, 100), SK_ColorGREEN);
-}
-
-TEST(ComposeBoundary, AZeroThresholdIsAnyInkAndNotTheWholeBox) {
-  // Zero is a legal tolerance and the most permissive one: every pixel the
-  // node put any paint at all into is silhouette. What it must not become
-  // is the node's box — a pixel no paint reached is outside the boundary
-  // whatever the tolerance says, and a trace that answered the box would
-  // silently undo the whole boundary.
-  Host host;
-  host.composer.render(
-      positioned()
-          .inset(0)
-          .children({positioned()
-                         .left(20)
-                         .top(20)
-                         .width(100)
-                         .height(100)
-                         .decorationOutline(Boundary::Coverage, 0.0f)
-                         // Half the box drawn, at an alpha well
-                         // under the default tolerance: ink under
-                         // this threshold and under no other.
-                         .children({box()
-                                        .left(0)
-                                        .top(0)
-                                        .width(100)
-                                        .height(40)
-                                        .fill(red())
-                                        .opacity(0.1f)})
-                         .foreground(flooding(SK_ColorGREEN))}));
-  host.frame();
-  // The faint band is silhouette…
-  EXPECT_EQ(host.pixel(70, 40), SK_ColorGREEN);
-  // …and the empty half of the box is not.
-  EXPECT_NE(host.pixel(70, 100), SK_ColorGREEN);
-}
-
-TEST(ComposeBoundary, ANodeThatDrewNothingKeepsItsShapeUnderCoverage) {
-  // A node whose own marks are all it paints has no silhouette to trace —
-  // the marks are what dress the boundary and are never in it — so the
-  // boundary falls back to the node's shape rather than vanishing.
-  Host host;
-  host.composer.render(
-      positioned()
-          .inset(0)
-          .children({positioned()
-                         .left(20)
-                         .top(20)
-                         .width(100)
-                         .height(100)
-                         .decorationOutline(Boundary::Coverage)
-                         .foreground(flooding(SK_ColorGREEN))}));
-  host.frame();
-  EXPECT_EQ(host.pixel(70, 70), SK_ColorGREEN);
-  EXPECT_NE(host.pixel(10, 10), SK_ColorGREEN);
+         // The opaque band is ink under either tolerance.
+         EXPECT_EQ(strict.pixel(70, 40), SK_ColorGREEN);
+         EXPECT_EQ(lenient.pixel(70, 40), SK_ColorGREEN);
+         // The wash is ink only under the lower one.
+         EXPECT_NE(strict.pixel(70, 100), SK_ColorGREEN);
+         EXPECT_EQ(lenient.pixel(70, 100), SK_ColorGREEN);
+       }},
+      {"AZeroThresholdIsAnyInkAndNotTheWholeBox",
+       [&] {
+         // Zero is a legal tolerance and the most permissive one: every pixel
+         // the node put any paint at all into is silhouette. What it must not
+         // become is the node's box — a pixel no paint reached is outside the
+         // boundary whatever the tolerance says, and a trace that answered the
+         // box would silently undo the whole boundary.
+         Host host;
+         host.composer.render(positioned().inset(0).children(
+             {positioned()
+                  .left(20)
+                  .top(20)
+                  .width(100)
+                  .height(100)
+                  .decorationOutline(Boundary::Coverage, 0.0f)
+                  // Half the box drawn, at an alpha well
+                  // under the default tolerance: ink under
+                  // this threshold and under no other.
+                  .children({box()
+                                 .left(0)
+                                 .top(0)
+                                 .width(100)
+                                 .height(40)
+                                 .fill(red())
+                                 .opacity(0.1f)})
+                  .foreground(flooding(SK_ColorGREEN))}));
+         host.frame();
+         // The faint band is silhouette…
+         EXPECT_EQ(host.pixel(70, 40), SK_ColorGREEN);
+         // …and the empty half of the box is not.
+         EXPECT_NE(host.pixel(70, 100), SK_ColorGREEN);
+       }},
+      {"ANodeThatDrewNothingKeepsItsShape",
+       [&] {
+         // A node whose own marks are all it paints has no silhouette to trace
+         // — the marks are what dress the boundary and are never in it — so the
+         // boundary falls back to the node's shape rather than vanishing.
+         Host host;
+         host.composer.render(positioned().inset(0).children(
+             {positioned()
+                  .left(20)
+                  .top(20)
+                  .width(100)
+                  .height(100)
+                  .decorationOutline(Boundary::Coverage)
+                  .foreground(flooding(SK_ColorGREEN))}));
+         host.frame();
+         EXPECT_EQ(host.pixel(70, 70), SK_ColorGREEN);
+         EXPECT_NE(host.pixel(10, 10), SK_ColorGREEN);
+       }},
+  });
 }

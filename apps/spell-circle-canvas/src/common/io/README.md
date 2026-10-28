@@ -298,7 +298,7 @@ count and truncating it would read a different file.
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under: one
 `io_test` over every feature's `test/` and one `io_bench`, ctest one
-entry per CASE, what a case may pin, and what a label promises. What is
+entry per SUITE, what a case may pin, and what a label promises. What is
 only true of SigilIO:
 
 Targets: `SigilIOSource` (`source/` — headers, the archive source, and

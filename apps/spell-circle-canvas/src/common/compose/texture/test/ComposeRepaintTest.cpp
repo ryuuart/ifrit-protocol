@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "support/Host.h"
+#include "support/Rows.h"
 #include "support/SurfaceSceneFixture.h"
 
 namespace {
@@ -115,63 +116,69 @@ int differing(const SkBitmap& a, const SkBitmap& b) {
 
 }  // namespace
 
-TEST(ComposeRepaint, TheRegionIsWhereAChangedNodeStandsAndNothingWhenStill) {
-  Host host(200, 200);
-  host.composer.setSurfaceMap(Role::BaseColor);
-  host.composer.render(twoSquares({.9f, .1f, .1f, 1}));
-  // Nothing has been kept yet, so the first draw is the whole canvas.
-  EXPECT_FALSE(host.composer.changedRegion().has_value());
-  host.frame();
+TEST(ComposeRepaint, TheChangedRegionHoldsWhereAChangedNodeStoodAndStands) {
+  sigil::compose::test::checkRows({
+      {"AChangedNodeAndNothingWhenStill",
+       [&] {
+         Host host(200, 200);
+         host.composer.setSurfaceMap(Role::BaseColor);
+         host.composer.render(twoSquares({.9f, .1f, .1f, 1}));
+         // Nothing has been kept yet, so the first draw is the whole canvas.
+         EXPECT_FALSE(host.composer.changedRegion().has_value());
+         host.frame();
 
-  host.composer.render(twoSquares({.9f, .1f, .1f, 1}));
-  const auto still = host.composer.changedRegion();
-  ASSERT_TRUE(still.has_value());
-  EXPECT_TRUE(still->empty());
-  host.frame();
+         host.composer.render(twoSquares({.9f, .1f, .1f, 1}));
+         const auto still = host.composer.changedRegion();
+         ASSERT_TRUE(still.has_value());
+         EXPECT_TRUE(still->empty());
+         host.frame();
 
-  host.composer.render(twoSquares({.1f, .1f, .9f, 1}));
-  const auto changed = host.composer.changedRegion();
-  ASSERT_TRUE(changed.has_value());
-  ASSERT_EQ(changed->size(), 1u);
-  const SkRect region = geometry::path::toSk(changed->front());
-  EXPECT_TRUE(region.contains(SkRect::MakeXYWH(10, 10, 30, 30)));
-  EXPECT_FALSE(region.intersects(SkRect::MakeXYWH(100, 100, 50, 50)));
-  host.frame();
-  EXPECT_TRUE(host.composer.drewWithinChangedRegion());
+         host.composer.render(twoSquares({.1f, .1f, .9f, 1}));
+         const auto changed = host.composer.changedRegion();
+         ASSERT_TRUE(changed.has_value());
+         ASSERT_EQ(changed->size(), 1u);
+         const SkRect region = geometry::path::toSk(changed->front());
+         EXPECT_TRUE(region.contains(SkRect::MakeXYWH(10, 10, 30, 30)));
+         EXPECT_FALSE(region.intersects(SkRect::MakeXYWH(100, 100, 50, 50)));
+         host.frame();
+         EXPECT_TRUE(host.composer.drewWithinChangedRegion());
 
-  // A composer that bakes pixels cuts its bakes to the clip they were
-  // taken under, so it answers the whole canvas.
-  host.composer.setSurfaceMap(std::nullopt);
-  host.frame();
-  host.composer.render(twoSquares({.1f, .9f, .1f, 1}));
-  EXPECT_FALSE(host.composer.changedRegion().has_value());
-}
-
-TEST(ComposeRepaint, AMovedNodeChangesWhereItStoodAndWhereItStands) {
-  Host host(200, 200);
-  host.composer.setSurfaceMap(Role::BaseColor);
-  const auto at = [](float left) {
-    return box().width(200).height(200).children(
-        {box()
-             .absolute()
-             .rect(left, 20, 20, 20)
-             .fill(material::Color{1, 1, 1, 1})});
-  };
-  host.composer.render(at(10));
-  EXPECT_FALSE(host.composer.changedRegion().has_value());
-  host.frame();
-  host.composer.render(at(150));
-  const auto changed = host.composer.changedRegion();
-  ASSERT_TRUE(changed.has_value());
-  // Where it stood and where it stands are two parts, not the span between.
-  ASSERT_EQ(changed->size(), 2u);
-  const auto holds = [&](SkRect rect) {
-    for (const geometry::path::Rect& part : *changed)
-      if (geometry::path::toSk(part).contains(rect)) return true;
-    return false;
-  };
-  EXPECT_TRUE(holds(SkRect::MakeXYWH(10, 20, 20, 20)));
-  EXPECT_TRUE(holds(SkRect::MakeXYWH(150, 20, 20, 20)));
+         // A composer that bakes pixels cuts its bakes to the clip they were
+         // taken under, so it answers the whole canvas.
+         host.composer.setSurfaceMap(std::nullopt);
+         host.frame();
+         host.composer.render(twoSquares({.1f, .9f, .1f, 1}));
+         EXPECT_FALSE(host.composer.changedRegion().has_value());
+       }},
+      {"AMovedNodeWhereItStoodAndWhereItStands",
+       [&] {
+         Host host(200, 200);
+         host.composer.setSurfaceMap(Role::BaseColor);
+         const auto at = [](float left) {
+           return box().width(200).height(200).children(
+               {box()
+                    .absolute()
+                    .rect(left, 20, 20, 20)
+                    .fill(material::Color{1, 1, 1, 1})});
+         };
+         host.composer.render(at(10));
+         EXPECT_FALSE(host.composer.changedRegion().has_value());
+         host.frame();
+         host.composer.render(at(150));
+         const auto changed = host.composer.changedRegion();
+         ASSERT_TRUE(changed.has_value());
+         // Where it stood and where it stands are two parts, not the span
+         // between.
+         ASSERT_EQ(changed->size(), 2u);
+         const auto holds = [&](SkRect rect) {
+           for (const geometry::path::Rect& part : *changed)
+             if (geometry::path::toSk(part).contains(rect)) return true;
+           return false;
+         };
+         EXPECT_TRUE(holds(SkRect::MakeXYWH(10, 20, 20, 20)));
+         EXPECT_TRUE(holds(SkRect::MakeXYWH(150, 20, 20, 20)));
+       }},
+  });
 }
 
 TEST(ComposeRepaint, APageRepaintedInRegionsIsThePageDrawnWhole) {
